@@ -1,0 +1,393 @@
+{
+  "dialogues": {
+    "intro_box_garage": {
+      "speaker_id": "karim",
+      "speaker_name": "Karim — Box-Garage",
+      "text": "17 h 30 sous la Dalle. Le néon grésille déjà. Karim tape du pied sur la caisse à outils pendant que Nadia recale l'antenne du radiocassette.\n\n« Gros, on vient de croiser un gars de la MJC : les gros bras du S.O. municipal sont devant Le Galaxian avec des Skins. Ils veulent coller un couvre-feu sur le bourg dès ce soir ! »",
+      "choices": [
+        {
+          "label": "« On embarque les mobs et on va voir ça devant Le Galaxian. »",
+          "tag": "Départ immédiat",
+          "effects": {
+            "set_flag": { "intro_done": true },
+            "unlock_clue": "Descente du S.O. municipal signalée devant Le Galaxian."
+          },
+          "next": "intro_box_garage_2"
+        },
+        {
+          "label": "« Avant de bouger, on vérifie les blousons et l'argent de poche. »",
+          "tag": "Préparation FASA",
+          "effects": {
+            "set_flag": { "intro_done": true, "checked_gear": true },
+            "fasa_bonus": 1,
+            "unlock_clue": "Blouson réglé au Box-Garage (+1 FASA)."
+          },
+          "next": "intro_box_garage_2"
+        }
+      ]
+    },
+    "intro_box_garage_2": {
+      "speaker_id": "nadia",
+      "speaker_name": "Nadia — La Fréquence",
+      "text": "« Filez au Galaxian pour voir ce qu'ils ont affiché. Et oubliez pas : si ça chauffe dans plusieurs coins de Cradon avant la nuit, on peut scinder la bande (2+1 ou 1+1+1) avec le panneau à droite, et sauter d'un pote à l'autre avec les touches 1, 2, 3. »",
+      "choices": [
+        {
+          "label": "Aller au Galaxian maintenant",
+          "tag": "Vieux Bourg",
+          "effects": {
+            "move_to": "galaxian"
+          },
+          "next": ""
+        },
+        {
+          "label": "Rester encore une minute au Box-Garage",
+          "tag": "Explorer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "box_garage_mobs": {
+      "speaker_id": "leader",
+      "speaker_name": "Établi & Peugeot 103 SP",
+      "text": "Deux 103 SP posées sur béquille, bidon de mélange 2-temps à moitié plein et un vieux Perfecto accroché à un clou.",
+      "choices": [
+        {
+          "label": "Mettre la main au cambouis pour graisser la chaîne et régler l'avance",
+          "tag": "Système D • +Moral",
+          "conditions": { "require_not_flag": "mobs_tuned" },
+          "effects": {
+            "set_flag": { "mobs_tuned": true },
+            "moral": { "all": 5 },
+            "unlock_clue": "103 SP réglées : renforts plus vifs en ville."
+          },
+          "next": ""
+        },
+        {
+          "label": "Enfiler les badges et relever le col du blouson (+1 FASA)",
+          "tag": "Look / FASA",
+          "conditions": { "require_not_flag": "checked_gear" },
+          "effects": {
+            "set_flag": { "checked_gear": true },
+            "fasa_bonus": 1
+          },
+          "next": ""
+        },
+        {
+          "label": "Laisser tel quel",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "box_garage_radio": {
+      "speaker_id": "nadia",
+      "speaker_name": "Radiocassette du QG",
+      "text": "Nadia a tiré un fil de cuivre jusqu'au soupirail : les 5 fréquences de Cradon-lès-Gonesse passent net depuis le panneau FM à droite. En plein jour, la 104.7 n'émet qu'un souffle blanc — mais dès que la nuit tombera, écoute bien.",
+      "choices": [
+        {
+          "label": "Noté.",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "galaxian_notice": {
+      "speaker_id": "karim",
+      "speaker_name": "Devant Le Galaxian",
+      "text": "Sur la vitre, un arrêté municipal mal tapé à la machine interdit tout rassemblement de mineurs après 20 h au Galaxian et à la MJC. Le tampon municipal paraît baveux, presque antidaté.\n\nParle à Ludo juste à côté du Space Invader : il a l'air de savoir qui a posé ce papier.",
+      "choices": [
+        {
+          "label": "Décoller discrètement un coin de l'affiche pour examiner le tampon",
+          "tag": "Indice",
+          "conditions": { "require_not_flag": "inspected_notice" },
+          "effects": {
+            "set_flag": { "inspected_notice": true },
+            "unlock_clue": "Arrêté de fermeture du Galaxian antidaté — le double original est à la Tour B ou chez le taulier du Relais."
+          },
+          "next": ""
+        },
+        {
+          "label": "Laisser l'affiche en place",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "galaxian_ludo": {
+      "speaker_id": "ludo",
+      "speaker_name": "Ludo — Le Caméléon",
+      "text": "Ludo lâche la poignée du flipper et baisse la voix : « C'est mon cousin qui tourne ce soir avec les gros bras du S.O. municipal et deux Skins nerveux. Si on laisse passer ça, demain ils bouclent la MJC et fouillent les caves. »\n\nIl énumère trois pistes urgentes avant le crépuscule :\n1) La loge de la **Tour B** (la concierge retient des plis de la mairie — boulot de **Nadia**).\n2) **Chez Bébert** : **Franck** boit avec un ancien cheminot qui pèse lourd en **Faveur**.\n3) La **Ruelle du Relais Municipal** : Ludo t'y attend pour voir s'il tente d'embrouiller son cousin.",
+      "choices": [
+        {
+          "label": "« OK, on se répartit les pistes avant que la nuit tombe ! »",
+          "tag": "Débloque l'enquête scindée",
+          "effects": {
+            "set_flag": { "galaxian_briefed": true },
+            "unlock_clue": "3 pistes de jour : Tour B (Nadia), Chez Bébert (Franck), Ruelle du Relais (Ludo)."
+          },
+          "next": ""
+        }
+      ]
+    },
+    "galaxian_flipper": {
+      "speaker_id": "leader",
+      "speaker_name": "Space Invader",
+      "text": "La borne clignote dans un bourdonnement électrique. Une partie à 5 Francs ferait retomber la pression de la bande.",
+      "choices": [
+        {
+          "label": "Glisser une pièce de 5 F et faire péter le score",
+          "tag": "-5 F • +Moral",
+          "conditions": { "min_francs": 5, "require_not_flag": "played_flipper" },
+          "effects": {
+            "francs": -5,
+            "set_flag": { "played_flipper": true },
+            "moral": { "all": 8 }
+          },
+          "next": ""
+        },
+        {
+          "label": "Garder ses sous",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "tour_b_concierge": {
+      "speaker_id": "nadia",
+      "speaker_name": "Loge de la Tour B",
+      "text": "La Concierge-Cerbère trie le courrier derrière sa vitre entrebaîllée. Juste devant elle : le double de l'arrêté municipal et le trousseau menant aux chaufferies vers la gare. La tante de Nadia discute dans le couloir...",
+      "choices": [
+        {
+          "label": "[Nadia] Couper le fusible du tableau électrique du hall (ruse Système D)",
+          "tag": "Nadia requise • Sans griller la famille",
+          "conditions": { "require_member": "nadia", "require_not_flag": "tour_b_done" },
+          "effects": {
+            "set_flag": { "tour_b_done": true, "has_caves_key": true },
+            "faveurs": 1,
+            "unlock_clue": "Clé des chaufferies + double de l'arrêté récupérés sans alerter la tante de Nadia."
+          },
+          "next": "tour_b_success"
+        },
+        {
+          "label": "Tenter un baratin frontal devant la vitre (risque familial)",
+          "tag": "FAVE • Perte de Moral",
+          "conditions": { "require_not_flag": "tour_b_done" },
+          "effects": {
+            "set_flag": { "tour_b_done": true, "has_caves_key": true },
+            "notoriete": 1,
+            "moral": { "nadia": -10, "leader": -5 },
+            "unlock_clue": "Double de l'arrêté récupéré dans le hall — mais la concierge a prévenu sa tante."
+          },
+          "next": "tour_b_success"
+        },
+        {
+          "label": "Revenir avec Nadia ou préparer un autre angle",
+          "tag": "Plus tard",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "tour_b_success": {
+      "speaker_id": "nadia",
+      "speaker_name": "Hall Tour B",
+      "text": "L'enveloppe est dans la poche : le papier porte une signature antidatée du cabinet du maire, et la clé ouvre la porte des chaufferies jusqu'aux abords de la Gare RER « du Y ».",
+      "choices": [
+        {
+          "label": "Continuer",
+          "tag": "OK",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "chez_bebert_franck": {
+      "speaker_id": "franck",
+      "speaker_name": "Franck — Chez Bébert",
+      "text": "Au comptoir en formica, Franck tape l'épaule d'un ancien cheminot des Vieux de la Rouge : « On peut faire sauter leur arrêté bidon demain devant le préfet — mais il faut que quelqu'un nous rende un vrai coup de main ou paie sa dette de quartier. »\n\nSoudain, deux gars du S.O. passent devant la vitrine en toisant le bistrot : Karim serre la mâchoire à blanc.",
+      "choices": [
+        {
+          "label": "Payer la tournée au comptoir pour sceller l'accord",
+          "tag": "-10 F • +1 Faveur",
+          "conditions": { "min_francs": 10, "require_not_flag": "bebert_done" },
+          "effects": {
+            "francs": -10,
+            "faveurs": 1,
+            "set_flag": { "bebert_done": true },
+            "moral": { "karim": -18 },
+            "unlock_clue": "Faveur obtenue chez Bébert auprès de Franck & des cheminots. Le S.O. a chauffé Karim."
+          },
+          "next": "chez_bebert_so_pass"
+        },
+        {
+          "label": "Promettre de relayer les tracts du piquet de Citroën Aulnay",
+          "tag": "Solidarité • +1 Faveur / +1 Notoriété",
+          "conditions": { "require_not_flag": "bebert_done" },
+          "effects": {
+            "faveurs": 1,
+            "notoriete": 1,
+            "set_flag": { "bebert_done": true, "promised_citroen": true },
+            "moral": { "karim": -18, "leader": 4 },
+            "unlock_clue": "Faveur scellée avec Franck contre relais des tracts Citroën."
+          },
+          "next": "chez_bebert_so_pass"
+        },
+        {
+          "label": "Dépanner la mobylette du fils du patron dans la cour",
+          "tag": "Système D • Gratuit / +1 Faveur",
+          "conditions": { "require_flag": "mobs_tuned", "require_not_flag": "bebert_done" },
+          "effects": {
+            "faveurs": 1,
+            "set_flag": { "bebert_done": true },
+            "moral": { "karim": -14 },
+            "unlock_clue": "Dépannage express chez Bébert : Faveur gagnée sans lâcher un centime !"
+          },
+          "next": "chez_bebert_so_pass"
+        },
+        {
+          "label": "Laisser Franck finir son demi",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "chez_bebert_so_pass": {
+      "speaker_id": "karim",
+      "speaker_name": "Karim — Coup de chaud",
+      "text": "Les deux mecs du S.O. crachent sur le caniveau en riant sous cape : « À 20 h, on ferme vos salles de clochards. »\nKarim a les mains qui tremblent : son Moral vient de chuter dangereusement près du seuil de Crise d'autonomie.",
+      "choices": [
+        {
+          "label": "Noté — faut garder un œil sur Karim ce soir.",
+          "tag": "Compris",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "ruelle_ludo": {
+      "speaker_id": "ludo",
+      "speaker_name": "Ludo — Ruelle du Relais Municipal",
+      "text": "Planqué près des poubelles en fer, Ludo guette l'Estafette municipale : « Mon cousin sort du bistrot dans deux minutes. Si j'y vais au baratin, j'peux lui mettre le doute — mais si ça fuite vers les gars de la Dalle, Karim va m'avoir dans le collimateur. »",
+      "choices": [
+        {
+          "label": "« Vas-y, bluffe ton cousin. On assume le risque ensemble. »",
+          "tag": "Affaiblit le S.O. à la Gare / Tension Karim ↔ Ludo",
+          "conditions": { "require_not_flag": "ruelle_done" },
+          "effects": {
+            "set_flag": { "ruelle_done": true, "ludo_bluffed_cousin": true },
+            "moral": { "karim": -6, "ludo": -6 },
+            "unlock_clue": "Ludo a semé le doute chez son cousin S.O. (mais Karim s'en méfie)."
+          },
+          "next": ""
+        },
+        {
+          "label": "« Joue plutôt le guetteur vers le passage du Y et ne te mouille pas encore. »",
+          "tag": "Prudent • Guetteur nocturne",
+          "conditions": { "require_not_flag": "ruelle_done" },
+          "effects": {
+            "set_flag": { "ruelle_done": true, "ludo_guetteur": true },
+            "unlock_clue": "Ludo couvre les abords du souterrain vers la gare RER « du Y »."
+          },
+          "next": ""
+        },
+        {
+          "label": "Attendre avant de trancher",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "gare_rer_trigger": {
+      "speaker_id": "leader",
+      "speaker_name": "Gare RER « du Y »",
+      "text": "Le vent balaie le quai surélevé entre la branche Roissy et la branche Mitry. En plein jour, seuls quelques voyageurs pressés attendent un train capricieux — mais c'est ce soir après le crépuscule que le S.O. verrouille le passage.",
+      "choices": [
+        {
+          "label": "[Nuit] Franchir le souterrain pour forcer le passage !",
+          "tag": "Lance la Frise Chronologique",
+          "conditions": { "require_phase": "night" },
+          "effects": {
+            "start_encounter": "encounter_gare_y"
+          },
+          "next": ""
+        },
+        {
+          "label": "[Jour] Boucler l'enquête d'abord, ou déclencher le crépuscule",
+          "tag": "Passer au Crépuscule maintenant",
+          "conditions": { "require_phase": "day" },
+          "effects": {
+            "trigger_twilight": true
+          },
+          "next": ""
+        },
+        {
+          "label": "Observer encore les voies",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "box_garage_debrief": {
+      "speaker_id": "nadia",
+      "speaker_name": "Box-Garage — Tard dans la nuit",
+      "text": "Le rideau métallique retombe derrière vous. Sous la lumière orange du néon, le silence du box contraste avec les gyrophares restés du côté de la gare du Y. Karim s'effondre sur le canapé skaï, le souffle court.\n\nPendant trois secondes nettes, le radiocassette grésille tout seul sur **104.7 FM** : « ...cette nuit encore, personne n'a trouvé Cradon sur la carte... » puis retombe dans le souffle blanc.",
+      "choices": [
+        {
+          "label": "Prendre le temps de recadrer et soutenir Karim avant de dormir (+Moral)",
+          "tag": "Cohésion",
+          "effects": {
+            "moral": { "karim": 18, "all": 8 },
+            "set_flag": { "karim_debriefed": true }
+          },
+          "next": "box_garage_debrief_ludo"
+        },
+        {
+          "label": "Laisser chacun digérer en silence dans son coin (fissure ouverte)",
+          "tag": "Tension",
+          "effects": {
+            "moral": { "karim": -4 },
+            "set_flag": { "karim_fissure": true }
+          },
+          "next": "box_garage_debrief_ludo"
+        }
+      ]
+    },
+    "box_garage_debrief_ludo": {
+      "speaker_id": "ludo",
+      "speaker_name": "Rideau du Box-Garage",
+      "text": "On frappe trois coups discrets sur la tôle : c'est **Ludo**, avec une caisse de bières tièdes et deux tuyaux sur les mouvements du S.O. pour demain.\nKarim relève la tête avec méfiance : « T'es sûr de vouloir le faire rentrer ici ? Son cousin porte leur blouson... »",
+      "choices": [
+        {
+          "label": "Ouvrir la porte du Box-Garage et recruter Ludo dans la bande",
+          "tag": "Recrutement • Friction Karim ↔ Ludo",
+          "effects": {
+            "recruit": "ludo",
+            "notoriete": 1,
+            "moral": { "karim": -6 },
+            "set_flag": { "ludo_recruited": true },
+            "finish_slice": true
+          },
+          "next": ""
+        },
+        {
+          "label": "Le remercier dehors pour ce soir : qu'il prouve sa loyauté demain",
+          "tag": "Prudence • Garde le trio soudé",
+          "effects": {
+            "faveurs": 1,
+            "set_flag": { "ludo_kept_outside": true },
+            "finish_slice": true
+          },
+          "next": ""
+        }
+      ]
+    }
+  }
+}

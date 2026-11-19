@@ -1,0 +1,74 @@
+{
+  "stations": [
+    {
+      "freq": "92.4 FM",
+      "name": "Radio Béton Libre",
+      "style": "MJC / Rock alternatif & grèves",
+      "night_only": false,
+      "base_tone_hz": 196.0,
+      "day_lines": [
+        "92.4 FM — « Ici Radio Béton Libre ! Rassemblement de soutien demain devant Citroën Aulnay, ramenez des thermos ! »",
+        "92.4 FM — « Concert des Kepons du Canal ce samedi si le service d'ordre municipal arrête de coller des scellés bidon... »"
+      ],
+      "night_lines": [
+        "92.4 FM — « Flash soir : descente signalée près du Galaxian et patrouilles vers la gare du Y. Rentrez pas seuls par le canal. »"
+      ]
+    },
+    {
+      "freq": "95.8 FM",
+      "name": "Canal Rockab' & Chrome",
+      "style": "Rockabilly 50s & mobylettes",
+      "night_only": false,
+      "base_tone_hz": 220.0,
+      "day_lines": [
+        "95.8 FM — « Spéciale dédicace aux Bananes du Garage qui bricolent des carbus de 103 SP à l'huile de coude ! »",
+        "95.8 FM — « Gene Vincent à fond dans le casque — et oubliez pas de graisser la chaîne avant la pluie. »"
+      ],
+      "night_lines": [
+        "95.8 FM — « Dernière bande de nuit : si vous croisez des blousons du Relais Municipal, gardez vos clés de mob au chaud. »"
+      ]
+    },
+    {
+      "freq": "98.6 FM",
+      "name": "Fréquence Dalle / Smurf",
+      "style": "Électro-funk & premiers B-Boys",
+      "night_only": false,
+      "base_tone_hz": 246.9,
+      "day_lines": [
+        "98.6 FM — « Big up aux gars de la Tour B ! On sort le carton devant l'allée 4 dès qu'il arrête de bruiner ! »",
+        "98.6 FM — « Ghetto-blaster chargé à bloc, piles neuves de chez Mamadou : ce soir ça smurfe ou ça pète ! »"
+      ],
+      "night_lines": [
+        "98.6 FM — « Les lumières de la Dalle s'éteignent une par une... Gardez le moral les frérots, la rue écoute. »"
+      ]
+    },
+    {
+      "freq": "101.2 FM",
+      "name": "Infos Nationales / Banlieue",
+      "style": "Bulletin officiel 1982–84",
+      "night_only": false,
+      "base_tone_hz": 164.8,
+      "day_lines": [
+        "101.2 FM — « Trafic perturbé sur le RER B Nord suite aux travaux d'interconnexion entre Aulnay et Villepinte... »",
+        "101.2 FM — « Le maire rappelle que tout attroupement nocturne devant la salle de jeux et la MJC fera l'objet de contrôles. »"
+      ],
+      "night_lines": [
+        "101.2 FM — « Avis RATP : plusieurs rames circulent sans arrêt commercial au niveau de la bifurcation nord après 22 heures. »"
+      ]
+    },
+    {
+      "freq": "104.7 FM",
+      "name": "La Fréquence Fantôme",
+      "style": "Onde pirate nocturne ambiguë",
+      "night_only": true,
+      "base_tone_hz": 138.6,
+      "day_lines": [
+        "104.7 FM — [Souffle blanc épais... Aucun émetteur détecté sur la plaine de France en plein jour.]"
+      ],
+      "night_lines": [
+        "104.7 FM — « ...vous croyez connaître Cradon-lès-Gonesse, mais qui a dessiné l'arrêt entre Aulnay et Sevran ? ... »",
+        "104.7 FM — « ...ne laissez pas celui qui serre les poings rester seul devant la gare du Y. Quelqu'un regarde les horloges reculer... »"
+      ]
+    }
+  ]
+}

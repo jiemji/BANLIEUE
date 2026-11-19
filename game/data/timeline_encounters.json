@@ -1,0 +1,87 @@
+{
+  "encounters": {
+    "encounter_gare_y": {
+      "id": "encounter_gare_y",
+      "title": "Gare RER « du Y » — Souterrain & Quai Nocturne",
+      "location_id": "gare_rer_y",
+      "intro_text": "22 h 15. À la sortie du souterrain, deux gros bras du S.O. municipal et un Skin bloquent l'escalier du quai. Au bout de l'avenue, des bottes et des gyrophares CRS approchent à grand pas.",
+      "crs_start_ticks": 4,
+      "train_fantome_turn": 3,
+      "enemies": [
+        {
+          "id": "skin_nerveux",
+          "name": "Skin du Bourg",
+          "role": "Agitateur FASA",
+          "resolve_max": 3,
+          "initial_tick": 1,
+          "speed": 2,
+          "intent_label": "Charge une Menace FASA (fait chuter le Moral)",
+          "has_counter_interrupt": false,
+          "counter_label": ""
+        },
+        {
+          "id": "cousin_so",
+          "name": "Cousin S.O.",
+          "role": "Milice municipale",
+          "resolve_max": 4,
+          "initial_tick": 2,
+          "speed": 3,
+          "intent_label": "Verrouille la grille du quai & insulte la bande",
+          "has_counter_interrupt": false,
+          "counter_label": ""
+        },
+        {
+          "id": "so_veteran",
+          "name": "Chef S.O. Vétéran",
+          "role": "Gros bras aguerri",
+          "resolve_max": 5,
+          "initial_tick": 3,
+          "speed": 3,
+          "intent_label": "Coup de pression / Matraque préventive",
+          "has_counter_interrupt": true,
+          "counter_label": "Contre-interruption : Coup de pression prêt !"
+        }
+      ],
+      "player_actions": [
+        {
+          "id": "act_tchatche",
+          "label": "Tchatche / Bluff FAVE (montrer l'arrêté / Faveur)",
+          "desc": "Entame la détermination de la cible la plus proche (-2 résolution, -3 si dossier/Faveur).",
+          "cost_tick": 2
+        },
+        {
+          "id": "act_pression",
+          "label": "Coup de pression FASA",
+          "desc": "Intimidation sèche (-2 résolution + recule la cible de 1 cran), mais augmente la tension.",
+          "cost_tick": 2
+        },
+        {
+          "id": "act_repli",
+          "label": "Préparer l'échappée vers le quai / les caves",
+          "desc": "Fait gagner +2 crans d'air avant les CRS et rapproche l'évacuation.",
+          "cost_tick": 2
+        }
+      ],
+      "interruptions": [
+        {
+          "id": "int_moquerie",
+          "specialty_id": "moquerie",
+          "label": "Moquerie / Déconcentration",
+          "desc": "Hors-tour : casse la Menace du premier ennemi et le recule de 2 crans."
+        },
+        {
+          "id": "int_interposition",
+          "specialty_id": "interposition",
+          "label": "Menace / Interposition",
+          "desc": "Hors-tour : protège un pote fragile (-6 dégâts Moral sur le prochain coup)."
+        },
+        {
+          "id": "int_reflexe",
+          "specialty_id": "reflexe_rue",
+          "label": "Réflexe de rue",
+          "desc": "Hors-tour : pousse une poubelle / repère la trappe (+2 crans sur les CRS)."
+        }
+      ]
+    }
+  }
+}
