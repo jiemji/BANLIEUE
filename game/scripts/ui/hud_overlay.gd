@@ -11,6 +11,7 @@ signal zoom_out_requested
 signal twilight_requested
 signal radio_zapped(station_idx: int)
 signal restart_slice_requested
+signal menu_requested
 
 var _lbl_loc: Label = null
 var _lbl_phase: Label = null
@@ -35,6 +36,8 @@ func _ready() -> void:
 	_build_ui()
 	GameState.state_changed.connect(refresh)
 	GameState.phase_changed.connect(func(_p: String) -> void: refresh())
+	SettingsManager.settings_changed.connect(_sync_mute_button)
+	_sync_mute_button()
 	refresh()
 
 func _make_panel_style(bg: Color, border: Color, border_w: int = 2) -> StyleBoxFlat:
@@ -70,7 +73,7 @@ func _build_ui() -> void:
 
 	_btn_zoom_out = Button.new()
 	_btn_zoom_out.text = "▲"
-	_btn_zoom_out.tooltip_text = "Dézoomer d'un niveau (Échap)"
+	_btn_zoom_out.tooltip_text = "Dézoomer d'un niveau (Backspace)"
 	_btn_zoom_out.add_theme_font_size_override("font_size", 11)
 	_btn_zoom_out.pressed.connect(func() -> void: zoom_out_requested.emit())
 	top_hbox.add_child(_btn_zoom_out)
@@ -97,10 +100,11 @@ func _build_ui() -> void:
 	_btn_mute.pressed.connect(_on_mute_pressed)
 	top_hbox.add_child(_btn_mute)
 
-	var btn_reset: Button = Button.new()
-	btn_reset.text = "Rejouer"
-	btn_reset.pressed.connect(func() -> void: restart_slice_requested.emit())
-	top_hbox.add_child(btn_reset)
+	var btn_menu: Button = Button.new()
+	btn_menu.text = "Menu"
+	btn_menu.tooltip_text = "Menu Principal / Pause (Échap)"
+	btn_menu.pressed.connect(func() -> void: menu_requested.emit())
+	top_hbox.add_child(btn_menu)
 
 	# 2. Panneau latéral droit (Bande / Lieux / Radio FM / Pistes)
 	var side: PanelContainer = PanelContainer.new()
@@ -214,9 +218,13 @@ func _build_ui() -> void:
 	_lbl_clues.add_theme_color_override("font_color", Color(0.86, 0.84, 0.78))
 	side_vbox.add_child(_lbl_clues)
 
+func _sync_mute_button() -> void:
+	if _btn_mute != null:
+		_btn_mute.text = "Son: OFF" if SettingsManager.muted else "Son: ON"
+
 func _on_mute_pressed() -> void:
-	var m: bool = AudioRadio.toggle_mute()
-	_btn_mute.text = "Son: OFF" if m else "Son: ON"
+	AudioRadio.toggle_mute()
+	_sync_mute_button()
 
 func _on_zap_pressed() -> void:
 	var idx: int = GameState.cycle_station()

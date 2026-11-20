@@ -16,7 +16,15 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_build_ui()
+	SettingsManager.settings_changed.connect(_apply_text_size)
+	_apply_text_size()
 	visible = false
+
+func _apply_text_size() -> void:
+	if _lbl_text != null:
+		_lbl_text.add_theme_font_size_override("font_size", SettingsManager.get_dialogue_font_size())
+	if _lbl_speaker != null:
+		_lbl_speaker.add_theme_font_size_override("font_size", SettingsManager.get_dialogue_font_size() + 2)
 
 func _build_ui() -> void:
 	_panel = PanelContainer.new()
@@ -102,7 +110,10 @@ func show_node(node_data: Dictionary, choices: Array) -> void:
 		_portrait_tex.visible = false
 		_portrait_rect.visible = true
 
-	_lbl_speaker.text = str(node_data.get("speaker_name", spk_id))
+	var spk_display: String = str(node_data.get("speaker_name", spk_id))
+	if spk_id == "leader" and (spk_display == "" or spk_display == "Leader" or spk_display == "Toi (Leader)" or spk_display == "leader"):
+		spk_display = str(cdef.get("name", "Leader"))
+	_lbl_speaker.text = spk_display
 	_lbl_text.text = str(node_data.get("text", ""))
 
 	for child in _choices_box.get_children():

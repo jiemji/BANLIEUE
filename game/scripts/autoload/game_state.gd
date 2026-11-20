@@ -28,10 +28,14 @@ var current_region_id: String = "idf"
 var current_department_id: String = "dept_93"
 var current_city_id: String = "cradon_les_gonesse"
 
-func _ready() -> void:
-	reset_new_slice()
+var has_active_session: bool = false
+var leader_profile: Dictionary = {}
 
-func reset_new_slice() -> void:
+func _ready() -> void:
+	reset_new_slice({})
+	has_active_session = false
+
+func reset_new_slice(profile: Dictionary = {}) -> void:
 	phase = "day"
 	clock_minutes = 17 * 60 + 30
 	francs = 25
@@ -51,8 +55,40 @@ func reset_new_slice() -> void:
 	current_department_id = "dept_93"
 	current_city_id = "cradon_les_gonesse"
 
-	if DataLoader.characters.is_empty():
+	if DataLoader.characters.is_empty() or DataLoader.player_archetypes.is_empty():
 		DataLoader.load_all()
+
+	var chosen_name: String = str(profile.get("name", "Alex")).strip_edges()
+	if chosen_name == "":
+		chosen_name = "Alex"
+	var chosen_arch_id: String = str(profile.get("archetype_id", "mains_noires"))
+	var arch_def: Dictionary = DataLoader.get_archetype_def(chosen_arch_id)
+	if not arch_def.is_empty():
+		chosen_arch_id = str(arch_def.get("id", chosen_arch_id))
+	var chosen_port_id: String = str(profile.get("portrait_id", "player_01"))
+	var port_def: Dictionary = DataLoader.get_portrait_def(chosen_port_id)
+	if not port_def.is_empty():
+		chosen_port_id = str(port_def.get("id", chosen_port_id))
+
+	leader_profile = {
+		"name": chosen_name,
+		"archetype_id": chosen_arch_id,
+		"portrait_id": chosen_port_id,
+		"portrait_path": str(port_def.get("portrait", str(profile.get("portrait_path", "")))),
+		"pawn_path": str(port_def.get("pawn", str(profile.get("pawn_path", ""))))
+	}
+	DataLoader.apply_leader_profile(leader_profile)
+
+	if not arch_def.is_empty():
+		francs += int(arch_def.get("francs_bonus", 0))
+		faveurs += int(arch_def.get("faveurs_bonus", 0))
+		fasa_bonus += int(arch_def.get("fasa_bonus", 0))
+		var sf_var: Variant = arch_def.get("start_flags", [])
+		if sf_var is Array:
+			for fl_var in (sf_var as Array):
+				var fl_name: String = str(fl_var)
+				if fl_name != "":
+					flags[fl_name] = true
 
 	var start_loc: Dictionary = DataLoader.get_location("box_garage")
 	var sp_var: Variant = start_loc.get("spawn", [3.0, 4.0])
@@ -83,7 +119,11 @@ func reset_new_slice() -> void:
 		if in_default:
 			squad_members.append(cid)
 
-	add_log("17 h 30 — Au Box-Garage sous la Dalle. Fais tourner la FM ou file au Galaxian.")
+	var arch_title: String = str(arch_def.get("title", ""))
+	if arch_title != "":
+		add_log("17 h 30 — %s (%s) au Box-Garage sous la Dalle." % [chosen_name, arch_title])
+	else:
+		add_log("17 h 30 — Au Box-Garage sous la Dalle. Fais tourner la FM ou file au Galaxian.")
 	state_changed.emit()
 
 func add_log(msg: String) -> void:
@@ -285,5 +325,110 @@ func set_zoom_view(level: int, map_id: String = "") -> void:
 			emit_id = current_city_id
 		else:
 			emit_id = get_active_location_id()
+	zoom_changed.emit(current_zoom_level, emit_id)
+	state_changed.emit()
+
+func to_save_dict() -> Dictionary:
+	var clues_copy: Array[String] = []
+	for c in clues:
+		clues_copy.append(c)
+	var log_copy: Array[String] = []
+	for entry in activity_log:
+		log_copy.append(entry)
+	var squad_copy: Array[String] = []
+	for sid in squad_members:
+		squad_copy.append(sid)
+	return {
+		"phase": phase,
+		"clock_minutes": clock_minutes,
+		"francs": francs,
+		"faveurs": faveurs,
+		"notoriete": notoriete,
+		"fasa_bonus": fasa_bonus,
+		"flags": flags.duplicate(true),
+		"clues": clues_copy,
+		"activity_log": log_copy,
+		"squad_members": squad_copy,
+		"member_states": member_states.duplicate(true),
+		"active_group_id": active_group_id,
+		"current_station_idx": current_station_idx,
+		"last_encounter_outcome": last_encounter_outcome,
+		"current_zoom_level": current_zoom_level,
+		"current_region_id": current_region_id,
+		"current_department_id": current_department_id,
+		"current_city_id": current_city_id
+	}
+
+func load_from_save_dict(profile_data: Dictionary, state_data: Dictionary) -> void:
+	if DataLoader.characters.is_empty() or DataLoader.player_archetypes.is_empty():
+		DataLoader.load_all()
+
+	leader_profile = profile_data.duplicate(true)
+	var lp_name: String = str(leader_profile.get("name", "Alex")).strip_edges()
+	if lp_name == "":
+		lp_name = "Alex"
+	leader_profile["name"] = lp_name
+	DataLoader.apply_leader_profile(leader_profile)
+
+	phase = str(state_data.get("phase", "day"))
+	clock_minutes = int(state_data.get("clock_minutes", 17 * 60 + 30))
+	francs = int(state_data.get("francs", 25))
+	faveurs = int(state_data.get("faveurs", 0))
+	notoriete = int(state_data.get("notoriete", 1))
+	fasa_bonus = int(state_data.get("fasa_bonus", 0))
+
+	flags.clear()
+	var fl_var: Variant = state_data.get("flags", {})
+	if fl_var is Dictionary:
+		var fl_d: Dictionary = fl_var as Dictionary
+		for fk in fl_d.keys():
+			flags[str(fk)] = bool(fl_d.get(fk, false))
+
+	clues.clear()
+	var cl_var: Variant = state_data.get("clues", [])
+	if cl_var is Array:
+		for cv in (cl_var as Array):
+			clues.append(str(cv))
+
+	activity_log.clear()
+	var log_var: Variant = state_data.get("activity_log", [])
+	if log_var is Array:
+		for lv in (log_var as Array):
+			activity_log.append(str(lv))
+
+	squad_members.clear()
+	var sq_var: Variant = state_data.get("squad_members", [])
+	if sq_var is Array:
+		for sv in (sq_var as Array):
+			squad_members.append(str(sv))
+
+	member_states.clear()
+	var ms_var: Variant = state_data.get("member_states", {})
+	if ms_var is Dictionary:
+		var ms_d: Dictionary = ms_var as Dictionary
+		for cid_k in ms_d.keys():
+			var st_v: Variant = ms_d.get(cid_k, {})
+			if st_v is Dictionary:
+				member_states[str(cid_k)] = (st_v as Dictionary).duplicate(true)
+
+	active_group_id = int(state_data.get("active_group_id", 0))
+	current_station_idx = int(state_data.get("current_station_idx", 0))
+	last_encounter_outcome = str(state_data.get("last_encounter_outcome", ""))
+	current_zoom_level = clampi(int(state_data.get("current_zoom_level", 4)), 1, 4)
+	current_region_id = str(state_data.get("current_region_id", "idf"))
+	current_department_id = str(state_data.get("current_department_id", "dept_93"))
+	current_city_id = str(state_data.get("current_city_id", "cradon_les_gonesse"))
+	has_active_session = true
+
+	var emit_id: String = current_region_id
+	if current_zoom_level == 2:
+		emit_id = current_department_id
+	elif current_zoom_level == 3:
+		emit_id = current_city_id
+	elif current_zoom_level == 4:
+		emit_id = get_active_location_id()
+
+	phase_changed.emit(phase)
+	active_group_changed.emit(active_group_id)
 	zoom_changed.emit(current_zoom_level, emit_id)
 	state_changed.emit()

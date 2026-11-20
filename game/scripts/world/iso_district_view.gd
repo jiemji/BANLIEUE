@@ -42,6 +42,8 @@ var _focus_world: Vector2 = Vector2(455.0, 387.0)
 var _pan_dragging: bool = false
 var _pan_last_screen: Vector2 = Vector2.ZERO
 var _manual_pan_offset: Vector2 = Vector2.ZERO
+var _title_backdrop_mode: bool = false
+var _title_cam_drift: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
 	_camera = Camera2D.new()
@@ -71,6 +73,13 @@ func set_view_active(active: bool) -> void:
 		if active:
 			_camera.make_current()
 			_apply_camera_transform()
+
+func set_title_backdrop_mode(enabled: bool, drift: Vector2 = Vector2.ZERO) -> void:
+	_title_backdrop_mode = enabled
+	_title_cam_drift = drift
+	if _markers_overlay != null:
+		_markers_overlay.visible = not enabled
+	_apply_camera_transform()
 
 func set_location(loc_id: String) -> void:
 	current_loc_id = loc_id
@@ -161,6 +170,10 @@ func _is_cell_blocked(gx: float, gy: float) -> bool:
 
 func _apply_camera_transform() -> void:
 	if _camera == null or not _camera.enabled:
+		return
+	if _title_backdrop_mode:
+		_camera.zoom = Vector2(1.08, 1.08)
+		_camera.position = Vector2(455.0, 387.0) + Vector2(-170.0, 0.0) + _title_cam_drift
 		return
 	var z: float = clampf(_cam_zoom, _cam_min_zoom, _cam_max_zoom)
 	_camera.zoom = Vector2(z, z)

@@ -193,6 +193,22 @@ func trigger_interruption(char_id: String) -> void:
 		crs_ticks += 2
 		escape_progress += 1
 		_push_log("INTERRUPTION [Réflexe de rue] — %s pousse une grille métallique (+2 crans CRS, accès quai ouvert) !" % cname)
+	elif spec == "sang_froid":
+		if not crisis_queue.is_empty():
+			var cr: Dictionary = crisis_queue[0]
+			var cr_cid: String = str(cr.get("char_id", ""))
+			crisis_queue.remove_at(0)
+			GameState.modify_moral(cr_cid, 10)
+			_push_log("INTERRUPTION [Sang-froid] — %s reprend la main et calme %s à temps (+10 Moral) !" % [cname, cr_cid.capitalize()])
+		else:
+			var target_sf: Dictionary = _get_first_active_enemy()
+			if not target_sf.is_empty():
+				target_sf["next_tick"] = int(target_sf.get("next_tick", 1)) + 1
+				_damage_enemy(target_sf, 1)
+				_push_log("INTERRUPTION [Sang-froid] — %s perce le bluff de %s (-1 résol, +1 cran) !" % [cname, str(target_sf.get("name", ""))])
+			else:
+				GameState.modify_moral(char_id, 6)
+				_push_log("INTERRUPTION [Sang-froid] — %s garde la tête froide (+6 Moral)." % cname)
 
 	if _all_enemies_defeated():
 		_finish("social_win", "Entre tchatche, vannes et nerfs d'acier, vous retournez la rue ! Le S.O. lâche l'affaire avant l'arrivée des CRS.")

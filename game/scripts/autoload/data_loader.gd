@@ -11,6 +11,11 @@ var dialogues: Dictionary = {}
 var encounters: Dictionary = {}
 var radio_stations: Array[Dictionary] = []
 
+var player_portraits: Array[Dictionary] = []
+var player_archetypes: Array[Dictionary] = []
+var player_default_names: Array[String] = []
+var _base_leader_def: Dictionary = {}
+
 func _ready() -> void:
 	load_all()
 
@@ -25,6 +30,10 @@ func load_all() -> void:
 	dialogues.clear()
 	encounters.clear()
 	radio_stations.clear()
+	player_portraits.clear()
+	player_archetypes.clear()
+	player_default_names.clear()
+	_base_leader_def.clear()
 
 	var chars_data: Variant = _read_json("res://data/characters.json")
 	if chars_data is Dictionary:
@@ -36,6 +45,28 @@ func load_all() -> void:
 					var cid: String = str(d.get("id", ""))
 					if cid != "":
 						characters[cid] = d
+						if cid == "leader":
+							_base_leader_def = d.duplicate(true)
+
+	var prof_data: Variant = _read_json("res://data/player_profiles.json")
+	if prof_data is Dictionary:
+		var pd: Dictionary = prof_data as Dictionary
+		var dn_var: Variant = pd.get("default_names", [])
+		if dn_var is Array:
+			for nv in (dn_var as Array):
+				var ns: String = str(nv).strip_edges()
+				if ns != "":
+					player_default_names.append(ns)
+		var port_var: Variant = pd.get("portraits", [])
+		if port_var is Array:
+			for pv in (port_var as Array):
+				if pv is Dictionary:
+					player_portraits.append(pv as Dictionary)
+		var arch_var: Variant = pd.get("archetypes", [])
+		if arch_var is Array:
+			for av in (arch_var as Array):
+				if av is Dictionary:
+					player_archetypes.append(av as Dictionary)
 
 	_load_world_hierarchy()
 
@@ -197,3 +228,63 @@ func get_encounter(enc_id: String) -> Dictionary:
 	if val is Dictionary:
 		return val as Dictionary
 	return {}
+
+func get_portrait_def(portrait_id: String) -> Dictionary:
+	for pv in player_portraits:
+		if str(pv.get("id", "")) == portrait_id:
+			return pv
+	if not player_portraits.is_empty():
+		return player_portraits[0]
+	return {}
+
+func get_archetype_def(archetype_id: String) -> Dictionary:
+	for av in player_archetypes:
+		if str(av.get("id", "")) == archetype_id:
+			return av
+	if not player_archetypes.is_empty():
+		return player_archetypes[0]
+	return {}
+
+func _res_file_exists(res_path: String) -> bool:
+	if res_path == "":
+		return false
+	if ResourceLoader.exists(res_path):
+		return true
+	var abs_path: String = ProjectSettings.globalize_path(res_path)
+	return FileAccess.file_exists(abs_path)
+
+func apply_leader_profile(profile: Dictionary) -> void:
+	if _base_leader_def.is_empty():
+		var existing: Variant = characters.get("leader", {})
+		if existing is Dictionary:
+			_base_leader_def = (existing as Dictionary).duplicate(true)
+	var merged: Dictionary = _base_leader_def.duplicate(true)
+
+	var chosen_name: String = str(profile.get("name", "Alex")).strip_edges()
+	if chosen_name != "":
+		merged["name"] = chosen_name
+
+	var port_id: String = str(profile.get("portrait_id", "player_01"))
+	var port_def: Dictionary = get_portrait_def(port_id)
+	var p_path: String = str(port_def.get("portrait", str(profile.get("portrait_path", ""))))
+	var pw_path: String = str(port_def.get("pawn", str(profile.get("pawn_path", ""))))
+	if _res_file_exists(p_path):
+		merged["portrait"] = p_path
+	if _res_file_exists(pw_path):
+		merged["pawn"] = pw_path
+
+	var arch_id: String = str(profile.get("archetype_id", "mains_noires"))
+	var arch_def: Dictionary = get_archetype_def(arch_id)
+	if not arch_def.is_empty():
+		var keys_to_copy: Array[String] = [
+			"fave", "fasa", "moral_start", "moral_max", "stress_threshold",
+			"stress_name", "crisis_label", "specialty_id", "specialty_name", "specialty_desc"
+		]
+		for k in keys_to_copy:
+			if arch_def.has(k):
+				merged[k] = arch_def.get(k)
+		var arch_title: String = str(arch_def.get("title", ""))
+		if arch_title != "":
+			merged["role"] = arch_title
+
+	characters["leader"] = merged

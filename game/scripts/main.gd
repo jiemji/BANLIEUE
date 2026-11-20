@@ -1,5 +1,12 @@
 extends Node
 
+enum AppState {
+	TITLE_MENU,
+	NEW_GAME_SETUP,
+	IN_GAME,
+	PAUSE_MENU
+}
+
 const SquadManagerScript: GDScript = preload("res://scripts/systems/squad_manager.gd")
 const TensionTimelineScript: GDScript = preload("res://scripts/systems/tension_timeline.gd")
 const DialogueRunnerScript: GDScript = preload("res://scripts/systems/dialogue_runner.gd")
@@ -8,6 +15,10 @@ const IsoDistrictViewScript: GDScript = preload("res://scripts/world/iso_distric
 const HudOverlayScript: GDScript = preload("res://scripts/ui/hud_overlay.gd")
 const DialoguePanelScript: GDScript = preload("res://scripts/ui/dialogue_panel.gd")
 const TimelinePanelScript: GDScript = preload("res://scripts/ui/timeline_panel.gd")
+const TitleMenuPanelScript: GDScript = preload("res://scripts/ui/title_menu_panel.gd")
+const SaveLoadPanelScript: GDScript = preload("res://scripts/ui/save_load_panel.gd")
+const OptionsPanelScript: GDScript = preload("res://scripts/ui/options_panel.gd")
+const NewGamePanelScript: GDScript = preload("res://scripts/ui/new_game_panel.gd")
 const FilmShader: Shader = preload("res://shaders/film_1982_post.gdshader")
 
 var _squad: Node = null
@@ -20,14 +31,22 @@ var _hud: Control = null
 var _dlg_panel: Control = null
 var _tl_panel: Control = null
 
+var _title_menu: Control = null
+var _new_game_panel: Control = null
+var _save_load_panel: Control = null
+var _options_panel: Control = null
+
 var _shader_mat: ShaderMaterial = null
 var _sas_overlay: ColorRect = null
 var _sas_label: Label = null
 var _end_overlay: ColorRect = null
 var _end_summary_lbl: Label = null
 
+var _app_state: int = AppState.TITLE_MENU
+var _new_game_caller: int = AppState.TITLE_MENU
 var _sas_active: bool = false
 var _sas_timer: float = 0.0
+var _title_cycle_time: float = 0.0
 
 func _ready() -> void:
 	# 1. Systèmes métiers
@@ -59,13 +78,13 @@ func _ready() -> void:
 	_shader_mat = ShaderMaterial.new()
 	_shader_mat.shader = FilmShader
 	_shader_mat.set_shader_parameter("night_amount", 0.0)
-	_shader_mat.set_shader_parameter("grain_strength", 0.042)
+	_shader_mat.set_shader_parameter("grain_strength", SettingsManager.get_grain_strength())
 	_shader_mat.set_shader_parameter("low_moral_amount", 0.0)
 	_shader_mat.set_shader_parameter("shake_amount", 0.0)
 	fx_rect.material = _shader_mat
 	fx_layer.add_child(fx_rect)
 
-	# 4. Calque UI
+	# 4. Calque UI en jeu
 	var ui_layer: CanvasLayer = CanvasLayer.new()
 	ui_layer.layer = 10
 	add_child(ui_layer)
@@ -83,13 +102,30 @@ func _ready() -> void:
 	_build_sas_overlay(ui_layer)
 	_build_end_overlay(ui_layer)
 
-	# 5. Câblage des signaux
-	_wire_signals()
+	# 5. Calque Menus (Accueil, Pause, Nouvelle partie, Sauvegardes, Options)
+	var menu_layer: CanvasLayer = CanvasLayer.new()
+	menu_layer.layer = 20
+	add_child(menu_layer)
 
-	# 6. Lancement de la scène d'ouverture au Box-Garage
-	_sync_world_location()
-	_sync_active_view()
-	_dialogue_runner.call("start_dialogue", "intro_box_garage")
+	_title_menu = TitleMenuPanelScript.new()
+	menu_layer.add_child(_title_menu)
+
+	_new_game_panel = NewGamePanelScript.new()
+	menu_layer.add_child(_new_game_panel)
+
+	_save_load_panel = SaveLoadPanelScript.new()
+	menu_layer.add_child(_save_load_panel)
+
+	_options_panel = OptionsPanelScript.new()
+	menu_layer.add_child(_options_panel)
+
+	# 6. Câblage des signaux
+	_wire_signals()
+	SettingsManager.settings_changed.connect(_apply_shader_settings)
+	_apply_shader_settings()
+
+	# 7. Entrée sur l'Écran d'accueil & Menu Principal unifié
+	_enter_title_menu()
 
 func _build_sas_overlay(parent_layer: CanvasLayer) -> void:
 	_sas_overlay = ColorRect.new()
@@ -146,10 +182,21 @@ func _build_end_overlay(parent_layer: CanvasLayer) -> void:
 	_end_summary_lbl.add_theme_font_size_override("font_size", 14)
 	vb.add_child(_end_summary_lbl)
 
+	var btn_row: HBoxContainer = HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 12)
+	vb.add_child(btn_row)
+
 	var btn_replay: Button = Button.new()
 	btn_replay.text = "Rejouer le Niveau-Pilote"
+	btn_replay.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn_replay.pressed.connect(_restart_slice)
-	vb.add_child(btn_replay)
+	btn_row.add_child(btn_replay)
+
+	var btn_to_title: Button = Button.new()
+	btn_to_title.text = "Retour au Menu Principal"
+	btn_to_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_to_title.pressed.connect(_enter_title_menu)
+	btn_row.add_child(btn_to_title)
 
 func _wire_signals() -> void:
 	_iso_view.hotspot_activated.connect(func(dlg_id: String, _hs: Dictionary) -> void:
@@ -194,6 +241,7 @@ func _wire_signals() -> void:
 	_hud.zoom_out_requested.connect(_zoom_out_one_level)
 	_hud.twilight_requested.connect(_start_twilight_sas)
 	_hud.restart_slice_requested.connect(_restart_slice)
+	_hud.menu_requested.connect(_open_pause_menu)
 
 	_dlg_panel.choice_selected.connect(func(idx: int) -> void: _dialogue_runner.call("pick_choice", idx))
 	_dialogue_runner.node_updated.connect(func(_id: String, node_data: Dictionary, choices: Array) -> void:
@@ -214,16 +262,181 @@ func _wire_signals() -> void:
 	_timeline.train_fantome_arrived_sig.connect(func() -> void: _iso_view.call("trigger_train_fantome"))
 	_timeline.encounter_finished.connect(_on_encounter_finished)
 
+	# Signaux des écrans Menus
+	_title_menu.resume_requested.connect(_close_pause_menu)
+	_title_menu.new_game_requested.connect(_open_new_game_setup)
+	_title_menu.load_game_requested.connect(func() -> void: _save_load_panel.call("open_panel", "load"))
+	_title_menu.save_game_requested.connect(func() -> void: _save_load_panel.call("open_panel", "save"))
+	_title_menu.options_requested.connect(func() -> void: _options_panel.call("open_panel"))
+	_title_menu.return_title_requested.connect(_enter_title_menu)
+	_title_menu.quit_requested.connect(func() -> void: get_tree().quit())
+
+	_new_game_panel.start_game_requested.connect(_start_new_game)
+	_new_game_panel.cancelled.connect(_on_new_game_cancelled)
+
+	_save_load_panel.slot_saved.connect(func(_idx: int) -> void: _title_menu.call("refresh_state"))
+	_save_load_panel.slot_loaded.connect(_on_slot_loaded)
+	_save_load_panel.closed.connect(func() -> void: _title_menu.call("refresh_state"))
+
+	_options_panel.closed.connect(func() -> void: _title_menu.call("refresh_state"))
+
 	GameState.active_group_changed.connect(_on_active_group_changed)
 	GameState.zoom_changed.connect(func(_lvl: int, _mid: String) -> void: _sync_active_view())
 	GameState.state_changed.connect(_on_state_changed)
 
+func _apply_shader_settings() -> void:
+	if _shader_mat == null:
+		return
+	_shader_mat.set_shader_parameter("grain_strength", SettingsManager.get_grain_strength())
+	if not SettingsManager.screen_shake:
+		_shader_mat.set_shader_parameter("shake_amount", 0.0)
+
+func _enter_title_menu() -> void:
+	_app_state = AppState.TITLE_MENU
+	_sas_active = false
+	_sas_overlay.visible = false
+	_end_overlay.visible = false
+	_timeline.set("active", false)
+	_tl_panel.visible = false
+	_dialogue_runner.call("close_dialogue")
+	_dlg_panel.visible = false
+	_iso_view.set("train_fantome_active", false)
+
+	GameState.has_active_session = false
+	GameState.reset_new_slice({})
+
+	_hud.visible = false
+	_world_map_view.call("set_view_active", false)
+	_iso_view.call("set_view_active", true)
+	_iso_view.call("set_location", "box_garage")
+	_iso_view.call("set_title_backdrop_mode", true, Vector2.ZERO)
+
+	AudioRadio.title_mode = true
+	_title_cycle_time = 0.0
+	_shader_mat.set_shader_parameter("night_amount", 0.0)
+	_shader_mat.set_shader_parameter("low_moral_amount", 0.0)
+	_shader_mat.set_shader_parameter("shake_amount", 0.0)
+
+	_new_game_panel.call("close_panel")
+	_save_load_panel.call("close_panel")
+	_options_panel.call("close_panel")
+	_title_menu.call("open_menu", "title")
+	_update_input_lock()
+
+func _open_pause_menu() -> void:
+	if _app_state != AppState.IN_GAME or _sas_active:
+		return
+	_app_state = AppState.PAUSE_MENU
+	_title_menu.call("open_menu", "pause")
+	_update_input_lock()
+
+func _close_pause_menu() -> void:
+	if _app_state != AppState.PAUSE_MENU:
+		return
+	_save_load_panel.call("close_panel")
+	_options_panel.call("close_panel")
+	_title_menu.call("close_menu")
+	_app_state = AppState.IN_GAME
+	_update_input_lock()
+
+func _open_new_game_setup() -> void:
+	_new_game_caller = AppState.PAUSE_MENU if (_app_state == AppState.PAUSE_MENU and GameState.has_active_session) else AppState.TITLE_MENU
+	_app_state = AppState.NEW_GAME_SETUP
+	_title_menu.call("close_menu")
+	_save_load_panel.call("close_panel")
+	_options_panel.call("close_panel")
+	_new_game_panel.call("open_panel")
+	_update_input_lock()
+
+func _on_new_game_cancelled() -> void:
+	_new_game_panel.call("close_panel")
+	if _new_game_caller == AppState.PAUSE_MENU and GameState.has_active_session:
+		_app_state = AppState.PAUSE_MENU
+		_title_menu.call("open_menu", "pause")
+	else:
+		_app_state = AppState.TITLE_MENU
+		_title_menu.call("open_menu", "title")
+	_update_input_lock()
+
+func _start_new_game(profile: Dictionary) -> void:
+	_title_menu.call("close_menu")
+	_new_game_panel.call("close_panel")
+	_save_load_panel.call("close_panel")
+	_options_panel.call("close_panel")
+	_sas_active = false
+	_sas_overlay.visible = false
+	_end_overlay.visible = false
+	_timeline.set("active", false)
+	_tl_panel.visible = false
+	_dlg_panel.visible = false
+	_iso_view.set("train_fantome_active", false)
+
+	_iso_view.call("set_title_backdrop_mode", false, Vector2.ZERO)
+	AudioRadio.title_mode = false
+
+	GameState.reset_new_slice(profile)
+	GameState.has_active_session = true
+	_app_state = AppState.IN_GAME
+	_hud.visible = true
+
+	_iso_view.call("set_location", "box_garage")
+	_sync_active_view()
+	_apply_shader_settings()
+	_dialogue_runner.call("start_dialogue", "intro_box_garage")
+	_update_input_lock()
+
+func _on_slot_loaded(slot_idx: int) -> void:
+	_title_menu.call("close_menu")
+	_new_game_panel.call("close_panel")
+	_save_load_panel.call("close_panel")
+	_options_panel.call("close_panel")
+	_sas_active = false
+	_sas_overlay.visible = false
+	_end_overlay.visible = false
+	_timeline.set("active", false)
+	_tl_panel.visible = false
+	_dialogue_runner.call("close_dialogue")
+	_dlg_panel.visible = false
+	_iso_view.set("train_fantome_active", false)
+
+	_iso_view.call("set_title_backdrop_mode", false, Vector2.ZERO)
+	AudioRadio.title_mode = false
+	_app_state = AppState.IN_GAME
+	_hud.visible = true
+
+	_sync_world_location()
+	_sync_active_view()
+	_on_state_changed()
+	_apply_shader_settings()
+	GameState.add_log("%s chargée — reprise à %s." % [SaveManager.get_slot_label(slot_idx), GameState.format_clock()])
+	_update_input_lock()
+
 func _process(delta: float) -> void:
+	if _app_state == AppState.TITLE_MENU or _app_state == AppState.NEW_GAME_SETUP:
+		_title_cycle_time += delta
+		var u: float = fmod(_title_cycle_time, 28.0) / 28.0
+		var raw_mix: float = clampf(0.5 - 0.5 * cos(u * TAU), 0.0, 1.0)
+		var night_mix: float = pow(raw_mix, 1.25)
+		var drift: Vector2 = Vector2(sin(_title_cycle_time * 0.25) * 16.0, cos(_title_cycle_time * 0.18) * 9.0)
+		_iso_view.call("set_title_backdrop_mode", true, drift)
+		_shader_mat.set_shader_parameter("night_amount", night_mix)
+		_shader_mat.set_shader_parameter("shake_amount", 0.0)
+		if _app_state == AppState.TITLE_MENU:
+			var phase_txt: String = "Box-Garage · Jour gouache 1982"
+			if night_mix >= 0.72:
+				phase_txt = "Box-Garage · Nuit N&B (4 couleurs-signaux)"
+			elif night_mix >= 0.25:
+				phase_txt = "Box-Garage · Crépuscule sodium"
+			_title_menu.call("set_ambient_phase_label", phase_txt)
+		_update_input_lock()
+		return
+
 	if _sas_active:
 		_sas_timer += delta
 		var prog: float = clampf(_sas_timer / 2.6, 0.0, 1.0)
 		_shader_mat.set_shader_parameter("night_amount", prog)
-		_shader_mat.set_shader_parameter("shake_amount", sin(prog * PI) * 0.0045)
+		var shake_val: float = (sin(prog * PI) * 0.0045) if SettingsManager.screen_shake else 0.0
+		_shader_mat.set_shader_parameter("shake_amount", shake_val)
 		if _sas_timer >= 2.6:
 			_sas_active = false
 			_sas_overlay.visible = false
@@ -235,20 +448,53 @@ func _process(delta: float) -> void:
 	_update_input_lock()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _sas_active or _end_overlay.visible or _tl_panel.visible or _dlg_panel.visible:
-		return
 	if event is InputEventKey:
 		var kev: InputEventKey = event as InputEventKey
-		if kev.pressed and not kev.echo:
-			if kev.keycode == KEY_1:
+		if kev.pressed and not kev.echo and kev.keycode == KEY_ESCAPE:
+			if _save_load_panel.visible:
+				if bool(_save_load_panel.call("has_confirm_open")):
+					_save_load_panel.call("close_confirm")
+				else:
+					_save_load_panel.call("close_panel")
+					_title_menu.call("refresh_state")
+				get_viewport().set_input_as_handled()
+				return
+			if _options_panel.visible:
+				_options_panel.call("close_panel")
+				_title_menu.call("refresh_state")
+				get_viewport().set_input_as_handled()
+				return
+			if _new_game_panel.visible:
+				_on_new_game_cancelled()
+				get_viewport().set_input_as_handled()
+				return
+			if _app_state == AppState.PAUSE_MENU:
+				if bool(_title_menu.call("has_confirm_open")):
+					_title_menu.call("close_confirm")
+				else:
+					_close_pause_menu()
+				get_viewport().set_input_as_handled()
+				return
+			if _app_state == AppState.IN_GAME and not _sas_active:
+				_open_pause_menu()
+				get_viewport().set_input_as_handled()
+				return
+
+	if _app_state != AppState.IN_GAME or _sas_active or _end_overlay.visible or _tl_panel.visible or _dlg_panel.visible:
+		return
+
+	if event is InputEventKey:
+		var kev2: InputEventKey = event as InputEventKey
+		if kev2.pressed and not kev2.echo:
+			if kev2.keycode == KEY_1:
 				_squad.call("switch_to_group", 0)
-			elif kev.keycode == KEY_2:
+			elif kev2.keycode == KEY_2:
 				_squad.call("switch_to_group", 1)
-			elif kev.keycode == KEY_3:
+			elif kev2.keycode == KEY_3:
 				_squad.call("switch_to_group", 2)
-			elif kev.keycode == KEY_ESCAPE:
+			elif kev2.keycode == KEY_BACKSPACE:
 				_zoom_out_one_level()
-			elif kev.keycode == KEY_M:
+			elif kev2.keycode == KEY_M:
 				if GameState.current_zoom_level == 4:
 					GameState.set_zoom_view(3, GameState.current_city_id)
 				else:
@@ -259,6 +505,11 @@ func _zoom_out_one_level() -> void:
 		GameState.set_zoom_view(GameState.current_zoom_level - 1)
 
 func _sync_active_view() -> void:
+	if _app_state == AppState.TITLE_MENU or _app_state == AppState.NEW_GAME_SETUP:
+		_world_map_view.call("set_view_active", false)
+		_iso_view.call("set_view_active", true)
+		_iso_view.call("set_location", "box_garage")
+		return
 	var zl: int = GameState.current_zoom_level
 	if zl == 4:
 		_world_map_view.call("set_view_active", false)
@@ -275,10 +526,14 @@ func _sync_active_view() -> void:
 		_world_map_view.call("set_view_active", true)
 
 func _on_active_group_changed(_gid: int) -> void:
+	if _app_state == AppState.TITLE_MENU or _app_state == AppState.NEW_GAME_SETUP:
+		return
 	_sync_world_location()
 	_iso_view.call("sync_active_group_from_state")
 
 func _on_state_changed() -> void:
+	if _app_state == AppState.TITLE_MENU or _app_state == AppState.NEW_GAME_SETUP:
+		return
 	_sync_world_location()
 	if GameState.current_zoom_level < 4:
 		_world_map_view.queue_redraw()
@@ -335,19 +590,11 @@ func _show_end_summary() -> void:
 	_end_overlay.visible = true
 
 func _restart_slice() -> void:
-	_end_overlay.visible = false
-	_sas_overlay.visible = false
-	_sas_active = false
-	_timeline.set("active", false)
-	_tl_panel.visible = false
-	_dlg_panel.visible = false
-	_iso_view.set("train_fantome_active", false)
-	GameState.reset_new_slice()
-	_iso_view.call("set_location", "box_garage")
-	_sync_active_view()
-	_dialogue_runner.call("start_dialogue", "intro_box_garage")
+	var kept_profile: Dictionary = GameState.leader_profile.duplicate(true)
+	_start_new_game(kept_profile)
 
 func _update_input_lock() -> void:
-	var blocked: bool = _sas_active or _end_overlay.visible or _tl_panel.visible or _dlg_panel.visible
+	var menu_open: bool = (_app_state != AppState.IN_GAME) or _new_game_panel.visible or _save_load_panel.visible or _options_panel.visible
+	var blocked: bool = menu_open or _sas_active or _end_overlay.visible or _tl_panel.visible or _dlg_panel.visible
 	_iso_view.set("input_blocked", blocked)
 	_world_map_view.set("input_blocked", blocked)

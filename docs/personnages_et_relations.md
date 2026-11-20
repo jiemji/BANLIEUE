@@ -6,13 +6,16 @@
 
 ## 1. Casting Principal
 
-### Le Leader — Personnage du Joueur *(Création sociale en 4 micro-scènes-souvenirs)*
-Inspirée du tirage social de *Zone* mais jouée de façon narrative et immersive, la création du protagoniste passe par **4 micro-scènes éclair** de banlieue :
+### Le Leader — Personnage du Joueur *(4 Archétypes sociaux & Portrait libre)*
+La création du protagoniste s'effectue dès l'écran **« Nouvelle partie »** sur une fiche unique à deux entrées volontairement **découplées** (voir le détail complet dans [structure_menus_et_ecrans.md](file:///e:/JDR/BANLIEUE/docs/structure_menus_et_ecrans.md)) :
 
-1. **Le Foyer *(Milieu familial & contraintes domestiques)*** : Vous choisissez votre origine (*père gréviste à Citroën Aulnay*, *mère concierge ou employée municipale*, *parents pavillonnaires pro-mairie*, ou *foyer éclaté en colocation/chez un aîné*). Ce choix crée de vrais PNJ à la maison, fixe vos entrées sociales initiales, vos petites dettes ou faveurs de palier et votre pression domestique sur le **Moral** (couvre-feu, engueulades, loyauté familiale).
-2. **La Cour du Lycée / LEP *(Dégaine & affinité tribale de départ)*** : Comment vous vous pointez devant le portail (*Banane, Kepon, Dalle / B-Boy, MJC / Baba* ou *Sans-étiquette*). Cette dégaine pose votre **FASA** de départ (respect, intimidation ou discrétion) et colore votre premier contact avec les 5 tribus de Cradon-lès-Gonesse.
-3. **Chez Bébert / Le Galaxian *(Talent phare de rue)*** : Dans un souvenir de fin d'après-midi au comptoir ou devant le flipper, vous définissez ce qui vous sauve la mise quand la rue chauffe : **Tchatche & Baratin**, **Bricole & Mobylette (*Système D*)**, **Caves & Toits (Esquive/Repérage)**, ou **Sang-froid (*FAVE*)**.
-4. **Premier Soir au Box-Garage *(Choix des 2 potes d'enfance de départ)*** : Parmi les **6 compagnons du vivier**, vous désignez vos **2 amis d'enfance déjà présents** dans le box sous la Dalle dès le Jour 1. Les **4 autres** ne disparaissent pas : ils mènent leur propre vie et leurs propres galères dans Cradon-lès-Gonesse, et deviennent recrutables au fil des rencontres, des besoins et de la **Notoriété**.
+* **Identité & Apparence 100 % libres** : Saisie du **Prénom / Surnom** et choix libre dans une galerie de **6 à 8 portraits** diversifiés (ethnies, cultures, genres et styles 1980–1984 variés), chacun relié à son **pion en pied assorti**. **Aucune statistique ni contrainte narrative n'est liée au portrait.**
+* **Choix parmi 4 Archétypes & Histoires Personnelles** *(ancrage purement social et territorial à Cradon-lès-Gonesse, sans aucune caractérisation ethnique ou culturelle)* :
+  1. **L'Enfant de la Dalle** *(Débrouillard·e du Parking)* — Clés autour du cou, horaires décalés, maîtrise des caves, chaufferies et combines de palier (`FAVE 62 · FASA 3 · Moral 72`, spécialité *Réflexe de rue*, `+10 F`).
+  2. **La Grande Gueule du Bourg** *(Habitué·e du Comptoir)* — Décrocheur·se du LEP, pilier de *Chez Bébert* et du *Galaxian*, tchatche et tournées d'avance (`FAVE 70 · FASA 3 · Moral 68`, spécialité *Baratin / Déconcentration*, `+1 Faveur`).
+  3. **Les Mains-Noires** *(Enfant de l'Atelier & de la Chaîne)* — Proche gréviste à Citroën Aulnay ou cheminot RER B, dimanches dans le cambouis de la 103 SP, calme têtu (`FAVE 60 · FASA 4 · Moral 74`, spécialité *Menace / Interposition*, `+1 FASA`).
+  4. **L'Échappé·e des Pavillons** *(La Fissure du Lotissement)* — Foyer rangé aux volets tirés dès 21 h qui craint les tours, fuite nocturne vers le Box-Garage et lecture lucide du *Relais Municipal* (`FAVE 66 · FASA 2 · Moral 64`, spécialité *Sang-froid / Coup d'avance*, `+15 F`).
+* **Bande de départ** : Le Leader façonné par le joueur démarre au **Box-Garage** avec **Karim & Nadia** pour le niveau-pilote *« Couvre-Feu au Galaxian »*. Les **4 autres compagnons** du vivier des 6 (**Manu, Zoé, Franck, Ludo**) mènent leur propre vie dans Cradon-lès-Gonesse et deviennent recrutables au fil des rencontres, des besoins et de la **Notoriété** (jusqu'à **5–6 membres max**).
 
 ---
 

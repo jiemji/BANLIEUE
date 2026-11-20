@@ -3,6 +3,7 @@ extends Node
 var _player: AudioStreamPlayer = null
 var _playback: AudioStreamGeneratorPlayback = null
 var _muted: bool = false
+var title_mode: bool = false
 
 var _mix_rate: float = 22050.0
 var _phase_wave: float = 0.0
@@ -22,15 +23,23 @@ func _ready() -> void:
 	add_child(_player)
 	_player.play()
 	_playback = _player.get_stream_playback() as AudioStreamGeneratorPlayback
+	SettingsManager.settings_changed.connect(_apply_audio_settings)
+	_apply_audio_settings()
+
+func _apply_audio_settings() -> void:
+	_muted = SettingsManager.muted
+	if _player != null:
+		if _muted or SettingsManager.master_volume <= 0.001:
+			_player.volume_db = -80.0
+		else:
+			_player.volume_db = linear_to_db(SettingsManager.master_volume) - 10.0
 
 func is_muted() -> bool:
-	return _muted
+	return SettingsManager.muted
 
 func toggle_mute() -> bool:
-	_muted = not _muted
-	if _player != null:
-		_player.volume_db = -80.0 if _muted else -12.0
-	return _muted
+	SettingsManager.set_muted(not SettingsManager.muted)
+	return SettingsManager.muted
 
 func play_cassette_click() -> void:
 	_sfx_kind = "click"
@@ -68,22 +77,30 @@ func _process(_delta: float) -> void:
 	var is_night: bool = GameState.phase == "night"
 	var station_idx: int = GameState.current_station_idx
 	var is_phantom_fm: bool = (station_idx == 4)
+	var radio_on: bool = SettingsManager.radio_ambience
 
 	for i in range(to_push):
 		var sample: float = 0.0
 
-		# Basse Cold Wave feutrée la nuit (impulsion post-punk 1982)
-		if is_night:
-			_phase_bass += 65.4 * dt
-			if _phase_bass > 1.0:
-				_phase_bass -= 1.0
-			var pulse_env: float = 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.004)
-			var saw: float = (_phase_bass * 2.0 - 1.0) * 0.035 * pulse_env
-			sample += saw
+		if radio_on:
+			# Basse Cold Wave feutrée la nuit (impulsion post-punk 1982)
+			if is_night and not title_mode:
+				_phase_bass += 65.4 * dt
+				if _phase_bass > 1.0:
+					_phase_bass -= 1.0
+				var pulse_env: float = 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.004)
+				var saw: float = (_phase_bass * 2.0 - 1.0) * 0.035 * pulse_env
+				sample += saw
 
-		# Souffle doux si 104.7 FM sélectionnée
-		if is_phantom_fm:
-			sample += _next_noise() * (0.025 if is_night else 0.038)
+			# Souffle doux si 104.7 FM sélectionnée ou léger lit FM à l'accueil
+			if is_phantom_fm and not title_mode:
+				sample += _next_noise() * (0.025 if is_night else 0.038)
+			elif title_mode:
+				_phase_bass += 55.0 * dt
+				if _phase_bass > 1.0:
+					_phase_bass -= 1.0
+				var hum: float = sin(_phase_bass * TAU) * 0.010
+				sample += _next_noise() * 0.012 + hum
 
 		# Enveloppe SFX ponctuelle
 		if _sfx_timer > 0.0:

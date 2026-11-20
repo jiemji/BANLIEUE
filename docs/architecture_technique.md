@@ -7,7 +7,7 @@
 ## 1. Stack Technique Validée
 
 * **Architecture Spatiale Multi-Zoom (4 Niveaux)** :
-  * **Niveaux 1, 2 & 3 *(Plans papier IGN / RATP 1982 en 2D)*** : pilotés par `WorldMapView` (`scripts/world/world_map_view.gd`) + `Camera2D` (zoom molette, panoramique clic droit, fil d'Ariane supérieur, `Échap` / `M`).
+  * **Niveaux 1, 2 & 3 *(Plans papier IGN / RATP 1982 en 2D)*** : pilotés par `WorldMapView` (`scripts/world/world_map_view.gd`) + `Camera2D` (zoom molette, panoramique clic droit, fil d'Ariane supérieur, `Retour arrière (Backspace)` / `M`, tandis qu'`Échap` ouvre le Menu Principal / Pause).
     * **N1 (`idf.json`)** : Île-de-France (8 départements ; seul le **93** est `playable`, les 7 autres sont `undescribed` avec `travel_hooks`).
     * **N2 (`departments/93.json`)** : Seine-Saint-Denis (axes RER B Nord en Y, RN2, Canal de l'Ourcq ; seule **Cradon-lès-Gonesse** est `playable` au départ, avec liaisons déjà modélisées vers Aulnay, La Courneuve, Drancy, Bobigny, etc.).
     * **N3 (`cities/cradon_les_gonesse.json`)** : Plan de Cradon-lès-Gonesse (4 secteurs colorés, 6 bâtiments cliquables, affichage temps réel des sous-groupes `G1/G2/G3` et des lignes de **Renfort**).
@@ -61,7 +61,7 @@ BANLIEUE/
     ├── scenes/
     │   └── main.tscn                    # Scène racine minimaliste assemblée par main.gd
     └── scripts/
-        ├── main.gd                      # Orchestrateur principal, transitions N1–N4 (Échap/M) & Sas Jour→Nuit
+        ├── main.gd                      # Orchestrateur principal, transitions N1–N4 (Backspace/M), Menu (Échap) & Sas Jour→Nuit
         ├── autoload/                    # Singletons globaux (sans class_name)
         │   ├── data_loader.gd           # Chargement hiérarchique idf → 93 → ville → intérieurs & indexation
         │   ├── game_state.gd            # État vivant (zoom N1-N4, phase, horloge, économie, bande, Moral, flags)
@@ -106,7 +106,7 @@ BANLIEUE/
 
 **Contrôles de navigation multi-zoom** :
 * **Fil d'Ariane (`IDF › 93 › Cradon › Intérieur`) & bouton `▲`** en haut de l'écran, ou bouton **`Plan de Cradon (N3) [M]`**.
-* **Clavier** : `Échap` remonte d'un niveau (`N4 → N3 → N2 → N1`), `M` bascule entre l'intérieur actif (`N4`) et le plan de ville (`N3`), `ZQSD` / flèches pour déplacer la caméra en Niveau 4.
+* **Clavier** : `Échap` ouvre ou ferme le Menu Principal / Pause (et ferme d'abord la modale active), `Retour arrière (Backspace)` remonte d'un niveau cartographique (`N4 → N3 → N2 → N1`), `M` bascule entre l'intérieur actif (`N4`) et le plan de ville (`N3`), `ZQSD` / flèches pour déplacer la caméra en Niveau 4.
 * **Souris** : clic gauche sur un nœud `playable` / bâtiment pour zoomer/entrer (ou sur une dalle `exits[]` pour sortir au N3), **molette** pour zoomer/dézoomer (en N2/N3, un dézoom répété au plancher remonte d'un niveau), **clic droit maintenu** pour faire glisser la carte.
 
 ---
@@ -120,6 +120,12 @@ BANLIEUE/
 4. **Sas Sensoriel Crépusculaire** : Transition physique Jour → Nuit déclenchée par le crépuscule (grondement Boeing, secousse de cadre, passage au rendu N&B + 4 couleurs-signaux et basse Cold Wave).
 5. **Frise Chronologique Nocturne — Gare RER « du Y »** : Confrontation sur le quai contre Skin nerveux, cousin S.O. et S.O. vétéran, gestion des **Interruptions hors-tour**, préavis et arbitrage de la **Crise d'autonomie de Karim**, arrivée des CRS et apparition du **Train Fantôme du RER B**.
 6. **Retour au Box-Garage & Bilan** : Résolution humaine de la crise, choix d'ouvrir ou non la porte à **Ludo** (recrutement), bref signal sur la **104.7 FM** et récapitulatif du Jalon 0.
+
+### Structure des Menus, Persistance & Création de Partie *(prévu pour l'implémentation suivante)*
+Conformément à la spécification validée dans [structure_menus_et_ecrans.md](file:///e:/JDR/BANLIEUE/docs/structure_menus_et_ecrans.md), la couche accueil, sauvegarde, options et sélection du protagoniste s'appuiera sur les modules suivants :
+* **Données & Assets** : `data/player_profiles.json` (4 archétypes sociaux + galerie libre de **6 à 8 portraits** multi-ethnies/cultures avec **pions en pied assortis** en `526 px` RGBA produits via `banlieue-asset-artist`).
+* **Persistance *(Autoloads)*** : `scripts/autoload/save_manager.gd` (3 emplacements manuels `user://saves/slot_1.json`..`slot_3.json`, zéro auto-save) et `scripts/autoload/settings_manager.gd` (`user://settings.cfg` pour affichage, audio/FM, grain 16mm, secousse écran et taille de texte).
+* **Écrans UI** : `scripts/ui/title_menu_panel.gd` (menu unifié Accueil/Pause sur fond vivant du Box-Garage), `scripts/ui/save_load_panel.gd`, `scripts/ui/options_panel.gd` et `scripts/ui/new_game_panel.gd`.
 
 ### Jalons ultérieurs
 * **Jalon 1 *(Production Visuelle & Audio)*** : Remplacement progressif du greybox isométrique par tuiles peintes/encrées, portraits BD expressifs et vrais stems musicaux Cold Wave / FM.

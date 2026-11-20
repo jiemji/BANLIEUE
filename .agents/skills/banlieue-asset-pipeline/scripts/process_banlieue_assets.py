@@ -305,6 +305,40 @@ def validate_project(game_root: str) -> int:
                         if alpha.getpixel((0, 0)) != 0 or alpha.getpixel((w - 1, h - 1)) != 0:
                             errors.append(f"Pawn transparent padding missing in {fp}")
 
+    pending_assets: list[str] = []
+    profiles_path = os.path.join(game_root, "data/player_profiles.json")
+    if os.path.exists(profiles_path):
+        prof_j = load_j("data/player_profiles.json")
+        for p_entry in prof_j.get("portraits", []):
+            pid = p_entry.get("id", "?")
+            is_pending = bool(p_entry.get("pending_asset", False))
+            for key in ("portrait", "pawn"):
+                res_p = p_entry.get(key, "")
+                if not res_p or not res_p.startswith("res://"):
+                    errors.append(f"Invalid {key} path for player profile {pid}: {res_p}")
+                    continue
+                fp = os.path.join(game_root, res_p[6:])
+                if not os.path.exists(fp):
+                    if is_pending:
+                        pending_assets.append(f"{pid}.{key} ({res_p})")
+                    else:
+                        errors.append(f"Missing {key} file for player profile {pid}: {fp}")
+                elif key == "pawn":
+                    im = Image.open(fp)
+                    if im.mode != "RGBA":
+                        errors.append(f"Player pawn not RGBA: {fp}")
+                    w, h = im.size
+                    if h != 526:
+                        errors.append(f"Expected player pawn height 526 for {fp}, got {h}")
+                    alpha = im.getchannel("A")
+                    if alpha.getpixel((0, 0)) != 0 or alpha.getpixel((w - 1, h - 1)) != 0:
+                        errors.append(f"Player pawn transparent padding missing in {fp}")
+        for arch in prof_j.get("archetypes", []):
+            aid = arch.get("id", "")
+            for req_k in ("id", "title", "story", "specialty_id"):
+                if not str(arch.get(req_k, "")).strip():
+                    errors.append(f"Missing {req_k} in archetype {aid or '?'}")
+
     for l in interiors_list:
         lid = l["id"]
         if int(l.get("grid_w", 0)) < 4 or int(l.get("grid_h", 0)) < 4:
@@ -385,6 +419,10 @@ def validate_project(game_root: str) -> int:
         for e in errors:
             print(" -", e)
         return 1
+    if pending_assets:
+        print(f"PENDING ASSETS ({len(pending_assets)}):")
+        for pa in pending_assets:
+            print(" -", pa)
     print(
         f"VALIDATION PASSED: {len(reg_ids)} regions, {len(dept_ids)} depts, {len(city_ids)} cities, "
         f"{len(loc_ids)} interiors, {len(char_ids)} chars, {len(dlg_ids)} dialogues, {gd_count} scripts — 0 errors."

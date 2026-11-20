@@ -5,3 +5,6 @@ res://scripts/autoload/game_state.gd
 res://scripts/ui/hud_overlay.gd
 res://scripts/world/pawn_actor.gd
 res://scripts/systems/squad_manager.gd
+res://scripts/autoload/audio_radio.gd
+res://scripts/systems/tension_timeline.gd
+res://scripts/ui/dialogue_panel.gd

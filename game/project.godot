@@ -23,8 +23,10 @@ config/icon="res://icon.svg"
 [autoload]
 
 DataLoader="*res://scripts/autoload/data_loader.gd"
+SettingsManager="*res://scripts/autoload/settings_manager.gd"
 GameState="*res://scripts/autoload/game_state.gd"
 AudioRadio="*res://scripts/autoload/audio_radio.gd"
+SaveManager="*res://scripts/autoload/save_manager.gd"
 
 [display]
 
