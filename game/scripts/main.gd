@@ -1,5 +1,7 @@
+## Orchestrateur principal du jeu : machine d'états des écrans/menus, transitions N1–N4 et Sas Jour→Nuit.
 extends Node
 
+## États globaux de navigation entre l'accueil, la création de partie, la session active et le menu pause.
 enum AppState {
 	TITLE_MENU,
 	NEW_GAME_SETUP,
@@ -291,6 +293,7 @@ func _apply_shader_settings() -> void:
 	if not SettingsManager.screen_shake:
 		_shader_mat.set_shader_parameter("shake_amount", 0.0)
 
+## Bascule l'application sur l'écran d'accueil avec le Box-Garage vivant en arrière-plan.
 func _enter_title_menu() -> void:
 	_app_state = AppState.TITLE_MENU
 	_sas_active = false
@@ -323,6 +326,7 @@ func _enter_title_menu() -> void:
 	_title_menu.call("open_menu", "title")
 	_update_input_lock()
 
+## Ouvre le Menu Pause par-dessus la partie active et bloque les entrées du monde.
 func _open_pause_menu() -> void:
 	if _app_state != AppState.IN_GAME or _sas_active:
 		return
@@ -330,6 +334,7 @@ func _open_pause_menu() -> void:
 	_title_menu.call("open_menu", "pause")
 	_update_input_lock()
 
+## Referme le Menu Pause et ses modales enfants pour rendre la main au jeu.
 func _close_pause_menu() -> void:
 	if _app_state != AppState.PAUSE_MENU:
 		return
@@ -358,6 +363,7 @@ func _on_new_game_cancelled() -> void:
 		_title_menu.call("open_menu", "title")
 	_update_input_lock()
 
+## Démarre une nouvelle session au Box-Garage à partir du profil Leader sélectionné.
 func _start_new_game(profile: Dictionary) -> void:
 	_title_menu.call("close_menu")
 	_new_game_panel.call("close_panel")
@@ -385,6 +391,7 @@ func _start_new_game(profile: Dictionary) -> void:
 	_dialogue_runner.call("start_dialogue", "intro_box_garage")
 	_update_input_lock()
 
+## Restaure les vues, le HUD et le post-process après le chargement d'une cassette manuelle.
 func _on_slot_loaded(slot_idx: int) -> void:
 	_title_menu.call("close_menu")
 	_new_game_panel.call("close_panel")

@@ -1,3 +1,4 @@
+## Modale de gestion des 3 emplacements de sauvegarde manuels (Cassettes A, B, C) en mode lecture ou écriture.
 extends Control
 
 signal slot_saved(slot_idx: int)
@@ -129,6 +130,7 @@ func _build_ui() -> void:
 	btn_yes.pressed.connect(_on_confirm_yes)
 	c_row.add_child(btn_yes)
 
+## Ouvre la modale des 3 cassettes en mode "load" ou "save" et reconstruit les cartes d'état.
 func open_panel(mode: String) -> void:
 	_mode = "save" if mode == "save" else "load"
 	_lbl_title.text = "SAUVEGARDER LA PARTIE" if _mode == "save" else "CHARGER UNE PARTIE"
@@ -137,13 +139,16 @@ func open_panel(mode: String) -> void:
 	_rebuild_slots()
 	visible = true
 
+## Ferme la modale et toute confirmation en cours.
 func close_panel() -> void:
 	close_confirm()
 	visible = false
 
+## Indique si une boîte de confirmation (écrasement, chargement ou suppression) est ouverte.
 func has_confirm_open() -> bool:
 	return _confirm_overlay != null and _confirm_overlay.visible
 
+## Ferme la boîte de confirmation sans appliquer l'opération en attente.
 func close_confirm() -> void:
 	if _confirm_overlay != null:
 		_confirm_overlay.visible = false

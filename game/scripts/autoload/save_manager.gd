@@ -1,3 +1,5 @@
+## Gestionnaire des 3 emplacements de sauvegarde manuels (Cassettes A, B, C).
+## Sérialise et restaure GameState et le profil du protagoniste au format JSON dans user://saves/.
 extends Node
 
 const SAVE_DIR: String = "user://saves"
@@ -5,6 +7,7 @@ const SLOT_COUNT: int = 3
 const SLOT_LABELS: Array[String] = ["Cassette A", "Cassette B", "Cassette C"]
 const SCHEMA_VERSION: int = 1
 
+## Retourne le libellé d'affichage de la cassette pour un index 1..3.
 func get_slot_label(slot_idx: int) -> String:
 	var idx: int = clampi(slot_idx, 1, SLOT_COUNT) - 1
 	return SLOT_LABELS[idx]
@@ -16,12 +19,14 @@ func get_slot_path(slot_idx: int) -> String:
 func slot_exists(slot_idx: int) -> bool:
 	return FileAccess.file_exists(get_slot_path(slot_idx))
 
+## Indique si au moins une des 3 cassettes contient déjà une sauvegarde.
 func has_any_save() -> bool:
 	for i in range(1, SLOT_COUNT + 1):
 		if slot_exists(i):
 			return true
 	return false
 
+## Lit uniquement le bloc meta et l'horodatage d'une cassette sans charger la partie.
 func read_slot_meta(slot_idx: int) -> Dictionary:
 	var path: String = get_slot_path(slot_idx)
 	if not FileAccess.file_exists(path):
@@ -47,6 +52,7 @@ func read_slot_meta(slot_idx: int) -> Dictionary:
 			meta["portrait_path"] = str(lp.get("portrait_path", ""))
 	return meta
 
+## Sauvegarde l'état courant de GameState et leader_profile sur la cassette demandée (1..3).
 func save_slot(slot_idx: int) -> bool:
 	var abs_dir: String = ProjectSettings.globalize_path(SAVE_DIR)
 	var mk_err: Error = DirAccess.make_dir_recursive_absolute(abs_dir)
@@ -93,6 +99,7 @@ func save_slot(slot_idx: int) -> bool:
 	file.close()
 	return true
 
+## Charge une cassette existante (1..3) et restaure GameState et le profil Leader.
 func load_slot(slot_idx: int) -> bool:
 	var path: String = get_slot_path(slot_idx)
 	if not FileAccess.file_exists(path):
@@ -114,6 +121,7 @@ func load_slot(slot_idx: int) -> bool:
 	GameState.load_from_save_dict(lp_var as Dictionary, gs_var as Dictionary)
 	return true
 
+## Supprime définitivement le fichier JSON d'une cassette (1..3).
 func delete_slot(slot_idx: int) -> bool:
 	var path: String = get_slot_path(slot_idx)
 	if not FileAccess.file_exists(path):
@@ -122,6 +130,7 @@ func delete_slot(slot_idx: int) -> bool:
 	var err: Error = DirAccess.remove_absolute(abs_path)
 	return err == OK
 
+## Formate un horodatage ISO (YYYY-MM-DDTHH:MM:SS) en date lisible DD/MM/YYYY · HH:MM.
 func format_saved_at(iso_str: String) -> String:
 	if iso_str.length() < 16:
 		return iso_str

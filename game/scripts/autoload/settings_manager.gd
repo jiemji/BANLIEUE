@@ -1,3 +1,5 @@
+## Gestionnaire global des réglages utilisateur persistés dans user://settings.cfg.
+## Pilote le mode d'affichage, le volume audio/FM, le grain 16mm, les secousses et la taille des dialogues.
 extends Node
 
 signal settings_changed
@@ -15,6 +17,7 @@ var dialogue_font_scale: String = "normal"
 func _ready() -> void:
 	load_settings()
 
+## Charge les réglages depuis user://settings.cfg puis applique le mode d'affichage et émet settings_changed.
 func load_settings() -> void:
 	var cfg: ConfigFile = ConfigFile.new()
 	var err: Error = cfg.load(SETTINGS_PATH)
@@ -31,6 +34,7 @@ func load_settings() -> void:
 	apply_display_setting()
 	settings_changed.emit()
 
+## Enregistre l'ensemble des préférences courantes dans user://settings.cfg.
 func save_settings() -> void:
 	var cfg: ConfigFile = ConfigFile.new()
 	cfg.set_value("display", "fullscreen", fullscreen)
@@ -42,6 +46,7 @@ func save_settings() -> void:
 	cfg.set_value("ui", "dialogue_font_scale", dialogue_font_scale)
 	cfg.save(SETTINGS_PATH)
 
+## Restaure tous les paramètres par défaut, applique l'affichage et sauvegarde.
 func reset_defaults() -> void:
 	fullscreen = false
 	master_volume = 0.80
@@ -54,6 +59,7 @@ func reset_defaults() -> void:
 	save_settings()
 	settings_changed.emit()
 
+## Applique le mode fenêtré ou plein écran (ignoré en exécution headless).
 func apply_display_setting() -> void:
 	if DisplayServer.get_name() == "headless":
 		return
@@ -61,6 +67,7 @@ func apply_display_setting() -> void:
 	if DisplayServer.window_get_mode() != target_mode:
 		DisplayServer.window_set_mode(target_mode)
 
+## Retourne l'intensité numérique du grain pellicule pour film_1982_post.gdshader.
 func get_grain_strength() -> float:
 	if grain_level == "off":
 		return 0.0
@@ -68,6 +75,7 @@ func get_grain_strength() -> float:
 		return 0.02
 	return 0.042
 
+## Retourne la taille de police (en pixels) utilisée par DialoguePanel.
 func get_dialogue_font_size() -> int:
 	return 17 if dialogue_font_scale == "large" else 14
 

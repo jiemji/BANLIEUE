@@ -1,8 +1,10 @@
+## Synthétiseur audio procédural temps réel (SFX Frise/Boeing, basse Cold Wave nocturne et lit FM d'accueil).
 extends Node
 
 var _player: AudioStreamPlayer = null
 var _playback: AudioStreamGeneratorPlayback = null
 var _muted: bool = false
+## Active le fond sonore FM feutré sur l'écran d'accueil sans déclencher la basse nocturne en jeu.
 var title_mode: bool = false
 
 var _mix_rate: float = 22050.0
@@ -26,6 +28,7 @@ func _ready() -> void:
 	SettingsManager.settings_changed.connect(_apply_audio_settings)
 	_apply_audio_settings()
 
+## Applique l'état muted et le volume général issus de SettingsManager sur le lecteur audio.
 func _apply_audio_settings() -> void:
 	_muted = SettingsManager.muted
 	if _player != null:

@@ -194,6 +194,7 @@ func trigger_interruption(char_id: String) -> void:
 		escape_progress += 1
 		_push_log("INTERRUPTION [Réflexe de rue] — %s pousse une grille métallique (+2 crans CRS, accès quai ouvert) !" % cname)
 	elif spec == "sang_froid":
+		# Spécialité de L'Échappé·e des Pavillons : calme prioritairement une crise imminente, sinon perce un bluff adverse.
 		if not crisis_queue.is_empty():
 			var cr: Dictionary = crisis_queue[0]
 			var cr_cid: String = str(cr.get("char_id", ""))

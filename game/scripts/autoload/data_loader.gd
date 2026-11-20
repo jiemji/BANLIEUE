@@ -229,6 +229,7 @@ func get_encounter(enc_id: String) -> Dictionary:
 		return val as Dictionary
 	return {}
 
+## Retourne la définition d'un portrait joueur depuis player_profiles.json (ou le premier disponible).
 func get_portrait_def(portrait_id: String) -> Dictionary:
 	for pv in player_portraits:
 		if str(pv.get("id", "")) == portrait_id:
@@ -237,6 +238,7 @@ func get_portrait_def(portrait_id: String) -> Dictionary:
 		return player_portraits[0]
 	return {}
 
+## Retourne la définition d'un archétype social joueur depuis player_profiles.json.
 func get_archetype_def(archetype_id: String) -> Dictionary:
 	for av in player_archetypes:
 		if str(av.get("id", "")) == archetype_id:
@@ -253,6 +255,7 @@ func _res_file_exists(res_path: String) -> bool:
 	var abs_path: String = ProjectSettings.globalize_path(res_path)
 	return FileAccess.file_exists(abs_path)
 
+## Applique le profil du protagoniste (nom, portrait/pion vérifiés sur disque, stats et spécialité) sur characters["leader"].
 func apply_leader_profile(profile: Dictionary) -> void:
 	if _base_leader_def.is_empty():
 		var existing: Variant = characters.get("leader", {})

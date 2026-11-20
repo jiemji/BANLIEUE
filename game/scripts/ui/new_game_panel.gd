@@ -1,3 +1,4 @@
+## Écran « Nouvelle partie » : choix libre du prénom et du portrait/pion découplés de la sélection parmi 4 archétypes sociaux.
 extends Control
 
 signal start_game_requested(profile: Dictionary)
@@ -340,6 +341,7 @@ func _build_ui() -> void:
 	btn_launch.pressed.connect(_on_launch_pressed)
 	footer.add_child(btn_launch)
 
+## Ouvre l'écran de création et réinitialise le prénom, le portrait et l'archétype par défaut.
 func open_panel() -> void:
 	if DataLoader.player_portraits.is_empty() or DataLoader.player_archetypes.is_empty():
 		DataLoader.load_all()
@@ -353,6 +355,7 @@ func open_panel() -> void:
 	_update_summary()
 	visible = true
 
+## Ferme l'écran de création de partie.
 func close_panel() -> void:
 	visible = false
 

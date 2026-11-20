@@ -35,6 +35,7 @@ func _ready() -> void:
 	reset_new_slice({})
 	has_active_session = false
 
+## Réinitialise une nouvelle session du niveau-pilote en injectant le profil Leader choisi (nom, portrait, archétype).
 func reset_new_slice(profile: Dictionary = {}) -> void:
 	phase = "day"
 	clock_minutes = 17 * 60 + 30
@@ -328,6 +329,7 @@ func set_zoom_view(level: int, map_id: String = "") -> void:
 	zoom_changed.emit(current_zoom_level, emit_id)
 	state_changed.emit()
 
+## Sérialise l'état complet de la partie dans un Dictionnaire prêt pour l'export JSON.
 func to_save_dict() -> Dictionary:
 	var clues_copy: Array[String] = []
 	for c in clues:
@@ -359,6 +361,7 @@ func to_save_dict() -> Dictionary:
 		"current_city_id": current_city_id
 	}
 
+## Restaure le profil du protagoniste et l'état complet d'une session depuis une sauvegarde JSON.
 func load_from_save_dict(profile_data: Dictionary, state_data: Dictionary) -> void:
 	if DataLoader.characters.is_empty() or DataLoader.player_archetypes.is_empty():
 		DataLoader.load_all()

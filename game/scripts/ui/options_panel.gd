@@ -1,3 +1,4 @@
+## Modale des options (affichage, audio/FM, grain pellicule 16mm, secousse écran, taille des dialogues).
 extends Control
 
 signal closed
@@ -234,10 +235,12 @@ func _make_option_row(label_txt: String) -> HBoxContainer:
 	row.add_child(lbl)
 	return row
 
+## Ouvre la modale Options et synchronise les contrôles avec SettingsManager.
 func open_panel() -> void:
 	_sync_from_settings()
 	visible = true
 
+## Ferme la modale Options.
 func close_panel() -> void:
 	visible = false
 

@@ -218,6 +218,7 @@ func _build_ui() -> void:
 	_lbl_clues.add_theme_color_override("font_color", Color(0.86, 0.84, 0.78))
 	side_vbox.add_child(_lbl_clues)
 
+## Met à jour le libellé du bouton Son selon l'état global SettingsManager.muted.
 func _sync_mute_button() -> void:
 	if _btn_mute != null:
 		_btn_mute.text = "Son: OFF" if SettingsManager.muted else "Son: ON"

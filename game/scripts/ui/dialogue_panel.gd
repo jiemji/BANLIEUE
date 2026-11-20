@@ -20,6 +20,7 @@ func _ready() -> void:
 	_apply_text_size()
 	visible = false
 
+## Synchronise la taille de police du dialogue avec SettingsManager (Normale ou Grande).
 func _apply_text_size() -> void:
 	if _lbl_text != null:
 		_lbl_text.add_theme_font_size_override("font_size", SettingsManager.get_dialogue_font_size())

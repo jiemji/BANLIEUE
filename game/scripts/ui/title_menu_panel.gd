@@ -1,3 +1,4 @@
+## Panneau de Menu unifié servant à la fois d'Écran d'accueil ("title") et de Menu Pause en jeu ("pause").
 extends Control
 
 signal resume_requested
@@ -194,6 +195,7 @@ func _make_menu_button(label_txt: String, font_col: Color) -> Button:
 	btn.add_theme_color_override("font_color", font_col)
 	return btn
 
+## Affiche le menu dans le mode demandé ("title" ou "pause") et rafraîchit l'état des boutons.
 func open_menu(mode: String) -> void:
 	_mode = "pause" if mode == "pause" else "title"
 	_confirm_overlay.visible = false
@@ -201,11 +203,13 @@ func open_menu(mode: String) -> void:
 	visible = true
 	refresh_state()
 
+## Masque le menu et réinitialise toute boîte de confirmation ouverte.
 func close_menu() -> void:
 	_confirm_overlay.visible = false
 	_pending_action = ""
 	visible = false
 
+## Actualise la disponibilité des actions (Charger, Sauvegarder, Reprendre) et la ligne d'état.
 func refresh_state() -> void:
 	var is_pause: bool = (_mode == "pause")
 	_dimmer.visible = is_pause
@@ -230,13 +234,16 @@ func refresh_state() -> void:
 		var loc_name: String = str(DataLoader.get_location(GameState.get_active_location_id()).get("name", "Box-Garage"))
 		_lbl_ambient.text = "%s · %s (%s)" % [lp_name, loc_name, GameState.format_clock()]
 
+## Met à jour le libellé de phase du fond vivant lorsque le menu est en mode accueil.
 func set_ambient_phase_label(phase_txt: String) -> void:
 	if _lbl_ambient != null and _mode == "title":
 		_lbl_ambient.text = phase_txt
 
+## Indique si une popup de confirmation est actuellement affichée.
 func has_confirm_open() -> bool:
 	return _confirm_overlay != null and _confirm_overlay.visible
 
+## Ferme la popup de confirmation sans exécuter l'action en attente.
 func close_confirm() -> void:
 	if _confirm_overlay != null:
 		_confirm_overlay.visible = false

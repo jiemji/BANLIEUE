@@ -74,6 +74,7 @@ func set_view_active(active: bool) -> void:
 			_camera.make_current()
 			_apply_camera_transform()
 
+## Bascule le mode fond vivant d'accueil : masque les marqueurs interactifs et applique le cadrage/dérive caméra.
 func set_title_backdrop_mode(enabled: bool, drift: Vector2 = Vector2.ZERO) -> void:
 	_title_backdrop_mode = enabled
 	_title_cam_drift = drift

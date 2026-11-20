@@ -1,5 +1,7 @@
 # *Banlieue* — Architecture Technique
 
+> **Version courante : 0.2.0** — Mise à jour : 2026-11-20
+
 *Spécification technique de référence et socle du Jalon 0 — Phase Technique (🛠️ Léo).*
 
 ---
@@ -41,6 +43,7 @@ BANLIEUE/
     │   └── locations/                   # Décors iso 1200x896 (box_garage, tour_b, chez_bebert, gare_rer_y...)
     ├── data/                            # Cœur Data-Driven 100 % JSON (atlas hiérarchique + systèmes)
     │   ├── characters.json              # Compagnons & PNJ (FAVE/FASA, Moral, Stress, Spécialités)
+    │   ├── player_profiles.json         # 4 archétypes sociaux & galerie de 6 portraits/pions libres
     │   ├── world/                       # Cartes N1–N3 style IGN / RATP 1982
     │   │   ├── idf.json                 # N1 : Île-de-France (seul le 93 playable)
     │   │   ├── departments/93.json      # N2 : Seine-Saint-Denis (seule Cradon playable)
@@ -63,9 +66,11 @@ BANLIEUE/
     └── scripts/
         ├── main.gd                      # Orchestrateur principal, transitions N1–N4 (Backspace/M), Menu (Échap) & Sas Jour→Nuit
         ├── autoload/                    # Singletons globaux (sans class_name)
-        │   ├── data_loader.gd           # Chargement hiérarchique idf → 93 → ville → intérieurs & indexation
-        │   ├── game_state.gd            # État vivant (zoom N1-N4, phase, horloge, économie, bande, Moral, flags)
-        │   └── audio_radio.gd           # Synthèse procédurale (Frise, FM, Sas Boeing, Cold Wave, Mute)
+        │   ├── data_loader.gd           # Chargement hiérarchique idf → 93 → ville → intérieurs, profils joueur & indexation
+        │   ├── settings_manager.gd      # Persistance user://settings.cfg (affichage, audio/FM, grain, secousse, texte)
+        │   ├── game_state.gd            # État vivant (zoom N1-N4, phase, horloge, économie, bande, Moral, flags, profil)
+        │   ├── audio_radio.gd           # Synthèse procédurale (Frise, FM, lit d'accueil, Sas Boeing, Cold Wave, Mute)
+        │   └── save_manager.gd          # Sauvegarde/chargement manuel sur 3 cassettes (user://saves/slot_1..3.json)
         ├── systems/                     # Logique métier pure découplée des vues
         │   ├── squad_manager.gd         # Bande modulable (3 / 2+1 / 1+1+1), bascule à la volée, distance « Renfort »
         │   ├── tension_timeline.gd      # Frise chronologique, Interruptions hors-tour & préavis Crise d'autonomie
@@ -76,9 +81,13 @@ BANLIEUE/
         │   ├── iso_prop_node.gd         # Props 3D triés en Y-sort dans _pawn_container en mode modulaire
         │   └── pawn_actor.gd            # Nœud pion : shader contour 2px, ombre silhouette 4h (+ lights), cartel
         └── ui/
-            ├── hud_overlay.gd           # Bandeau 1982, fil d'Ariane N1-N4, switcher 1/2/3 & Tuner Radio FM
+            ├── hud_overlay.gd           # Bandeau 1982, fil d'Ariane N1-N4, bouton Menu, switcher 1/2/3 & Tuner Radio FM
             ├── dialogue_panel.gd        # Boîte de dialogue BD/fanzine avec portraits et choix annotés
-            └── timeline_panel.gd        # Vue « planche-contact / bande magnétique » de la Frise de Tension
+            ├── timeline_panel.gd        # Vue « planche-contact / bande magnétique » de la Frise de Tension
+            ├── title_menu_panel.gd      # Menu Principal / Pause unifié sur fond vivant du Box-Garage
+            ├── new_game_panel.gd        # Écran « Nouvelle partie » (prénom, 6 portraits/pions libres, 4 archétypes)
+            ├── save_load_panel.gd       # Modale 3 cassettes TDK 1982 (sauver, charger, effacer + confirmations)
+            └── options_panel.gd         # Modale Options temps réel reliée à SettingsManager
 ```
 
 ---
@@ -86,9 +95,11 @@ BANLIEUE/
 ## 3. Systèmes Cœurs & Flux de Données
 
 ### Autoloads *(Singletons sans `class_name`)*
-1. **`DataLoader`** : Charge la hiérarchie modulaire (`data/world/idf.json` → `departments/*.json` → `cities/*.json` → `maps/interiors/*.json`) ainsi que les personnages, dialogues, rencontres et stations FM, et expose les accesseurs typés (`get_region`, `get_department`, `get_city`, `get_interior`, `get_location`, `get_character`, `get_dialogue`, `get_encounter`).
-2. **`GameState`** : Source unique de vérité pour l'état de la partie (`current_zoom_level` `1..4`, `current_region_id`, `current_department_id`, `current_city_id`, `phase` `"day" | "twilight" | "night"`, `clock_minutes`, `francs`, `faveurs`, `notoriete`, `fasa_bonus`, `flags`, `clues`, `squad_members`, `member_states`, `active_group_id`, `current_station_idx`) ; émet des signaux découplés (`state_changed`, `phase_changed`, `active_group_changed`, `zoom_changed`, `log_added`).
-3. **`AudioRadio`** : Synthétiseur procédural alimenté par `GameState` (tonalité adaptée au changement de phase Jour/Sas/Nuit et au zapping des 5 fréquences FM, avec bascule Mute).
+1. **`DataLoader`** : Charge la hiérarchie modulaire (`data/world/idf.json` → `departments/*.json` → `cities/*.json` → `maps/interiors/*.json`), les personnages, dialogues, rencontres, stations FM ainsi que `data/player_profiles.json` ; expose les accesseurs typés (`get_region`, `get_department`, `get_city`, `get_interior`, `get_location`, `get_character`, `get_dialogue`, `get_encounter`, `get_portrait_def`, `get_archetype_def`) et `apply_leader_profile()`.
+2. **`SettingsManager`** : Persiste les préférences utilisateur dans `user://settings.cfg` (`ConfigFile`) — mode fenêtré/plein écran, volume général, coupure du son, ambiance FM, grain 16mm, secousse d'écran et taille de police des dialogues.
+3. **`GameState`** : Source unique de vérité pour l'état de la partie (`has_active_session`, `leader_profile`, `current_zoom_level` `1..4`, `current_region_id`, `current_department_id`, `current_city_id`, `phase` `"day" | "twilight" | "night"`, `clock_minutes`, `francs`, `faveurs`, `notoriete`, `fasa_bonus`, `flags`, `clues`, `squad_members`, `member_states`, `active_group_id`, `current_station_idx`) ; expose `to_save_dict()` / `load_from_save_dict()` et émet des signaux découplés (`state_changed`, `phase_changed`, `active_group_changed`, `zoom_changed`, `log_added`).
+4. **`AudioRadio`** : Synthétiseur procédural alimenté par `GameState` et `SettingsManager` (tonalité adaptée au changement de phase Jour/Sas/Nuit, lit FM feutré en mode accueil `title_mode` et zapping des 5 fréquences FM).
+5. **`SaveManager`** : Gère les 3 emplacements manuels (`Cassette A`, `Cassette B`, `Cassette C` → `user://saves/slot_1..3.json`, zéro auto-save) avec lecture rapide des métadonnées (`read_slot_meta`), sauvegarde, chargement et suppression.
 
 ### Systèmes Métiers (`scripts/systems/`)
 * **`SquadManager`** : Pilote la bande modulable (`3+`, `2+1`, `1+1+1`), la **bascule libre à la volée** entre sous-groupes (`switch_to_group`), les consignes d'attente (`Guetter`, `Bricoler`, `Attendre`), les déplacements inter-lieux et le calcul de proximité (`compute_reinforcement_ticks`) permettant d'insérer les potes proches comme **« Renfort dans X crans »** sur une Frise nocturne.
@@ -121,11 +132,11 @@ BANLIEUE/
 5. **Frise Chronologique Nocturne — Gare RER « du Y »** : Confrontation sur le quai contre Skin nerveux, cousin S.O. et S.O. vétéran, gestion des **Interruptions hors-tour**, préavis et arbitrage de la **Crise d'autonomie de Karim**, arrivée des CRS et apparition du **Train Fantôme du RER B**.
 6. **Retour au Box-Garage & Bilan** : Résolution humaine de la crise, choix d'ouvrir ou non la porte à **Ludo** (recrutement), bref signal sur la **104.7 FM** et récapitulatif du Jalon 0.
 
-### Structure des Menus, Persistance & Création de Partie *(prévu pour l'implémentation suivante)*
-Conformément à la spécification validée dans [structure_menus_et_ecrans.md](file:///e:/JDR/BANLIEUE/docs/structure_menus_et_ecrans.md), la couche accueil, sauvegarde, options et sélection du protagoniste s'appuiera sur les modules suivants :
-* **Données & Assets** : `data/player_profiles.json` (4 archétypes sociaux + galerie libre de **6 à 8 portraits** multi-ethnies/cultures avec **pions en pied assortis** en `526 px` RGBA produits via `banlieue-asset-artist`).
+### Structure des Menus, Persistance & Création de Partie *(livré en v0.2.0)*
+Conformément à la spécification validée dans [structure_menus_et_ecrans.md](file:///e:/JDR/BANLIEUE/docs/structure_menus_et_ecrans.md), la couche accueil, sauvegarde, options et sélection du protagoniste s'appuie sur les modules suivants :
+* **Données & Assets** : `data/player_profiles.json` (4 archétypes sociaux dont la spécialité Frise `sang_froid` câblée dans `tension_timeline.gd` + galerie libre de **6 profils visuels** `player_01..06` avec **pions en pied assortis** ; les profils `player_02..06` portent `"pending_asset": true` avec repli gracieux sur `leader.png`/`leader_pawn.png` en attendant leur génération via `banlieue-asset-artist`).
 * **Persistance *(Autoloads)*** : `scripts/autoload/save_manager.gd` (3 emplacements manuels `user://saves/slot_1.json`..`slot_3.json`, zéro auto-save) et `scripts/autoload/settings_manager.gd` (`user://settings.cfg` pour affichage, audio/FM, grain 16mm, secousse écran et taille de texte).
-* **Écrans UI** : `scripts/ui/title_menu_panel.gd` (menu unifié Accueil/Pause sur fond vivant du Box-Garage), `scripts/ui/save_load_panel.gd`, `scripts/ui/options_panel.gd` et `scripts/ui/new_game_panel.gd`.
+* **Écrans UI** : `scripts/ui/title_menu_panel.gd` (menu unifié Accueil/Pause sur fond vivant du Box-Garage piloté par `AppState` dans `main.gd`), `scripts/ui/save_load_panel.gd`, `scripts/ui/options_panel.gd` et `scripts/ui/new_game_panel.gd`.
 
 ### Jalons ultérieurs
 * **Jalon 1 *(Production Visuelle & Audio)*** : Remplacement progressif du greybox isométrique par tuiles peintes/encrées, portraits BD expressifs et vrais stems musicaux Cold Wave / FM.
