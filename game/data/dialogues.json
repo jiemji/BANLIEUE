@@ -158,8 +158,8 @@
       ]
     },
     "tour_b_concierge": {
-      "speaker_id": "nadia",
-      "speaker_name": "Loge de la Tour B",
+      "speaker_id": "concierge",
+      "speaker_name": "Mme Deschamps — Loge de la Tour B",
       "text": "La Concierge-Cerbère trie le courrier derrière sa vitre entrebaîllée. Juste devant elle : le double de l'arrêté municipal et le trousseau menant aux chaufferies vers la gare. La tante de Nadia discute dans le couloir...",
       "choices": [
         {

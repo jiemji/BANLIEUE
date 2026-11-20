@@ -2,6 +2,7 @@ extends Node2D
 
 signal hotspot_activated(dialogue_id: String, hotspot_data: Dictionary)
 
+const PawnActorScript: GDScript = preload("res://scripts/world/pawn_actor.gd")
 const TILE_W: float = 86.0
 const TILE_H: float = 43.0
 const ORIGIN: Vector2 = Vector2(455.0, 210.0)
@@ -16,8 +17,14 @@ var train_fantome_active: bool = false
 var train_x_progress: float = -2.0
 var _pulse_time: float = 0.0
 var _backdrop_cache: Dictionary = {}
+var _pawn_container: Node2D = null
+var _pawn_actors: Dictionary = {}
+var _npc_actors: Dictionary = {}
 
 func _ready() -> void:
+	_pawn_container = Node2D.new()
+	_pawn_container.y_sort_enabled = true
+	add_child(_pawn_container)
 	set_location("box_garage")
 
 func set_location(loc_id: String) -> void:
@@ -72,6 +79,8 @@ func _process(delta: float) -> void:
 
 	if moved or GameState.phase == "night":
 		queue_redraw()
+	else:
+		_sync_pawn_actors()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if input_blocked:
@@ -85,13 +94,41 @@ func _unhandled_input(event: InputEvent) -> void:
 			var loc: Dictionary = DataLoader.get_location(current_loc_id)
 			var gw: int = int(loc.get("grid_w", 8))
 			var gh: int = int(loc.get("grid_h", 8))
+			var backdrop_path: String = str(loc.get("backdrop", ""))
+			var has_backdrop: bool = (backdrop_path != "" and _load_texture_safe(backdrop_path) != null)
+			var hit_h: float = 166.0 if has_backdrop else 118.0
 
-			# Vérifier clic direct sur hotspot à l'écran
+			# Vérifier clic direct sur PNJ visible à l'écran
+			var npcs_visible: Array[Dictionary] = _get_visible_npcs(loc)
+			for npc in npcs_visible:
+				var nx: float = float(npc.get("grid_x", 3.0))
+				var ny: float = float(npc.get("grid_y", 4.0))
+				var npos: Vector2 = iso_to_screen(nx, ny)
+				var hit_rect: Rect2 = Rect2(npos.x - 36.0, npos.y - hit_h, 72.0, hit_h + 10.0)
+				if hit_rect.has_point(mb.position):
+					var stand_gx: float = clampf(nx + 0.15, 0.5, float(gw) - 0.5)
+					var stand_gy: float = clampf(ny + 0.65, 1.2, float(gh) - 0.5)
+					pawn_target_pos = Vector2(stand_gx, stand_gy)
+					pending_hotspot = {
+						"id": str(npc.get("id", "")),
+						"label": str(npc.get("label", "")),
+						"grid_x": stand_gx,
+						"grid_y": stand_gy,
+						"dialogue_id": str(npc.get("dialogue_id", ""))
+					}
+					AudioRadio.play_cassette_click()
+					get_viewport().set_input_as_handled()
+					return
+
+			# Vérifier clic direct sur hotspot visible à l'écran
 			var hs_list_var: Variant = loc.get("hotspots", [])
 			if hs_list_var is Array:
 				for hs_var in (hs_list_var as Array):
 					if hs_var is Dictionary:
 						var hs: Dictionary = hs_var as Dictionary
+						var req_phase: String = str(hs.get("phase", "any"))
+						if req_phase != "any" and req_phase != GameState.phase and not (req_phase == "day" and GameState.phase == "twilight"):
+							continue
 						var hx: float = float(hs.get("grid_x", 0)) + 0.5
 						var hy: float = float(hs.get("grid_y", 0)) + 0.5
 						var hs_screen: Vector2 = iso_to_screen(hx, hy)
@@ -176,8 +213,8 @@ func _draw() -> void:
 			if hsv is Dictionary:
 				_draw_hotspot(hsv as Dictionary, is_night)
 
-	# 5. Pions du sous-groupe actif
-	_draw_active_squad_pawns(is_night, low_moral)
+	# 5. Pions du sous-groupe actif (nœuds PawnActor avec contour 2px dynamique et ombre 4h)
+	_sync_pawn_actors()
 
 	# 6. Petit détail qui cloche (Girouette RER ou horloge sur gare_rer_y la nuit / bas Moral)
 	if current_loc_id == "gare_rer_y" and (is_night or low_moral):
@@ -322,30 +359,141 @@ func _draw_hotspot(hs: Dictionary, is_night: bool) -> void:
 	draw_rect(Rect2(badge_pos, Vector2(142.0, 20.0)), col, false, 1.5)
 	draw_string(ThemeDB.fallback_font, badge_pos + Vector2(5.0, 14.0), lbl, HORIZONTAL_ALIGNMENT_LEFT, 134, 11, Color(0.97, 0.95, 0.90))
 
-func _draw_active_squad_pawns(is_night: bool, low_moral: bool) -> void:
+func _get_visible_npcs(loc: Dictionary) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var raw_npcs: Variant = loc.get("npcs", [])
+	if not (raw_npcs is Array):
+		return out
+	for nv in (raw_npcs as Array):
+		if not (nv is Dictionary):
+			continue
+		var nd: Dictionary = nv as Dictionary
+		var req_phase: String = str(nd.get("phase", "any"))
+		if req_phase != "any" and req_phase != GameState.phase and not (req_phase == "day" and GameState.phase == "twilight"):
+			continue
+		var cid: String = str(nd.get("char_id", ""))
+		if bool(nd.get("hide_if_in_squad", false)) and GameState.squad_members.has(cid):
+			continue
+		var hide_flag: String = str(nd.get("hide_if_flag", ""))
+		if hide_flag != "" and GameState.has_flag(hide_flag):
+			continue
+		var req_flag: String = str(nd.get("require_flag", ""))
+		if req_flag != "" and not GameState.has_flag(req_flag):
+			continue
+		var cdef: Dictionary = DataLoader.get_character(cid)
+		var pawn_path: String = str(cdef.get("pawn", ""))
+		if pawn_path == "" or _load_texture_safe(pawn_path) == null:
+			continue
+		out.append(nd)
+	return out
+
+func _sync_pawn_actors() -> void:
+	if _pawn_container == null:
+		return
+	var loc: Dictionary = DataLoader.get_location(current_loc_id)
+	var is_night: bool = (GameState.phase == "night")
+	var low_moral: bool = GameState.get_lowest_moral() <= 40
+	var backdrop_path: String = str(loc.get("backdrop", ""))
+	var has_backdrop: bool = (backdrop_path != "" and _load_texture_safe(backdrop_path) != null)
+	var target_h: float = 162.0 if has_backdrop else 112.0
+
+	var screen_lights: Array[Dictionary] = []
+	var raw_lights: Variant = loc.get("lights", [])
+	if raw_lights is Array:
+		for lv in (raw_lights as Array):
+			if lv is Dictionary:
+				var ld: Dictionary = lv as Dictionary
+				var lpos: Vector2 = iso_to_screen(float(ld.get("grid_x", 0.0)), float(ld.get("grid_y", 0.0)))
+				screen_lights.append({
+					"screen_pos": lpos,
+					"radius": float(ld.get("radius", 320.0)),
+					"strength": float(ld.get("strength", 1.0))
+				})
+
 	var members: Array[String] = GameState.get_active_group_members()
-	var offsets: Array[Vector2] = [Vector2(0.0, 0.0), Vector2(-22.0, 8.0), Vector2(22.0, 8.0), Vector2(0.0, 16.0)]
+	var offsets: Array[Vector2] = [Vector2(0.0, 0.0), Vector2(-54.0, 16.0), Vector2(54.0, 16.0), Vector2(0.0, 32.0)]
 	var base_screen: Vector2 = iso_to_screen(pawn_grid_pos.x, pawn_grid_pos.y)
+	var is_moving: bool = pawn_grid_pos.distance_to(pawn_target_pos) > 0.05
+
+	for existing_id_var in _pawn_actors.keys():
+		var existing_id: String = str(existing_id_var)
+		var node_var: Variant = _pawn_actors.get(existing_id, null)
+		if node_var is Node2D:
+			(node_var as Node2D).visible = members.has(existing_id)
 
 	for i in range(members.size()):
 		var cid: String = members[i]
 		var cdef: Dictionary = DataLoader.get_character(cid)
+		var st: Dictionary = GameState.get_member_state(cid)
 		var col: Color = Color.html(str(cdef.get("color_hex", "#f28c28")))
-		var off: Vector2 = offsets[i % offsets.size()]
-		var pos: Vector2 = base_screen + off
+		var pos: Vector2 = base_screen + offsets[i % offsets.size()]
 
-		# Ombre portée qui s'allonge la nuit / bas Moral ("petit détail qui cloche")
-		var shadow_len: float = 16.0 if not (is_night or low_moral) else 34.0
-		draw_line(pos, pos + Vector2(shadow_len, 6.0), Color(0.04, 0.04, 0.05, 0.55), 5.0)
+		var actor: Node2D = null
+		if _pawn_actors.has(cid):
+			var a_var: Variant = _pawn_actors.get(cid, null)
+			if a_var is Node2D:
+				actor = a_var as Node2D
+		if actor == null:
+			actor = PawnActorScript.new()
+			_pawn_container.add_child(actor)
+			_pawn_actors[cid] = actor
 
-		# Corps stylisé BD encré
-		draw_circle(pos + Vector2(0.0, -14.0), 11.0, col)
-		draw_arc(pos + Vector2(0.0, -14.0), 11.0, 0.0, TAU, 24, Color(0.06, 0.06, 0.07), 2.4)
-		draw_circle(pos + Vector2(0.0, -28.0), 7.5, Color(0.93, 0.84, 0.76))
-		draw_arc(pos + Vector2(0.0, -28.0), 7.5, 0.0, TAU, 20, Color(0.06, 0.06, 0.07), 2.2)
-
+		var pawn_path: String = str(cdef.get("pawn", ""))
+		var pawn_tex: Texture2D = _load_texture_safe(pawn_path) if pawn_path != "" else null
 		var short_name: String = str(cdef.get("name", cid)).split(" ")[0]
-		draw_string(ThemeDB.fallback_font, pos + Vector2(-24.0, -40.0), short_name, HORIZONTAL_ALIGNMENT_CENTER, 48, 11, Color(0.98, 0.96, 0.92))
+		actor.visible = true
+		actor.position = pos
+		actor.z_index = int(pos.y)
+		actor.call("setup_character", pawn_tex, short_name, col, target_h)
+
+		var action_state: String = "idle"
+		if bool(st.get("stress_active", false)):
+			action_state = "stress"
+		elif not pending_hotspot.is_empty() or input_blocked:
+			action_state = "interacting"
+		elif is_moving:
+			action_state = "moving"
+		elif str(st.get("order_label", "")) == "Guetter":
+			action_state = "guarding"
+
+		actor.call("update_state", action_state, is_night, low_moral, screen_lights)
+
+	for npc_key_var in _npc_actors.keys():
+		var npc_key: String = str(npc_key_var)
+		var nnode_var: Variant = _npc_actors.get(npc_key, null)
+		if nnode_var is Node2D:
+			(nnode_var as Node2D).visible = false
+
+	var visible_npcs: Array[Dictionary] = _get_visible_npcs(loc)
+	for npc in visible_npcs:
+		var nid: String = str(npc.get("id", ""))
+		var cid: String = str(npc.get("char_id", ""))
+		if nid == "" or cid == "":
+			continue
+		var cdef: Dictionary = DataLoader.get_character(cid)
+		var pawn_path: String = str(cdef.get("pawn", ""))
+		var pawn_tex: Texture2D = _load_texture_safe(pawn_path)
+		if pawn_tex == null:
+			continue
+		var npc_actor: Node2D = null
+		if _npc_actors.has(nid):
+			var na_var: Variant = _npc_actors.get(nid, null)
+			if na_var is Node2D:
+				npc_actor = na_var as Node2D
+		if npc_actor == null:
+			npc_actor = PawnActorScript.new()
+			_pawn_container.add_child(npc_actor)
+			_npc_actors[nid] = npc_actor
+
+		var col: Color = Color.html(str(cdef.get("color_hex", "#d9c252")))
+		var short_name: String = str(npc.get("label", str(cdef.get("name", cid)).split(" ")[0]))
+		var npos: Vector2 = iso_to_screen(float(npc.get("grid_x", 3.0)), float(npc.get("grid_y", 4.0)))
+		npc_actor.visible = true
+		npc_actor.position = npos
+		npc_actor.z_index = int(npos.y)
+		npc_actor.call("setup_character", pawn_tex, short_name, col, target_h)
+		var npc_state: String = str(npc.get("action_state", "interacting"))
+		npc_actor.call("update_state", npc_state, is_night, low_moral, screen_lights)
 
 func _load_texture_safe(res_path: String) -> Texture2D:
 	if res_path == "":

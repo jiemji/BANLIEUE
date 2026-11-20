@@ -9,8 +9,9 @@
 * **Perspective & Caméra** : **2D Isométrique / Vue 3/4 de dessus** (projection losange `2:1`, tri en profondeur `y_sort_enabled`, déplacements fluides sur grille logique et zones cliquables par secteur).
 * **Moteur & Langage** : **Godot Engine 4** (`config_version=5`, renderer `GL Compatibility` pour compatibilité universelle 4.4–4.7 et démarrage immédiat sans dépendance lourde) + **GDScript 2.0**.
 * **Architecture Data-Driven (Option C)** : Séparation stricte entre le code moteur (`scripts/`), les scènes (`scenes/`), les shaders (`shaders/`) et l'ensemble des données narratives et systémiques au format **JSON** (`data/`). Permet de brancher le futur **Chantier D (Scénario)** et de nouveaux quartiers/dialogues/rencontres sans modifier la logique du moteur.
-* **Rendu DA & Son du Jalon 0** :
-  * *Visuel* : Greybox isométrique vectoriel/procédural au trait BD encré + shader post-process `film_1982_post.gdshader` (grain 16mm, bascule Jour gouache délavée ↔ Nuit N&B argentique préservant sélectivement les **4 couleurs-signaux** : orange sodium, rouge fanzine, bleu électrique, halo pâle de la Poudrerie).
+* **Rendu DA & Son du Jalon 0 / Jalon 1** :
+  * *Visuel* : Décors isométriques BD illustrés (`game/assets/locations/`) ou greybox vectoriel de secours + **sprites personnages en pied RGBA détourés sans socle (`526 px` paddés)** animés par `PawnActor` (`scripts/world/pawn_actor.gd`) avec **shader contour dynamique `2 px`** (`shaders/pawn_outline.gdshader` : crème repos, orange déplacement, jaune dialogue, bleu guet, rouge Stress) et **ombre silhouette projetée vers 4h (`+30°`)** prête pour des `lights` dynamiques + shader post-process `film_1982_post.gdshader` (grain 16mm, bascule Jour gouache délavée ↔ Nuit N&B argentique préservant sélectivement les **4 couleurs-signaux** : orange sodium, rouge fanzine, bleu électrique, halo pâle de la Poudrerie).
+  * *Pipeline Assets capitalisé* : Agent dédié persistant [banlieue-asset-artist.md](file:///e:/JDR/BANLIEUE/.agents/agents/banlieue-asset-artist.md) + skill [SKILL.md](file:///e:/JDR/BANLIEUE/.agents/skills/banlieue-asset-pipeline/SKILL.md) + script `process_banlieue_assets.py`.
   * *Audio* : Synthèse procédurale légère en temps réel via `AudioStreamGenerator` (clic mécanique de touche cassette sur la Frise, coup sec d'Interruption hors-tour, grondement grave Boeing au Sas crépusculaire, souffle/zapping FM et impulsion basse Cold Wave nocturne), zéro fichier audio externe requis pour le Jalon 0.
 
 ---
@@ -21,19 +22,27 @@ Le projet Godot est isolé dans le sous-dossier `game/` afin que l'éditeur n'in
 
 ```text
 BANLIEUE/
+├── .agents/                             # Capitalisation locale : agent dédié & pipeline assets 2D
+│   ├── agents/banlieue-asset-artist.md  # Agent DA/Assets 2D persistant (portraits, pions, décors)
+│   └── skills/banlieue-asset-pipeline/  # Skill + script Python de détourage RGBA & validation Godot
 ├── docs/                                # Bible, chantiers créatifs et doc technique
 ├── Références/                          # Sources JDR Zone (hors indexation Godot)
 └── game/                                # Racine du projet Godot 4 (ouvrir game/project.godot)
     ├── project.godot                    # Configuration Godot 4.4+ (GL Compatibility) & Autoloads
     ├── icon.svg                         # Icône du projet
+    ├── assets/                          # Portraits BD (1024px), sprites en pied RGBA (526px), décors iso
+    │   ├── portraits/                   # leader, karim, nadia, ludo, franck
+    │   ├── pawns/                       # *_pawn.png (RGBA propre sans socle pour contour 2px + ombre 4h)
+    │   └── locations/                   # box_garage.png (diorama pilote 1200x896)
     ├── data/                            # Cœur Data-Driven 100 % JSON
     │   ├── characters.json              # Leader, Karim, Nadia, Ludo, Franck (FAVE/FASA, Moral, Stress, Spécialités)
-    │   ├── locations.json               # 6 lieux isométriques, décors, hotspots et graphe de voisinage
+    │   ├── locations.json               # 6 lieux isométriques, décors, hotspots, lights[] et graphe de voisinage
     │   ├── dialogues.json               # Nœuds narratifs, conditions et effets (Francs/Faveurs/Flags/Recrutement)
     │   ├── timeline_encounters.json     # Rencontre Gare RER « du Y », ennemis, CRS, Train Fantôme & interruptions
     │   └── radio_fm.json                # 5 fréquences FM (92.4, 95.8, 98.6, 101.2, 104.7 nuit)
     ├── shaders/
-    │   └── film_1982_post.gdshader      # Grain argentique 16mm, bascule Jour/Nuit 4 couleurs-signaux, tremblement Sas
+    │   ├── film_1982_post.gdshader      # Grain argentique 16mm, bascule Jour/Nuit 4 couleurs-signaux, tremblement Sas
+    │   └── pawn_outline.gdshader        # Contour dynamique 2 px par action du personnage
     ├── scenes/
     │   └── main.tscn                    # Scène racine minimaliste assemblée par main.gd
     └── scripts/
@@ -47,10 +56,11 @@ BANLIEUE/
         │   ├── tension_timeline.gd      # Frise chronologique, Interruptions hors-tour & préavis Crise d'autonomie
         │   └── dialogue_runner.gd       # Évaluation de conditions et exécution des effets sur GameState
         ├── world/
-        │   └── iso_district_view.gd     # Rendu vectoriel isométrique 2:1, pions, Train Fantôme & « petits détails qui clochent »
+        │   ├── iso_district_view.gd     # Rendu isométrique 2:1 (backdrop/greybox), Y-sort pions, Train Fantôme
+        │   └── pawn_actor.gd            # Nœud pion : shader contour 2px, ombre silhouette 4h (+ lights), cartel
         └── ui/
             ├── hud_overlay.gd           # Bandeau 1982, switcher 1/2/3, carte des 6 lieux & Tuner Radio FM
-            ├── dialogue_panel.gd        # Boîte de dialogue BD/fanzine et choix annotés
+            ├── dialogue_panel.gd        # Boîte de dialogue BD/fanzine avec portraits et choix annotés
             └── timeline_panel.gd        # Vue « planche-contact / bande magnétique » de la Frise de Tension
 ```
 

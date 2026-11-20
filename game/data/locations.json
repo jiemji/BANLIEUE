@@ -9,6 +9,7 @@
       "day_tint": "#d9cdb8",
       "night_tint": "#26252b",
       "backdrop": "res://assets/locations/box_garage.png",
+      "lights": [],
       "grid_w": 8,
       "grid_h": 8,
       "spawn": [3, 4],
@@ -24,8 +25,8 @@
         {
           "id": "hs_mobs",
           "label": "Établi & 103 SP",
-          "grid_x": 2,
-          "grid_y": 5,
+          "grid_x": 4,
+          "grid_y": 6,
           "dialogue_id": "box_garage_mobs",
           "phase": "any",
           "color_hex": "#f28c28"
@@ -57,6 +58,7 @@
       "day_tint": "#dec99d",
       "night_tint": "#202430",
       "backdrop": "",
+      "lights": [],
       "grid_w": 8,
       "grid_h": 8,
       "spawn": [4, 5],
@@ -78,15 +80,6 @@
           "color_hex": "#d92b2b"
         },
         {
-          "id": "hs_ludo_arcade",
-          "label": "Ludo près du flipper",
-          "grid_x": 2,
-          "grid_y": 3,
-          "dialogue_id": "galaxian_ludo",
-          "phase": "day",
-          "color_hex": "#d9c252"
-        },
-        {
           "id": "hs_flipper",
           "label": "Flipper Space Invader (-5 F)",
           "grid_x": 1,
@@ -94,6 +87,19 @@
           "dialogue_id": "galaxian_flipper",
           "phase": "day",
           "color_hex": "#4aa3df"
+        }
+      ],
+      "npcs": [
+        {
+          "id": "npc_ludo_galaxian",
+          "char_id": "ludo",
+          "label": "Ludo (Flipper)",
+          "grid_x": 2.4,
+          "grid_y": 3.4,
+          "dialogue_id": "galaxian_ludo",
+          "phase": "day",
+          "hide_if_in_squad": true,
+          "action_state": "interacting"
         }
       ],
       "neighbors": {
@@ -112,7 +118,10 @@
       "night_desc": "Néons clignotants, digicode cassé, tuyaux chauds des caves dont les ombres semblent s'allonger.",
       "day_tint": "#c7c3ba",
       "night_tint": "#1f2024",
-      "backdrop": "",
+      "backdrop": "res://assets/locations/tour_b.png",
+      "lights": [
+        {"grid_x": 1.2, "grid_y": 3.8, "radius": 340.0, "strength": 0.95}
+      ],
       "grid_w": 8,
       "grid_h": 8,
       "spawn": [4, 6],
@@ -149,25 +158,31 @@
       "night_desc": "Volets tirés aux trois quarts ; les gyrophares de l'avenue balaient la vitrine par intermittence.",
       "day_tint": "#e3ce8d",
       "night_tint": "#26211e",
-      "backdrop": "",
+      "backdrop": "res://assets/locations/chez_bebert.png",
+      "lights": [
+        {"grid_x": 5.8, "grid_y": 2.4, "radius": 320.0, "strength": 0.90}
+      ],
       "grid_w": 8,
       "grid_h": 8,
-      "spawn": [3, 5],
+      "spawn": [4.6, 6.4],
       "props": [
         {"type": "wall_back", "x": 0, "y": 0, "w": 8, "h": 1, "label": "Vitrine Rue"},
         {"type": "counter", "x": 1, "y": 2, "w": 4, "h": 1, "label": "Zinc Formica"},
         {"type": "jukebox", "x": 6, "y": 2, "w": 1, "h": 1, "label": "Juke-box"},
         {"type": "table", "x": 5, "y": 5, "w": 1, "h": 1, "label": "Table"}
       ],
-      "hotspots": [
+      "hotspots": [],
+      "npcs": [
         {
-          "id": "hs_franck",
-          "label": "Franck & l'ancien cheminot",
-          "grid_x": 3,
-          "grid_y": 3,
+          "id": "npc_franck_bebert",
+          "char_id": "franck",
+          "label": "Franck",
+          "grid_x": 4.0,
+          "grid_y": 4.6,
           "dialogue_id": "chez_bebert_franck",
           "phase": "any",
-          "color_hex": "#f28c28"
+          "hide_if_in_squad": false,
+          "action_state": "interacting"
         }
       ],
       "neighbors": {
@@ -187,6 +202,7 @@
       "day_tint": "#bfb5a6",
       "night_tint": "#1c1a1d",
       "backdrop": "",
+      "lights": [],
       "grid_w": 8,
       "grid_h": 8,
       "spawn": [2, 5],
@@ -195,15 +211,18 @@
         {"type": "van", "x": 4, "y": 2, "w": 2, "h": 2, "label": "Estafette S.O."},
         {"type": "trash", "x": 1, "y": 3, "w": 1, "h": 1, "label": "Poubelles"}
       ],
-      "hotspots": [
+      "hotspots": [],
+      "npcs": [
         {
-          "id": "hs_ludo_ruelle",
-          "label": "Rendez-vous avec Ludo",
-          "grid_x": 3,
-          "grid_y": 4,
+          "id": "npc_ludo_ruelle",
+          "char_id": "ludo",
+          "label": "Ludo",
+          "grid_x": 3.3,
+          "grid_y": 4.2,
           "dialogue_id": "ruelle_ludo",
           "phase": "any",
-          "color_hex": "#d9c252"
+          "hide_if_in_squad": true,
+          "action_state": "guarding"
         }
       ],
       "neighbors": {
@@ -222,10 +241,13 @@
       "night_desc": "Quai battu par le vent, souterrain bloqué par des silhouettes en survêt du S.O. et un Skin nerveux. Gyrophares au loin.",
       "day_tint": "#b8c7d4",
       "night_tint": "#171c26",
-      "backdrop": "",
+      "backdrop": "res://assets/locations/gare_rer_y.png",
+      "lights": [
+        {"grid_x": 4.2, "grid_y": 2.6, "radius": 300.0, "strength": 0.75}
+      ],
       "grid_w": 8,
       "grid_h": 8,
-      "spawn": [2, 6],
+      "spawn": [4.5, 6.5],
       "props": [
         {"type": "rails", "x": 0, "y": 1, "w": 8, "h": 2, "label": "Voies RER B (Y)"},
         {"type": "platform", "x": 0, "y": 3, "w": 8, "h": 2, "label": "Quai Cradon"},
