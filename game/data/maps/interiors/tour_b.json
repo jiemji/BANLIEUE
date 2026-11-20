@@ -38,6 +38,23 @@
   "lights": [
     {"grid_x": 1.2, "grid_y": 3.8, "radius": 340.0, "strength": 0.95}
   ],
+  "occluders": [
+    {
+      "id": "occ_wall_front_left",
+      "always_front": true,
+      "polygon_px": [[150, 556], [174, 566], [580, 796], [600, 848], [150, 588]]
+    },
+    {
+      "id": "occ_wall_front_right",
+      "always_front": true,
+      "polygon_px": [[580, 764], [1028, 516], [1048, 524], [1048, 588], [600, 848], [580, 836]]
+    },
+    {
+      "id": "occ_concierge_booth",
+      "sort_y_px": 545,
+      "polygon_px": [[178, 348], [308, 274], [434, 344], [434, 570], [308, 642], [178, 566]]
+    }
+  ],
   "props": [
     {"type": "wall_back", "x": 0, "y": 0, "w": 8, "h": 1, "label": "Cages d'escalier"},
     {"type": "lodge", "x": 1, "y": 2, "w": 2, "h": 2, "label": "Loge Concierge"},

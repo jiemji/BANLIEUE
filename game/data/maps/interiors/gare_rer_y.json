@@ -38,6 +38,28 @@
   "lights": [
     {"grid_x": 4.2, "grid_y": 2.6, "radius": 300.0, "strength": 0.75}
   ],
+  "occluders": [
+    {
+      "id": "occ_bench",
+      "sort_y_px": 502,
+      "polygon_px": [[530, 476], [646, 414], [658, 444], [676, 456], [676, 478], [584, 532], [532, 504]]
+    },
+    {
+      "id": "occ_stairs_canopy",
+      "always_front": true,
+      "polygon_px": [[778, 354], [912, 280], [1026, 344], [1026, 368], [892, 446], [778, 378]]
+    },
+    {
+      "id": "occ_stairs_front_rail",
+      "sort_y_px": 610,
+      "polygon_px": [[742, 494], [854, 558], [854, 616], [1048, 502], [1048, 588], [860, 696], [852, 650], [742, 586]]
+    },
+    {
+      "id": "occ_hanging_sign",
+      "sort_y_px": 445,
+      "polygon_px": [[682, 356], [786, 298], [794, 304], [794, 346], [692, 406], [682, 398]]
+    }
+  ],
   "props": [
     {"type": "rails", "x": 0, "y": 1, "w": 8, "h": 2, "label": "Voies RER B (Y)"},
     {"type": "platform", "x": 0, "y": 3, "w": 8, "h": 2, "label": "Quai Cradon"},

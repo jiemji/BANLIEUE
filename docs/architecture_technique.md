@@ -11,7 +11,7 @@
     * **N1 (`idf.json`)** : Île-de-France (8 départements ; seul le **93** est `playable`, les 7 autres sont `undescribed` avec `travel_hooks`).
     * **N2 (`departments/93.json`)** : Seine-Saint-Denis (axes RER B Nord en Y, RN2, Canal de l'Ourcq ; seule **Cradon-lès-Gonesse** est `playable` au départ, avec liaisons déjà modélisées vers Aulnay, La Courneuve, Drancy, Bobigny, etc.).
     * **N3 (`cities/cradon_les_gonesse.json`)** : Plan de Cradon-lès-Gonesse (4 secteurs colorés, 6 bâtiments cliquables, affichage temps réel des sous-groupes `G1/G2/G3` et des lignes de **Renfort**).
-  * **Niveau 4 *(Intérieurs & Scènes de détail en 2D Isométrique `2:1`)*** : rendu hybride `backdrop` / `modular` (`render_mode`), **grilles rectangulaires `grid_w × grid_h` variables** (sans contrainte `8×8`, ex. *Le Galaxian* `12×8`, *Ruelle du Relais* `14×7`), `zones[]`, `blocked_cells[]`, `exits[]`, tri en profondeur `y_sort_enabled`, `Camera2D` avec suivi optionnel de bande (`follow_squad`), panoramique ZQSD/flèches/clic droit et zoom molette.
+  * **Niveau 4 *(Intérieurs & Scènes de détail en 2D Isométrique `2:1`)*** : rendu hybride `backdrop` / `modular` (`render_mode`), **grilles rectangulaires `grid_w × grid_h` variables** (sans contrainte `8×8`, ex. *Le Galaxian* `12×8`, *Ruelle du Relais* `14×7`), `zones[]`, `blocked_cells[]`, `exits[]`, tri en profondeur `y_sort_enabled` + **masquage du décor au premier plan** (`IsoPropNode` en modulaire, `occluders[]` `Polygon2D`/RGBA sur `backdrop`, marqueurs `hotspots`/`exits` sur calque supérieur dédié), `Camera2D` avec suivi optionnel de bande (`follow_squad`), panoramique ZQSD/flèches/clic droit et zoom molette.
 * **Moteur & Langage** : **Godot Engine 4** (`config_version=5`, renderer `GL Compatibility` pour compatibilité universelle 4.4–4.7 et démarrage immédiat sans dépendance lourde) + **GDScript 2.0**.
 * **Architecture Data-Driven (Option C)** : Séparation stricte entre le code moteur (`scripts/`), les scènes (`scenes/`), les shaders (`shaders/`) et l'ensemble des données narratives et cartographiques modulaires au format **JSON** (`data/world/` + `data/maps/interiors/`). Permet d'étendre le 93, d'ajouter de nouvelles communes et d'injecter le futur **Chantier D (Scénario)** sans modifier le moteur.
 * **Rendu DA & Son du Jalon 0 / Jalon 1** :
@@ -72,7 +72,8 @@ BANLIEUE/
         │   └── dialogue_runner.gd       # Évaluation de conditions et exécution des effets sur GameState
         ├── world/
         │   ├── world_map_view.gd        # Vue cartes papier 2D N1–N3, Camera2D, pions bande & liens Renfort
-        │   ├── iso_district_view.gd     # Vue isométrique N4 hybride (backdrop/modular), tailles X×Y, exits, Camera2D
+        │   ├── iso_district_view.gd     # Vue isométrique N4 hybride (backdrop/modular), tailles X×Y, occluders, Camera2D
+        │   ├── iso_prop_node.gd         # Props 3D triés en Y-sort dans _pawn_container en mode modulaire
         │   └── pawn_actor.gd            # Nœud pion : shader contour 2px, ombre silhouette 4h (+ lights), cartel
         └── ui/
             ├── hud_overlay.gd           # Bandeau 1982, fil d'Ariane N1-N4, switcher 1/2/3 & Tuner Radio FM

@@ -324,6 +324,14 @@ def validate_project(game_root: str) -> int:
             tl = int(ex.get("target_level", 0))
             if tl < 1 or tl > 4:
                 errors.append(f"Invalid exit target_level {tl} in {lid}")
+        for occ in l.get("occluders", []):
+            tex_p = occ.get("texture", "")
+            poly_px = occ.get("polygon_px", [])
+            if tex_p:
+                if not tex_p.startswith("res://") or not os.path.exists(os.path.join(game_root, tex_p[6:])):
+                    errors.append(f"Missing occluder texture {tex_p} in {lid}")
+            elif not (isinstance(poly_px, list) and len(poly_px) >= 3):
+                errors.append(f"Invalid occluder polygon_px in {lid}: {occ.get('id')}")
         for npc in l.get("npcs", []):
             cid = npc.get("char_id", "")
             did = npc.get("dialogue_id", "")
