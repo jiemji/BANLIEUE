@@ -1,16 +1,23 @@
 extends Node2D
 
 signal hotspot_activated(dialogue_id: String, hotspot_data: Dictionary)
+signal exit_activated(exit_data: Dictionary)
+signal squad_member_clicked(group_id: int, char_id: String)
 
 const PawnActorScript: GDScript = preload("res://scripts/world/pawn_actor.gd")
-const TILE_W: float = 86.0
-const TILE_H: float = 43.0
-const ORIGIN: Vector2 = Vector2(455.0, 210.0)
 
 var current_loc_id: String = "box_garage"
+var tile_w: float = 86.0
+var tile_h: float = 43.0
+var iso_origin: Vector2 = Vector2(455.0, 210.0)
+var grid_w: int = 8
+var grid_h: int = 8
+var render_mode: String = "backdrop"
+
 var pawn_grid_pos: Vector2 = Vector2(3.0, 4.0)
 var pawn_target_pos: Vector2 = Vector2(3.0, 4.0)
 var pending_hotspot: Dictionary = {}
+var pending_exit: Dictionary = {}
 var input_blocked: bool = false
 
 var train_fantome_active: bool = false
@@ -20,24 +27,100 @@ var _backdrop_cache: Dictionary = {}
 var _pawn_container: Node2D = null
 var _pawn_actors: Dictionary = {}
 var _npc_actors: Dictionary = {}
+var _blocked_cells: Dictionary = {}
+
+var _camera: Camera2D = null
+var _cam_zoom: float = 1.0
+var _cam_min_zoom: float = 0.75
+var _cam_max_zoom: float = 1.60
+var _cam_follow_squad: bool = false
+var _focus_world: Vector2 = Vector2(455.0, 387.0)
+var _pan_dragging: bool = false
+var _pan_last_screen: Vector2 = Vector2.ZERO
+var _manual_pan_offset: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
+	_camera = Camera2D.new()
+	_camera.enabled = true
+	_camera.position_smoothing_enabled = false
+	add_child(_camera)
+
 	_pawn_container = Node2D.new()
 	_pawn_container.y_sort_enabled = true
 	add_child(_pawn_container)
 	set_location("box_garage")
+	set_view_active(true)
+
+func set_view_active(active: bool) -> void:
+	visible = active
+	_pan_dragging = false
+	set_process(active)
+	set_process_unhandled_input(active)
+	if _camera != null:
+		_camera.enabled = active
+		if active:
+			_camera.make_current()
+			_apply_camera_transform()
 
 func set_location(loc_id: String) -> void:
 	current_loc_id = loc_id
 	var loc: Dictionary = DataLoader.get_location(loc_id)
-	var sp_var: Variant = loc.get("spawn", [3, 4])
-	if sp_var is Array and (sp_var as Array).size() >= 2:
-		var arr: Array = sp_var as Array
-		pawn_grid_pos = Vector2(float(arr[0]), float(arr[1]))
+	tile_w = float(loc.get("tile_w", 86.0))
+	tile_h = float(loc.get("tile_h", 43.0))
+	grid_w = maxi(4, int(loc.get("grid_w", 8)))
+	grid_h = maxi(4, int(loc.get("grid_h", 8)))
+	render_mode = str(loc.get("render_mode", "backdrop"))
+
+	if grid_w == 8 and grid_h == 8 and render_mode == "backdrop":
+		iso_origin = Vector2(455.0, 210.0)
 	else:
-		pawn_grid_pos = Vector2(3.0, 4.0)
+		var mid_rx: float = float(grid_w - grid_h) * tile_w * 0.25
+		var mid_ry: float = float(grid_w + grid_h) * tile_h * 0.25
+		iso_origin = Vector2(455.0 - mid_rx, 387.0 - mid_ry)
+
+	_blocked_cells.clear()
+	var raw_blocked: Variant = loc.get("blocked_cells", [])
+	if raw_blocked is Array:
+		for cv in (raw_blocked as Array):
+			if cv is Array and (cv as Array).size() >= 2:
+				var ca: Array = cv as Array
+				_blocked_cells["%d,%d" % [int(ca[0]), int(ca[1])]] = true
+
+	var gp: Vector2 = GameState.get_active_group_grid_pos()
+	pawn_grid_pos = Vector2(clampf(gp.x, 0.5, float(grid_w) - 0.5), clampf(gp.y, 1.2, float(grid_h) - 0.5))
+	pawn_target_pos = pawn_grid_pos
+	GameState.set_group_grid_pos(GameState.active_group_id, pawn_grid_pos)
+	pending_hotspot = {}
+	pending_exit = {}
+
+	var cam_var: Variant = loc.get("camera", {})
+	if cam_var is Dictionary:
+		var cd: Dictionary = cam_var as Dictionary
+		_cam_zoom = float(cd.get("default_zoom", 1.0))
+		_cam_min_zoom = float(cd.get("min_zoom", 0.70))
+		_cam_max_zoom = float(cd.get("max_zoom", 1.60))
+		_cam_follow_squad = bool(cd.get("follow_squad", false))
+	else:
+		_cam_zoom = 1.0
+		_cam_min_zoom = 0.75
+		_cam_max_zoom = 1.50
+		_cam_follow_squad = false
+
+	_manual_pan_offset = Vector2.ZERO
+	_focus_world = iso_to_screen(pawn_grid_pos.x, pawn_grid_pos.y) if _cam_follow_squad else Vector2(455.0, 387.0)
+	_apply_camera_transform()
+	queue_redraw()
+
+func sync_active_group_from_state() -> void:
+	var gp: Vector2 = GameState.get_active_group_grid_pos()
+	pawn_grid_pos = Vector2(clampf(gp.x, 0.5, float(grid_w) - 0.5), clampf(gp.y, 1.2, float(grid_h) - 0.5))
 	pawn_target_pos = pawn_grid_pos
 	pending_hotspot = {}
+	pending_exit = {}
+	_manual_pan_offset = Vector2.ZERO
+	if _cam_follow_squad:
+		_focus_world = iso_to_screen(pawn_grid_pos.x, pawn_grid_pos.y)
+		_apply_camera_transform()
 	queue_redraw()
 
 func trigger_train_fantome() -> void:
@@ -46,23 +129,41 @@ func trigger_train_fantome() -> void:
 	queue_redraw()
 
 func iso_to_screen(gx: float, gy: float) -> Vector2:
-	var sx: float = (gx - gy) * (TILE_W * 0.5)
-	var sy: float = (gx + gy) * (TILE_H * 0.5)
-	return ORIGIN + Vector2(sx, sy)
+	var sx: float = (gx - gy) * (tile_w * 0.5)
+	var sy: float = (gx + gy) * (tile_h * 0.5)
+	return iso_origin + Vector2(sx, sy)
 
-func screen_to_iso(pos: Vector2) -> Vector2:
-	var rel: Vector2 = pos - ORIGIN
-	var hw: float = TILE_W * 0.5
-	var hh: float = TILE_H * 0.5
+func screen_to_iso(world_pos: Vector2) -> Vector2:
+	var rel: Vector2 = world_pos - iso_origin
+	var hw: float = tile_w * 0.5
+	var hh: float = tile_h * 0.5
 	var gx: float = (rel.x / hw + rel.y / hh) * 0.5
 	var gy: float = (rel.y / hh - rel.x / hw) * 0.5
 	return Vector2(gx, gy)
 
+func _is_cell_blocked(gx: float, gy: float) -> bool:
+	var cx: int = int(floor(gx))
+	var cy: int = int(floor(gy))
+	if cx < 0 or cx >= grid_w or cy < 1 or cy >= grid_h:
+		return true
+	return _blocked_cells.has("%d,%d" % [cx, cy])
+
+func _apply_camera_transform() -> void:
+	if _camera == null or not _camera.enabled:
+		return
+	var z: float = clampf(_cam_zoom, _cam_min_zoom, _cam_max_zoom)
+	_camera.zoom = Vector2(z, z)
+	# Compense le panneau latéral droit (918..1280) et le bandeau haut (0..54) : centre utile (455, 387)
+	_camera.position = _focus_world + Vector2(185.0, -27.0) / z
+
 func _process(delta: float) -> void:
+	if not visible:
+		return
 	_pulse_time += delta
 	var moved: bool = false
 	if pawn_grid_pos.distance_to(pawn_target_pos) > 0.05:
 		pawn_grid_pos = pawn_grid_pos.move_toward(pawn_target_pos, delta * 5.2)
+		GameState.set_group_grid_pos(GameState.active_group_id, pawn_grid_pos)
 		moved = true
 	elif not pending_hotspot.is_empty():
 		var hs: Dictionary = pending_hotspot
@@ -70,12 +171,42 @@ func _process(delta: float) -> void:
 		var dlg_id: String = str(hs.get("dialogue_id", ""))
 		if dlg_id != "":
 			hotspot_activated.emit(dlg_id, hs)
+	elif not pending_exit.is_empty():
+		var ex: Dictionary = pending_exit
+		pending_exit = {}
+		exit_activated.emit(ex)
 
 	if train_fantome_active:
 		train_x_progress += delta * 2.1
-		if train_x_progress > 10.5:
-			train_x_progress = 3.2 # Reste arrêté sur le quai pour couper la ligne de vue
+		if train_x_progress > float(grid_w) + 2.5:
+			train_x_progress = 3.2
 		moved = true
+
+	var did_key_pan: bool = false
+	if not input_blocked:
+		var pan_vec: Vector2 = Vector2.ZERO
+		if Input.is_key_pressed(KEY_LEFT) or Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_Q):
+			pan_vec.x -= 1.0
+		if Input.is_key_pressed(KEY_RIGHT) or Input.is_key_pressed(KEY_D):
+			pan_vec.x += 1.0
+		if Input.is_key_pressed(KEY_UP) or Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_Z):
+			pan_vec.y -= 1.0
+		if Input.is_key_pressed(KEY_DOWN) or Input.is_key_pressed(KEY_S):
+			pan_vec.y += 1.0
+		if pan_vec != Vector2.ZERO:
+			var pan_step: Vector2 = pan_vec.normalized() * delta * 340.0 / maxf(_cam_zoom, 0.25)
+			_focus_world += pan_step
+			if _cam_follow_squad:
+				_manual_pan_offset += pan_step
+			_clamp_camera_focus()
+			_apply_camera_transform()
+			did_key_pan = true
+
+	if _cam_follow_squad and not _pan_dragging and not did_key_pan:
+		var target_focus: Vector2 = iso_to_screen(pawn_grid_pos.x, pawn_grid_pos.y) + _manual_pan_offset
+		if _focus_world.distance_to(target_focus) > 0.5:
+			_focus_world = _focus_world.lerp(target_focus, minf(1.0, delta * 7.0))
+			_apply_camera_transform()
 
 	if moved or GameState.phase == "night":
 		queue_redraw()
@@ -83,32 +214,95 @@ func _process(delta: float) -> void:
 		_sync_pawn_actors()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if input_blocked:
+	if not visible or input_blocked:
 		return
+
+	if event is InputEventMouseMotion:
+		var mm: InputEventMouseMotion = event as InputEventMouseMotion
+		if _pan_dragging:
+			var d_screen: Vector2 = mm.position - _pan_last_screen
+			_pan_last_screen = mm.position
+			var d_world: Vector2 = d_screen / maxf(_cam_zoom, 0.1)
+			_focus_world -= d_world
+			if _cam_follow_squad:
+				_manual_pan_offset -= d_world
+			_clamp_camera_focus()
+			_apply_camera_transform()
+			get_viewport().set_input_as_handled()
+		return
+
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_RIGHT:
+			_pan_dragging = mb.pressed
+			_pan_last_screen = mb.position
+			get_viewport().set_input_as_handled()
+			return
+
+		if mb.position.x > 910.0 or mb.position.y < 54.0:
+			return
+
+		if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
+			_cam_zoom = clampf(_cam_zoom + 0.10, _cam_min_zoom, _cam_max_zoom)
+			_apply_camera_transform()
+			get_viewport().set_input_as_handled()
+			return
+
+		if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
+			_cam_zoom = clampf(_cam_zoom - 0.10, _cam_min_zoom, _cam_max_zoom)
+			_apply_camera_transform()
+			get_viewport().set_input_as_handled()
+			return
+
 		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
-			# Ignorer les clics dans le panneau latéral droit ou le bandeau haut
-			if mb.position.x > 910.0 or mb.position.y < 54.0:
-				return
+			var world_pos: Vector2 = get_canvas_transform().affine_inverse() * mb.position
 			var loc: Dictionary = DataLoader.get_location(current_loc_id)
-			var gw: int = int(loc.get("grid_w", 8))
-			var gh: int = int(loc.get("grid_h", 8))
 			var backdrop_path: String = str(loc.get("backdrop", ""))
-			var has_backdrop: bool = (backdrop_path != "" and _load_texture_safe(backdrop_path) != null)
+			var has_backdrop: bool = (render_mode == "backdrop" and backdrop_path != "" and _load_texture_safe(backdrop_path) != null)
 			var hit_h: float = 166.0 if has_backdrop else 118.0
 
-			# Vérifier clic direct sur PNJ visible à l'écran
+			# 0. Priorité 1 : Sélectionner un personnage d'un autre sous-groupe présent dans la même pièce
+			var hit_candidates: Array[Dictionary] = []
+			for gid in GameState.get_groups_in_location(current_loc_id):
+				if gid == GameState.active_group_id:
+					continue
+				for cid in GameState.get_group_members(gid):
+					if _pawn_actors.has(cid):
+						var act_var: Variant = _pawn_actors.get(cid, null)
+						if act_var is Node2D and (act_var as Node2D).visible:
+							hit_candidates.append({
+								"gid": gid,
+								"cid": cid,
+								"actor": act_var as Node2D
+							})
+			hit_candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+				var na: Node2D = a.get("actor", null) as Node2D
+				var nb: Node2D = b.get("actor", null) as Node2D
+				return na.position.y > nb.position.y
+			)
+			for cand in hit_candidates:
+				var actor_c: Node2D = cand.get("actor", null) as Node2D
+				var crect: Rect2 = Rect2(actor_c.position.x - 36.0, actor_c.position.y - hit_h, 72.0, hit_h + 10.0)
+				if crect.has_point(world_pos):
+					var tgt_gid: int = int(cand.get("gid", 0))
+					var tgt_cid: String = str(cand.get("cid", ""))
+					squad_member_clicked.emit(tgt_gid, tgt_cid)
+					AudioRadio.play_cassette_click()
+					get_viewport().set_input_as_handled()
+					return
+
+			# 1. Vérifier clic direct sur PNJ visible
 			var npcs_visible: Array[Dictionary] = _get_visible_npcs(loc)
 			for npc in npcs_visible:
 				var nx: float = float(npc.get("grid_x", 3.0))
 				var ny: float = float(npc.get("grid_y", 4.0))
 				var npos: Vector2 = iso_to_screen(nx, ny)
 				var hit_rect: Rect2 = Rect2(npos.x - 36.0, npos.y - hit_h, 72.0, hit_h + 10.0)
-				if hit_rect.has_point(mb.position):
-					var stand_gx: float = clampf(nx + 0.15, 0.5, float(gw) - 0.5)
-					var stand_gy: float = clampf(ny + 0.65, 1.2, float(gh) - 0.5)
+				if hit_rect.has_point(world_pos):
+					var stand_gx: float = clampf(nx + 0.15, 0.5, float(grid_w) - 0.5)
+					var stand_gy: float = clampf(ny + 0.65, 1.2, float(grid_h) - 0.5)
 					pawn_target_pos = Vector2(stand_gx, stand_gy)
+					pending_exit = {}
 					pending_hotspot = {
 						"id": str(npc.get("id", "")),
 						"label": str(npc.get("label", "")),
@@ -120,7 +314,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					get_viewport().set_input_as_handled()
 					return
 
-			# Vérifier clic direct sur hotspot visible à l'écran
+			# 2. Vérifier clic direct sur hotspot visible
 			var hs_list_var: Variant = loc.get("hotspots", [])
 			if hs_list_var is Array:
 				for hs_var in (hs_list_var as Array):
@@ -132,19 +326,48 @@ func _unhandled_input(event: InputEvent) -> void:
 						var hx: float = float(hs.get("grid_x", 0)) + 0.5
 						var hy: float = float(hs.get("grid_y", 0)) + 0.5
 						var hs_screen: Vector2 = iso_to_screen(hx, hy)
-						if mb.position.distance_to(hs_screen) <= 36.0:
+						if world_pos.distance_to(hs_screen) <= 36.0:
 							pawn_target_pos = Vector2(hx, hy)
 							pending_hotspot = hs
+							pending_exit = {}
 							AudioRadio.play_cassette_click()
 							get_viewport().set_input_as_handled()
 							return
 
-			# Sinon déplacement sur la dalle isométrique
-			var gpos: Vector2 = screen_to_iso(mb.position)
-			if gpos.x >= 0.0 and gpos.x < float(gw) and gpos.y >= 1.0 and gpos.y < float(gh):
-				pawn_target_pos = Vector2(clampf(gpos.x, 0.5, float(gw) - 0.5), clampf(gpos.y, 1.2, float(gh) - 0.5))
-				pending_hotspot = {}
-				get_viewport().set_input_as_handled()
+			# 3. Vérifier clic direct sur sortie vers la carte de ville
+			var exits_var: Variant = loc.get("exits", [])
+			if exits_var is Array:
+				for ex_var in (exits_var as Array):
+					if ex_var is Dictionary:
+						var ex: Dictionary = ex_var as Dictionary
+						var ex_gx: float = float(ex.get("grid_x", float(grid_w) - 1.5))
+						var ex_gy: float = float(ex.get("grid_y", float(grid_h) - 1.5))
+						var ex_screen: Vector2 = iso_to_screen(ex_gx, ex_gy)
+						if world_pos.distance_to(ex_screen) <= 42.0:
+							pawn_target_pos = Vector2(clampf(ex_gx, 0.5, float(grid_w) - 0.5), clampf(ex_gy, 1.2, float(grid_h) - 0.5))
+							pending_hotspot = {}
+							pending_exit = ex
+							AudioRadio.play_cassette_click()
+							get_viewport().set_input_as_handled()
+							return
+
+			# 4. Sinon déplacement sur dalle marchable
+			var gpos: Vector2 = screen_to_iso(world_pos)
+			if gpos.x >= 0.0 and gpos.x < float(grid_w) and gpos.y >= 1.0 and gpos.y < float(grid_h):
+				if not _is_cell_blocked(gpos.x, gpos.y):
+					pawn_target_pos = Vector2(clampf(gpos.x, 0.5, float(grid_w) - 0.5), clampf(gpos.y, 1.2, float(grid_h) - 0.5))
+					pending_hotspot = {}
+					pending_exit = {}
+					_manual_pan_offset = Vector2.ZERO
+					get_viewport().set_input_as_handled()
+
+func _clamp_camera_focus() -> void:
+	var c_top: Vector2 = iso_to_screen(0.0, 0.0)
+	var c_right: Vector2 = iso_to_screen(float(grid_w), 0.0)
+	var c_bottom: Vector2 = iso_to_screen(float(grid_w), float(grid_h))
+	var c_left: Vector2 = iso_to_screen(0.0, float(grid_h))
+	_focus_world.x = clampf(_focus_world.x, c_left.x + 40.0, c_right.x - 40.0)
+	_focus_world.y = clampf(_focus_world.y, c_top.y + 40.0, c_bottom.y - 40.0)
 
 func _draw() -> void:
 	var loc: Dictionary = DataLoader.get_location(current_loc_id)
@@ -152,39 +375,46 @@ func _draw() -> void:
 	var low_moral: bool = GameState.get_lowest_moral() <= 40
 
 	var backdrop_path: String = str(loc.get("backdrop", ""))
-	var backdrop_tex: Texture2D = _load_texture_safe(backdrop_path) if backdrop_path != "" else null
+	var backdrop_tex: Texture2D = _load_texture_safe(backdrop_path) if (render_mode == "backdrop" and backdrop_path != "") else null
 
 	if backdrop_tex != null:
-		# Fond charcoal accordé au diorama isométrique + cadrage BD encré
-		draw_rect(Rect2(Vector2.ZERO, Vector2(1280.0, 720.0)), Color(0.078, 0.078, 0.094), true)
-		var avail: Rect2 = Rect2(20.0, 56.0, 888.0, 650.0)
-		var tex_size: Vector2 = backdrop_tex.get_size()
-		var scale_fit: float = minf(avail.size.x / maxf(tex_size.x, 1.0), avail.size.y / maxf(tex_size.y, 1.0))
-		var draw_size: Vector2 = tex_size * scale_fit
-		var draw_pos: Vector2 = avail.position + (avail.size - draw_size) * 0.5
+		draw_rect(Rect2(Vector2(-1200.0, -900.0), Vector2(3600.0, 2800.0)), Color(0.078, 0.078, 0.094), true)
+		var draw_rect_target: Rect2
+		if grid_w == 8 and grid_h == 8:
+			var avail: Rect2 = Rect2(20.0, 56.0, 888.0, 650.0)
+			var tex_size: Vector2 = backdrop_tex.get_size()
+			var scale_fit: float = minf(avail.size.x / maxf(tex_size.x, 1.0), avail.size.y / maxf(tex_size.y, 1.0))
+			var draw_size: Vector2 = tex_size * scale_fit
+			var draw_pos: Vector2 = avail.position + (avail.size - draw_size) * 0.5
+			draw_rect_target = Rect2(draw_pos, draw_size)
+		else:
+			var c_left: Vector2 = iso_to_screen(0.0, float(grid_h))
+			var c_right: Vector2 = iso_to_screen(float(grid_w), 0.0)
+			var c_top: Vector2 = iso_to_screen(0.0, 0.0)
+			var c_bot: Vector2 = iso_to_screen(float(grid_w), float(grid_h))
+			var span_w: float = (c_right.x - c_left.x) * 1.25
+			var tex_sz: Vector2 = backdrop_tex.get_size()
+			var span_h: float = span_w * (tex_sz.y / maxf(tex_sz.x, 1.0))
+			var cx: float = (c_left.x + c_right.x) * 0.5
+			var cy: float = (c_top.y + c_bot.y) * 0.5 - 24.0
+			draw_rect_target = Rect2(Vector2(cx - span_w * 0.5, cy - span_h * 0.5), Vector2(span_w, span_h))
 		var tint_col: Color = Color(0.68, 0.72, 0.82) if is_night else Color.WHITE
-		draw_texture_rect(backdrop_tex, Rect2(draw_pos, draw_size), false, tint_col)
-		draw_rect(Rect2(draw_pos, draw_size), Color(0.06, 0.06, 0.07), false, 2.5)
+		draw_texture_rect(backdrop_tex, draw_rect_target, false, tint_col)
+		draw_rect(draw_rect_target, Color(0.06, 0.06, 0.07), false, 2.5)
 	else:
-		# Fond de scène BD / Nuit
 		var bg_col: Color = Color.html(str(loc.get("night_tint", "#181920"))) if is_night else Color.html(str(loc.get("day_tint", "#cfc6b4")))
-		draw_rect(Rect2(Vector2.ZERO, Vector2(1280.0, 720.0)), bg_col.darkened(0.28 if not is_night else 0.35), true)
-
-		# Silhouette lointaine des tours / Poudrerie en toile de fond
+		draw_rect(Rect2(Vector2(-1200.0, -900.0), Vector2(3600.0, 2800.0)), bg_col.darkened(0.28 if not is_night else 0.35), true)
 		_draw_horizon_silhouette(is_night, low_moral)
 
-		var gw: int = int(loc.get("grid_w", 8))
-		var gh: int = int(loc.get("grid_h", 8))
 		var ink_col: Color = Color(0.06, 0.06, 0.08)
-
-		# 1. Sol isométrique
-		for gy in range(gh):
-			for gx in range(gw):
+		var zones_var: Variant = loc.get("zones", [])
+		for gy in range(grid_h):
+			for gx in range(grid_w):
 				var p0: Vector2 = iso_to_screen(float(gx), float(gy))
 				var p1: Vector2 = iso_to_screen(float(gx + 1), float(gy))
 				var p2: Vector2 = iso_to_screen(float(gx + 1), float(gy + 1))
 				var p3: Vector2 = iso_to_screen(float(gx), float(gy + 1))
-				var tile_col: Color = bg_col
+				var tile_col: Color = _zone_tint_at(gx, gy, zones_var, is_night, bg_col)
 				if (gx + gy) % 2 == 0:
 					tile_col = tile_col.lightened(0.06)
 				else:
@@ -192,31 +422,43 @@ func _draw() -> void:
 
 				if current_loc_id == "gare_rer_y" and (gy == 1 or gy == 2):
 					tile_col = Color(0.18, 0.19, 0.22) if is_night else Color(0.32, 0.33, 0.36)
+				if _blocked_cells.has("%d,%d" % [gx, gy]):
+					tile_col = tile_col.darkened(0.18)
 				draw_colored_polygon(PackedVector2Array([p0, p1, p2, p3]), tile_col)
 				draw_polyline(PackedVector2Array([p0, p1, p2, p3, p0]), Color(ink_col.r, ink_col.g, ink_col.b, 0.35), 1.2)
 
-		# 2. Props isométriques triés du fond vers l'avant
 		var props_var: Variant = loc.get("props", [])
 		if props_var is Array:
 			for pv in (props_var as Array):
 				if pv is Dictionary:
 					_draw_prop(pv as Dictionary, is_night)
 
-	# 3. Train Fantôme sur la Gare RER « du Y »
+		if zones_var is Array:
+			for zv in (zones_var as Array):
+				if zv is Dictionary:
+					var zd: Dictionary = zv as Dictionary
+					var zname: String = str(zd.get("name", ""))
+					if zname != "":
+						var zpos: Vector2 = iso_to_screen(float(zd.get("x", 0)) + 0.3, float(zd.get("y", 1)) + float(zd.get("h", 4)) - 0.5)
+						draw_string(ThemeDB.fallback_font, zpos, zname.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, 180, 10, Color(0.95, 0.94, 0.88, 0.45) if is_night else Color(0.18, 0.16, 0.14, 0.50))
+
 	if current_loc_id == "gare_rer_y" and (train_fantome_active or (is_night and GameState.has_flag("encounter_gare_done"))):
 		_draw_ghost_train()
 
-	# 4. Hotspots interactifs
+	var exits_var: Variant = loc.get("exits", [])
+	if exits_var is Array:
+		for exv in (exits_var as Array):
+			if exv is Dictionary:
+				_draw_exit_marker(exv as Dictionary, is_night)
+
 	var hs_var: Variant = loc.get("hotspots", [])
 	if hs_var is Array:
 		for hsv in (hs_var as Array):
 			if hsv is Dictionary:
 				_draw_hotspot(hsv as Dictionary, is_night)
 
-	# 5. Pions du sous-groupe actif (nœuds PawnActor avec contour 2px dynamique et ombre 4h)
 	_sync_pawn_actors()
 
-	# 6. Petit détail qui cloche (Girouette RER ou horloge sur gare_rer_y la nuit / bas Moral)
 	if current_loc_id == "gare_rer_y" and (is_night or low_moral):
 		var sign_pos: Vector2 = iso_to_screen(3.5, 3.0) + Vector2(-72.0, -70.0)
 		var odd_txt: String = "CRADON-CENTRE [HORS-PLAN]" if int(_pulse_time * 0.7) % 3 == 0 else "RER B — BIFURCATION Y"
@@ -224,18 +466,55 @@ func _draw() -> void:
 		draw_rect(Rect2(sign_pos, Vector2(168.0, 22.0)), Color(0.32, 0.68, 0.95), false, 1.5)
 		draw_string(ThemeDB.fallback_font, sign_pos + Vector2(6.0, 15.0), odd_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.88, 0.95, 1.0))
 
+func _zone_tint_at(gx: int, gy: int, zones_var: Variant, is_night: bool, fallback_col: Color) -> Color:
+	if zones_var is Array:
+		for zv in (zones_var as Array):
+			if not (zv is Dictionary):
+				continue
+			var zd: Dictionary = zv as Dictionary
+			var zx: int = int(zd.get("x", 0))
+			var zy: int = int(zd.get("y", 0))
+			var zw: int = int(zd.get("w", 0))
+			var zh: int = int(zd.get("h", 0))
+			if gx >= zx and gx < zx + zw and gy >= zy and gy < zy + zh:
+				var hex_str: String = str(zd.get("night_tint", "")) if is_night else str(zd.get("day_tint", ""))
+				if hex_str != "":
+					return Color.html(hex_str)
+	return fallback_col
+
+func _draw_exit_marker(ex: Dictionary, is_night: bool) -> void:
+	var cx: float = float(ex.get("grid_x", float(grid_w) - 1.5))
+	var cy: float = float(ex.get("grid_y", float(grid_h) - 1.5))
+	var center: Vector2 = iso_to_screen(cx, cy)
+	var col: Color = Color.html(str(ex.get("color_hex", "#4aa3df")))
+	var pulse: float = 13.0 + sin(_pulse_time * 3.0) * 2.5
+	var pts: PackedVector2Array = PackedVector2Array([
+		center + Vector2(0.0, -pulse * 0.55),
+		center + Vector2(pulse, 0.0),
+		center + Vector2(0.0, pulse * 0.55),
+		center + Vector2(-pulse, 0.0)
+	])
+	draw_colored_polygon(pts, Color(col.r, col.g, col.b, 0.24))
+	draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), col, 2.0)
+
+	var lbl: String = "← " + str(ex.get("label", "Sortir"))
+	var bp: Vector2 = center + Vector2(-58.0, 12.0)
+	var bg_b: Color = Color(0.08, 0.09, 0.12, 0.88) if is_night else Color(0.10, 0.09, 0.08, 0.84)
+	draw_rect(Rect2(bp, Vector2(126.0, 18.0)), bg_b, true)
+	draw_rect(Rect2(bp, Vector2(126.0, 18.0)), col, false, 1.4)
+	draw_string(ThemeDB.fallback_font, bp + Vector2(5.0, 13.0), lbl, HORIZONTAL_ALIGNMENT_LEFT, 118, 10, Color(0.95, 0.96, 0.98))
+
 func _draw_horizon_silhouette(is_night: bool, low_moral: bool) -> void:
 	var sil_col: Color = Color(0.08, 0.08, 0.11, 0.65) if is_night else Color(0.45, 0.44, 0.42, 0.35)
 	var towers: Array[Rect2] = [
-		Rect2(30, 62, 55, 130),
-		Rect2(96, 88, 42, 104),
-		Rect2(780, 74, 58, 124),
-		Rect2(846, 98, 40, 100)
+		Rect2(-20, 40, 62, 140),
+		Rect2(60, 74, 46, 110),
+		Rect2(810, 60, 62, 134),
+		Rect2(890, 92, 48, 108)
 	]
 	for r in towers:
 		draw_rect(r, sil_col, true)
 	if is_night or low_moral:
-		# Halo bleu-pâle discret vers la Poudrerie (coin haut gauche)
 		draw_circle(Vector2(140.0, 120.0), 42.0 + sin(_pulse_time * 1.4) * 4.0, Color(0.45, 0.82, 0.92, 0.10))
 
 func _draw_prop(prop: Dictionary, is_night: bool) -> void:
@@ -275,6 +554,9 @@ func _draw_prop(prop: Dictionary, is_night: bool) -> void:
 	elif ptype == "arcade":
 		height_px = 32.0
 		col = Color(0.22, 0.54, 0.92)
+	elif ptype == "babyfoot":
+		height_px = 20.0
+		col = Color(0.62, 0.46, 0.26)
 	elif ptype == "counter":
 		height_px = 20.0
 		col = Color(0.92, 0.78, 0.28)
@@ -290,6 +572,9 @@ func _draw_prop(prop: Dictionary, is_night: bool) -> void:
 	elif ptype == "sign_rer":
 		height_px = 34.0
 		col = Color(0.18, 0.36, 0.82)
+	elif ptype == "trash":
+		height_px = 22.0
+		col = Color(0.48, 0.52, 0.56)
 
 	_draw_iso_box(gx, gy, w, h, height_px, col, lbl)
 
@@ -306,13 +591,10 @@ func _draw_iso_box(gx: float, gy: float, w: float, h: float, height_px: float, t
 	var t3: Vector2 = b3 + up
 
 	var ink: Color = Color(0.06, 0.06, 0.07)
-	# Face droite
 	draw_colored_polygon(PackedVector2Array([t1, t2, b2, b1]), top_col.darkened(0.26))
 	draw_polyline(PackedVector2Array([t1, t2, b2, b1, t1]), ink, 1.5)
-	# Face gauche
 	draw_colored_polygon(PackedVector2Array([t3, t2, b2, b3]), top_col.darkened(0.14))
 	draw_polyline(PackedVector2Array([t3, t2, b2, b3, t3]), ink, 1.5)
-	# Dessus
 	draw_colored_polygon(PackedVector2Array([t0, t1, t2, t3]), top_col)
 	draw_polyline(PackedVector2Array([t0, t1, t2, t3, t0]), ink, 1.8)
 
@@ -394,7 +676,7 @@ func _sync_pawn_actors() -> void:
 	var is_night: bool = (GameState.phase == "night")
 	var low_moral: bool = GameState.get_lowest_moral() <= 40
 	var backdrop_path: String = str(loc.get("backdrop", ""))
-	var has_backdrop: bool = (backdrop_path != "" and _load_texture_safe(backdrop_path) != null)
+	var has_backdrop: bool = (render_mode == "backdrop" and backdrop_path != "" and _load_texture_safe(backdrop_path) != null)
 	var target_h: float = 162.0 if has_backdrop else 112.0
 
 	var screen_lights: Array[Dictionary] = []
@@ -410,53 +692,72 @@ func _sync_pawn_actors() -> void:
 					"strength": float(ld.get("strength", 1.0))
 				})
 
-	var members: Array[String] = GameState.get_active_group_members()
 	var offsets: Array[Vector2] = [Vector2(0.0, 0.0), Vector2(-54.0, 16.0), Vector2(54.0, 16.0), Vector2(0.0, 32.0)]
-	var base_screen: Vector2 = iso_to_screen(pawn_grid_pos.x, pawn_grid_pos.y)
 	var is_moving: bool = pawn_grid_pos.distance_to(pawn_target_pos) > 0.05
+	var groups_here: Array[int] = GameState.get_groups_in_location(current_loc_id)
+	var is_split: bool = GameState.get_present_group_ids().size() > 1
+
+	var visible_cids: Array[String] = []
+	for gid in groups_here:
+		for cid in GameState.get_group_members(gid):
+			visible_cids.append(cid)
 
 	for existing_id_var in _pawn_actors.keys():
 		var existing_id: String = str(existing_id_var)
 		var node_var: Variant = _pawn_actors.get(existing_id, null)
 		if node_var is Node2D:
-			(node_var as Node2D).visible = members.has(existing_id)
+			(node_var as Node2D).visible = visible_cids.has(existing_id)
 
-	for i in range(members.size()):
-		var cid: String = members[i]
-		var cdef: Dictionary = DataLoader.get_character(cid)
-		var st: Dictionary = GameState.get_member_state(cid)
-		var col: Color = Color.html(str(cdef.get("color_hex", "#f28c28")))
-		var pos: Vector2 = base_screen + offsets[i % offsets.size()]
+	for gid in groups_here:
+		var is_active_grp: bool = (gid == GameState.active_group_id)
+		var grp_members: Array[String] = GameState.get_group_members(gid)
+		var base_grid: Vector2 = pawn_grid_pos if is_active_grp else GameState.get_group_grid_pos(gid)
+		var base_screen: Vector2 = iso_to_screen(base_grid.x, base_grid.y)
 
-		var actor: Node2D = null
-		if _pawn_actors.has(cid):
-			var a_var: Variant = _pawn_actors.get(cid, null)
-			if a_var is Node2D:
-				actor = a_var as Node2D
-		if actor == null:
-			actor = PawnActorScript.new()
-			_pawn_container.add_child(actor)
-			_pawn_actors[cid] = actor
+		for i in range(grp_members.size()):
+			var cid: String = grp_members[i]
+			var cdef: Dictionary = DataLoader.get_character(cid)
+			var st: Dictionary = GameState.get_member_state(cid)
+			var col: Color = Color.html(str(cdef.get("color_hex", "#f28c28")))
+			var pos: Vector2 = base_screen + offsets[i % offsets.size()]
 
-		var pawn_path: String = str(cdef.get("pawn", ""))
-		var pawn_tex: Texture2D = _load_texture_safe(pawn_path) if pawn_path != "" else null
-		var short_name: String = str(cdef.get("name", cid)).split(" ")[0]
-		actor.visible = true
-		actor.position = pos
-		actor.z_index = int(pos.y)
-		actor.call("setup_character", pawn_tex, short_name, col, target_h)
+			var actor: Node2D = null
+			if _pawn_actors.has(cid):
+				var a_var: Variant = _pawn_actors.get(cid, null)
+				if a_var is Node2D:
+					actor = a_var as Node2D
+			if actor == null:
+				actor = PawnActorScript.new()
+				_pawn_container.add_child(actor)
+				_pawn_actors[cid] = actor
 
-		var action_state: String = "idle"
-		if bool(st.get("stress_active", false)):
-			action_state = "stress"
-		elif not pending_hotspot.is_empty() or input_blocked:
-			action_state = "interacting"
-		elif is_moving:
-			action_state = "moving"
-		elif str(st.get("order_label", "")) == "Guetter":
-			action_state = "guarding"
+			var pawn_path: String = str(cdef.get("pawn", ""))
+			var pawn_tex: Texture2D = _load_texture_safe(pawn_path) if pawn_path != "" else null
+			var base_name: String = str(cdef.get("name", cid)).split(" ")[0]
+			var label_txt: String = base_name
+			if is_split:
+				label_txt = ("► " + base_name) if is_active_grp else ("G%d · %s" % [gid + 1, base_name])
 
-		actor.call("update_state", action_state, is_night, low_moral, screen_lights)
+			actor.visible = true
+			actor.position = pos
+			actor.z_index = int(pos.y)
+			actor.modulate = Color.WHITE if (not is_split or is_active_grp) else Color(0.84, 0.87, 0.92, 1.0)
+			actor.call("setup_character", pawn_tex, label_txt, col, target_h)
+
+			var action_state: String = "idle"
+			if bool(st.get("stress_active", false)):
+				action_state = "stress"
+			elif is_active_grp:
+				if not pending_hotspot.is_empty() or not pending_exit.is_empty() or input_blocked:
+					action_state = "interacting"
+				elif is_moving:
+					action_state = "moving"
+				elif str(st.get("order_label", "")) == "Guetter":
+					action_state = "guarding"
+			elif str(st.get("order_label", "")) == "Guetter":
+				action_state = "guarding"
+
+			actor.call("update_state", action_state, is_night, low_moral, screen_lights)
 
 	for npc_key_var in _npc_actors.keys():
 		var npc_key: String = str(npc_key_var)

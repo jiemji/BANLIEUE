@@ -48,16 +48,18 @@ func setup_character(tex: Texture2D, short_name: String, char_color: Color, targ
 	_target_h = target_h
 	_char_color = char_color
 	_name_label.text = short_name
-	_name_panel.size = Vector2(60.0, 19.0)
-	_name_panel.position = Vector2(-30.0, -target_h - 24.0)
+	var pw: float = maxf(60.0, float(short_name.length()) * 7.2 + 14.0)
+	_name_panel.size = Vector2(pw, 19.0)
+	_name_panel.position = Vector2(-pw * 0.5, -target_h - 24.0)
 
 	if tex != null:
 		_tex_size = tex.get_size()
 		_shadow_sprite.texture = tex
 		_body_sprite.texture = tex
 		var foot_offset: Vector2 = Vector2(-_tex_size.x * 0.5, -(_tex_size.y - 10.0))
-		_shadow_sprite.offset = foot_offset
 		_body_sprite.offset = foot_offset
+		# Plan de contact moyen des deux chaussures en vue 3/4 pour ancrer l'ombre sans vide sous le pied arrière
+		_shadow_sprite.offset = Vector2(-_tex_size.x * 0.5, -(_tex_size.y - 22.0))
 		var char_px_h: float = maxf(_tex_size.y - 26.0, 1.0)
 		var s: float = target_h / char_px_h
 		_body_sprite.scale = Vector2(s, s)
@@ -108,7 +110,8 @@ func update_shadow(lights: Array, is_night: bool, low_moral: bool) -> void:
 
 	var x_axis: Vector2 = Vector2(s, 0.0)
 	var y_axis: Vector2 = -shadow_dir * (s * shadow_len)
-	_shadow_sprite.transform = Transform2D(x_axis, y_axis, Vector2(0.0, 3.0))
+	var foot_contact_y: float = -12.0 * s
+	_shadow_sprite.transform = Transform2D(x_axis, y_axis, Vector2(0.0, foot_contact_y))
 	_shadow_sprite.self_modulate = Color(0.0, 0.0, 0.0, shadow_alpha)
 
 func _color_for_action(action_state: String) -> Color:

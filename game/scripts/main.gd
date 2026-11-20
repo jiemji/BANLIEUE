@@ -3,6 +3,7 @@ extends Node
 const SquadManagerScript: GDScript = preload("res://scripts/systems/squad_manager.gd")
 const TensionTimelineScript: GDScript = preload("res://scripts/systems/tension_timeline.gd")
 const DialogueRunnerScript: GDScript = preload("res://scripts/systems/dialogue_runner.gd")
+const WorldMapViewScript: GDScript = preload("res://scripts/world/world_map_view.gd")
 const IsoDistrictViewScript: GDScript = preload("res://scripts/world/iso_district_view.gd")
 const HudOverlayScript: GDScript = preload("res://scripts/ui/hud_overlay.gd")
 const DialoguePanelScript: GDScript = preload("res://scripts/ui/dialogue_panel.gd")
@@ -13,6 +14,7 @@ var _squad: Node = null
 var _timeline: Node = null
 var _dialogue_runner: Node = null
 
+var _world_map_view: Node2D = null
 var _iso_view: Node2D = null
 var _hud: Control = null
 var _dlg_panel: Control = null
@@ -39,7 +41,10 @@ func _ready() -> void:
 	_dialogue_runner = DialogueRunnerScript.new()
 	add_child(_dialogue_runner)
 
-	# 2. Vue Isométrique du monde
+	# 2. Vues du monde (Atlas N1-N3 + Intérieurs isométriques N4)
+	_world_map_view = WorldMapViewScript.new()
+	add_child(_world_map_view)
+
 	_iso_view = IsoDistrictViewScript.new()
 	add_child(_iso_view)
 
@@ -83,6 +88,7 @@ func _ready() -> void:
 
 	# 6. Lancement de la scène d'ouverture au Box-Garage
 	_sync_world_location()
+	_sync_active_view()
 	_dialogue_runner.call("start_dialogue", "intro_box_garage")
 
 func _build_sas_overlay(parent_layer: CanvasLayer) -> void:
@@ -149,13 +155,43 @@ func _wire_signals() -> void:
 	_iso_view.hotspot_activated.connect(func(dlg_id: String, _hs: Dictionary) -> void:
 		_dialogue_runner.call("start_dialogue", dlg_id)
 	)
+	_iso_view.exit_activated.connect(func(ex: Dictionary) -> void:
+		var t_lvl: int = int(ex.get("target_level", 3))
+		var t_id: String = str(ex.get("target_id", "cradon_les_gonesse"))
+		GameState.set_zoom_view(t_lvl, t_id)
+	)
+	_iso_view.squad_member_clicked.connect(func(gid: int, _cid: String) -> void:
+		_squad.call("switch_to_group", gid)
+	)
+
+	_world_map_view.zoom_in_requested.connect(func(target_level: int, target_id: String) -> void:
+		GameState.set_zoom_view(target_level, target_id)
+	)
+	_world_map_view.zoom_out_requested.connect(_zoom_out_one_level)
+	_world_map_view.interior_travel_requested.connect(func(lid: String) -> void:
+		_squad.call("move_active_group", lid)
+		GameState.set_zoom_view(4, lid)
+	)
+	_world_map_view.undescribed_clicked.connect(func(nname: String, _lore: String) -> void:
+		GameState.add_log("%s : pas encore décrit dans ce Jalon." % nname)
+	)
 
 	_hud.squad_regroup_requested.connect(func() -> void: _squad.call("regroup_all"))
 	_hud.squad_split_2_1_requested.connect(func() -> void: _squad.call("split_2_1"))
 	_hud.squad_split_1_1_1_requested.connect(func() -> void: _squad.call("split_1_1_1"))
 	_hud.group_switch_requested.connect(func(gid: int) -> void: _squad.call("switch_to_group", gid))
 	_hud.group_order_cycle_requested.connect(func(gid: int) -> void: _squad.call("cycle_group_order", gid))
-	_hud.location_travel_requested.connect(func(lid: String) -> void: _squad.call("move_active_group", lid))
+	_hud.location_travel_requested.connect(func(lid: String) -> void:
+		_squad.call("move_active_group", lid)
+		GameState.set_zoom_view(4, lid)
+	)
+	_hud.zoom_level_requested.connect(func(lvl: int) -> void:
+		if lvl == 3 and GameState.current_zoom_level == 3:
+			GameState.set_zoom_view(4, GameState.get_active_location_id())
+		else:
+			GameState.set_zoom_view(lvl)
+	)
+	_hud.zoom_out_requested.connect(_zoom_out_one_level)
 	_hud.twilight_requested.connect(_start_twilight_sas)
 	_hud.restart_slice_requested.connect(_restart_slice)
 
@@ -164,15 +200,22 @@ func _wire_signals() -> void:
 		_dlg_panel.call("show_node", node_data, choices)
 	)
 	_dialogue_runner.dialogue_finished.connect(func() -> void: _dlg_panel.call("hide_panel"))
-	_dialogue_runner.move_requested.connect(func(lid: String) -> void: _squad.call("move_active_group", lid))
+	_dialogue_runner.move_requested.connect(func(lid: String) -> void:
+		_squad.call("move_active_group", lid)
+		GameState.set_zoom_view(4, lid)
+	)
 	_dialogue_runner.twilight_requested.connect(_start_twilight_sas)
-	_dialogue_runner.encounter_requested.connect(func(eid: String) -> void: _timeline.call("start_encounter", eid))
+	_dialogue_runner.encounter_requested.connect(func(eid: String) -> void:
+		GameState.set_zoom_view(4, GameState.get_active_location_id())
+		_timeline.call("start_encounter", eid)
+	)
 	_dialogue_runner.slice_completed.connect(_show_end_summary)
 
 	_timeline.train_fantome_arrived_sig.connect(func() -> void: _iso_view.call("trigger_train_fantome"))
 	_timeline.encounter_finished.connect(_on_encounter_finished)
 
-	GameState.active_group_changed.connect(func(_gid: int) -> void: _sync_world_location())
+	GameState.active_group_changed.connect(_on_active_group_changed)
+	GameState.zoom_changed.connect(func(_lvl: int, _mid: String) -> void: _sync_active_view())
 	GameState.state_changed.connect(_on_state_changed)
 
 func _process(delta: float) -> void:
@@ -203,9 +246,42 @@ func _unhandled_input(event: InputEvent) -> void:
 				_squad.call("switch_to_group", 1)
 			elif kev.keycode == KEY_3:
 				_squad.call("switch_to_group", 2)
+			elif kev.keycode == KEY_ESCAPE:
+				_zoom_out_one_level()
+			elif kev.keycode == KEY_M:
+				if GameState.current_zoom_level == 4:
+					GameState.set_zoom_view(3, GameState.current_city_id)
+				else:
+					GameState.set_zoom_view(4, GameState.get_active_location_id())
+
+func _zoom_out_one_level() -> void:
+	if GameState.current_zoom_level > 1:
+		GameState.set_zoom_view(GameState.current_zoom_level - 1)
+
+func _sync_active_view() -> void:
+	var zl: int = GameState.current_zoom_level
+	if zl == 4:
+		_world_map_view.call("set_view_active", false)
+		_iso_view.call("set_view_active", true)
+		_sync_world_location()
+	else:
+		_iso_view.call("set_view_active", false)
+		var map_id: String = GameState.current_region_id
+		if zl == 2:
+			map_id = GameState.current_department_id
+		elif zl == 3:
+			map_id = GameState.current_city_id
+		_world_map_view.call("set_zoom_view", zl, map_id)
+		_world_map_view.call("set_view_active", true)
+
+func _on_active_group_changed(_gid: int) -> void:
+	_sync_world_location()
+	_iso_view.call("sync_active_group_from_state")
 
 func _on_state_changed() -> void:
 	_sync_world_location()
+	if GameState.current_zoom_level < 4:
+		_world_map_view.queue_redraw()
 	if not _sas_active:
 		var night_val: float = 1.0 if GameState.phase == "night" else 0.0
 		_shader_mat.set_shader_parameter("night_amount", night_val)
@@ -267,9 +343,11 @@ func _restart_slice() -> void:
 	_dlg_panel.visible = false
 	_iso_view.set("train_fantome_active", false)
 	GameState.reset_new_slice()
-	_sync_world_location()
+	_iso_view.call("set_location", "box_garage")
+	_sync_active_view()
 	_dialogue_runner.call("start_dialogue", "intro_box_garage")
 
 func _update_input_lock() -> void:
 	var blocked: bool = _sas_active or _end_overlay.visible or _tl_panel.visible or _dlg_panel.visible
 	_iso_view.set("input_blocked", blocked)
+	_world_map_view.set("input_blocked", blocked)

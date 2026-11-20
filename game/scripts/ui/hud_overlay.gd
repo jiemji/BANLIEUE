@@ -6,6 +6,8 @@ signal squad_split_1_1_1_requested
 signal group_switch_requested(group_id: int)
 signal group_order_cycle_requested(group_id: int)
 signal location_travel_requested(location_id: String)
+signal zoom_level_requested(level: int)
+signal zoom_out_requested
 signal twilight_requested
 signal radio_zapped(station_idx: int)
 signal restart_slice_requested
@@ -14,6 +16,9 @@ var _lbl_loc: Label = null
 var _lbl_phase: Label = null
 var _lbl_stats: Label = null
 var _btn_mute: Button = null
+var _crumb_btns: Array[Button] = []
+var _btn_zoom_out: Button = null
+var _btn_city_map: Button = null
 
 var _groups_box: VBoxContainer = null
 var _locations_box: VBoxContainer = null
@@ -49,12 +54,31 @@ func _build_ui() -> void:
 	add_child(top_bar)
 
 	var top_hbox: HBoxContainer = HBoxContainer.new()
-	top_hbox.add_theme_constant_override("separation", 14)
+	top_hbox.add_theme_constant_override("separation", 8)
 	top_bar.add_child(top_hbox)
+
+	var crumb_labels: Array[String] = ["IDF", "93", "Cradon", "Intérieur"]
+	_crumb_btns.clear()
+	for idx in range(crumb_labels.size()):
+		var b_cr: Button = Button.new()
+		b_cr.text = crumb_labels[idx]
+		b_cr.add_theme_font_size_override("font_size", 11)
+		var lvl_cap: int = idx + 1
+		b_cr.pressed.connect(func() -> void: zoom_level_requested.emit(lvl_cap))
+		top_hbox.add_child(b_cr)
+		_crumb_btns.append(b_cr)
+
+	_btn_zoom_out = Button.new()
+	_btn_zoom_out.text = "▲"
+	_btn_zoom_out.tooltip_text = "Dézoomer d'un niveau (Échap)"
+	_btn_zoom_out.add_theme_font_size_override("font_size", 11)
+	_btn_zoom_out.pressed.connect(func() -> void: zoom_out_requested.emit())
+	top_hbox.add_child(_btn_zoom_out)
 
 	_lbl_loc = Label.new()
 	_lbl_loc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_lbl_loc.add_theme_font_size_override("font_size", 15)
+	_lbl_loc.clip_text = true
+	_lbl_loc.add_theme_font_size_override("font_size", 13)
 	_lbl_loc.add_theme_color_override("font_color", Color(0.96, 0.94, 0.88))
 	top_hbox.add_child(_lbl_loc)
 
@@ -133,10 +157,15 @@ func _build_ui() -> void:
 
 	# -- Carte Cradon-lès-Gonesse
 	var lbl_m: Label = Label.new()
-	lbl_m.text = "CRADON-LÈS-GONESSE (6 LIEUX)"
+	lbl_m.text = "ATLAS & CRADON-LÈS-GONESSE"
 	lbl_m.add_theme_font_size_override("font_size", 13)
 	lbl_m.add_theme_color_override("font_color", Color(0.95, 0.55, 0.16))
 	side_vbox.add_child(lbl_m)
+
+	_btn_city_map = Button.new()
+	_btn_city_map.text = "Plan de Cradon (N3) [M]"
+	_btn_city_map.pressed.connect(func() -> void: zoom_level_requested.emit(3))
+	side_vbox.add_child(_btn_city_map)
 
 	_locations_box = VBoxContainer.new()
 	_locations_box.add_theme_constant_override("separation", 3)
@@ -201,7 +230,31 @@ func refresh() -> void:
 		return
 	var loc_id: String = GameState.get_active_location_id()
 	var loc: Dictionary = DataLoader.get_location(loc_id)
-	_lbl_loc.text = " %s — %s" % [str(loc.get("name", loc_id)), str(loc.get("sector", ""))]
+	var zl: int = GameState.current_zoom_level
+	for i in range(_crumb_btns.size()):
+		var b_cr: Button = _crumb_btns[i]
+		var is_here: bool = (i + 1 == zl)
+		b_cr.disabled = is_here
+		b_cr.modulate = Color(1.0, 0.72, 0.32) if is_here else Color.WHITE
+	if _btn_zoom_out != null:
+		_btn_zoom_out.disabled = (zl <= 1)
+	if _btn_city_map != null:
+		_btn_city_map.text = "Revenir à l'intérieur (N4) [M]" if zl < 4 else "Plan de Cradon (N3) [M]"
+
+	if zl == 1:
+		var reg: Dictionary = DataLoader.get_region(GameState.current_region_id)
+		_lbl_loc.text = " N1 · %s" % str(reg.get("name", "Île-de-France"))
+	elif zl == 2:
+		var dept: Dictionary = DataLoader.get_department(GameState.current_department_id)
+		_lbl_loc.text = " N2 · %s" % str(dept.get("name", "Seine-Saint-Denis (93)"))
+	elif zl == 3:
+		var city: Dictionary = DataLoader.get_city(GameState.current_city_id)
+		_lbl_loc.text = " N3 · %s" % str(city.get("name", "Cradon-lès-Gonesse"))
+	else:
+		var gw: int = int(loc.get("grid_w", 8))
+		var gh: int = int(loc.get("grid_h", 8))
+		var rmode: String = "BD" if str(loc.get("render_mode", "backdrop")) == "backdrop" else "Modulaire"
+		_lbl_loc.text = " %s (%dx%d · %s)" % [str(loc.get("name", loc_id)), gw, gh, rmode]
 
 	var phase_label: String = "JOUR"
 	if GameState.phase == "twilight":

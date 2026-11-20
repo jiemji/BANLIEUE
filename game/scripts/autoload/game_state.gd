@@ -3,6 +3,7 @@ extends Node
 signal state_changed
 signal phase_changed(new_phase: String)
 signal active_group_changed(group_id: int)
+signal zoom_changed(level: int, map_id: String)
 signal log_added(entry: String)
 
 var phase: String = "day" # "day", "twilight", "night"
@@ -22,6 +23,11 @@ var active_group_id: int = 0
 var current_station_idx: int = 0
 var last_encounter_outcome: String = ""
 
+var current_zoom_level: int = 4
+var current_region_id: String = "idf"
+var current_department_id: String = "dept_93"
+var current_city_id: String = "cradon_les_gonesse"
+
 func _ready() -> void:
 	reset_new_slice()
 
@@ -40,9 +46,22 @@ func reset_new_slice() -> void:
 	active_group_id = 0
 	current_station_idx = 0
 	last_encounter_outcome = ""
+	current_zoom_level = 4
+	current_region_id = "idf"
+	current_department_id = "dept_93"
+	current_city_id = "cradon_les_gonesse"
 
 	if DataLoader.characters.is_empty():
 		DataLoader.load_all()
+
+	var start_loc: Dictionary = DataLoader.get_location("box_garage")
+	var sp_var: Variant = start_loc.get("spawn", [3.0, 4.0])
+	var sp_x: float = 3.0
+	var sp_y: float = 4.0
+	if sp_var is Array and (sp_var as Array).size() >= 2:
+		var sp_arr: Array = sp_var as Array
+		sp_x = float(sp_arr[0])
+		sp_y = float(sp_arr[1])
 
 	for cid_var in DataLoader.characters.keys():
 		var cid: String = str(cid_var)
@@ -55,6 +74,8 @@ func reset_new_slice() -> void:
 			"moral": m_start,
 			"moral_max": m_max,
 			"location_id": "box_garage",
+			"grid_x": sp_x,
+			"grid_y": sp_y,
 			"group_id": 0,
 			"order_label": "En bande",
 			"stress_active": m_start <= threshold
@@ -104,6 +125,42 @@ func get_present_group_ids() -> Array[int]:
 			ids.append(gid)
 	ids.sort()
 	return ids
+
+func get_groups_in_location(loc_id: String) -> Array[int]:
+	var ids: Array[int] = []
+	for cid in squad_members:
+		var st: Dictionary = get_member_state(cid)
+		if str(st.get("location_id", "box_garage")) == loc_id:
+			var gid: int = int(st.get("group_id", 0))
+			if not ids.has(gid):
+				ids.append(gid)
+	ids.sort()
+	return ids
+
+func get_group_grid_pos(group_id: int) -> Vector2:
+	for cid in squad_members:
+		var st: Dictionary = get_member_state(cid)
+		if int(st.get("group_id", 0)) == group_id:
+			if st.has("grid_x") and st.has("grid_y"):
+				return Vector2(float(st.get("grid_x", 3.0)), float(st.get("grid_y", 4.0)))
+			var lid: String = str(st.get("location_id", "box_garage"))
+			var ldef: Dictionary = DataLoader.get_location(lid)
+			var sp_var: Variant = ldef.get("spawn", [3.0, 4.0])
+			if sp_var is Array and (sp_var as Array).size() >= 2:
+				var arr: Array = sp_var as Array
+				return Vector2(float(arr[0]), float(arr[1]))
+	return Vector2(3.0, 4.0)
+
+func get_active_group_grid_pos() -> Vector2:
+	return get_group_grid_pos(active_group_id)
+
+func set_group_grid_pos(group_id: int, pos: Vector2) -> void:
+	for cid in squad_members:
+		var st: Dictionary = get_member_state(cid)
+		if int(st.get("group_id", 0)) == group_id:
+			st["grid_x"] = pos.x
+			st["grid_y"] = pos.y
+			member_states[cid] = st
 
 func is_member_in_active_group(char_id: String) -> bool:
 	var active_ids: Array[String] = get_active_group_members()
@@ -156,8 +213,11 @@ func recruit_member(char_id: String) -> void:
 		return
 	if not squad_members.has(char_id):
 		squad_members.append(char_id)
+		var active_pos: Vector2 = get_active_group_grid_pos()
 		var st: Dictionary = get_member_state(char_id)
 		st["location_id"] = get_active_location_id()
+		st["grid_x"] = active_pos.x
+		st["grid_y"] = active_pos.y
 		st["group_id"] = active_group_id
 		st["order_label"] = "Recruté"
 		member_states[char_id] = st
@@ -204,3 +264,26 @@ func cycle_station() -> int:
 	current_station_idx = (current_station_idx + 1) % DataLoader.radio_stations.size()
 	state_changed.emit()
 	return current_station_idx
+
+func set_zoom_view(level: int, map_id: String = "") -> void:
+	var target_lvl: int = clampi(level, 1, 4)
+	current_zoom_level = target_lvl
+	if target_lvl == 1 and map_id != "":
+		current_region_id = map_id
+	elif target_lvl == 2 and map_id != "":
+		current_department_id = map_id
+	elif target_lvl == 3 and map_id != "":
+		current_city_id = map_id
+
+	var emit_id: String = map_id
+	if emit_id == "":
+		if target_lvl == 1:
+			emit_id = current_region_id
+		elif target_lvl == 2:
+			emit_id = current_department_id
+		elif target_lvl == 3:
+			emit_id = current_city_id
+		else:
+			emit_id = get_active_location_id()
+	zoom_changed.emit(current_zoom_level, emit_id)
+	state_changed.emit()

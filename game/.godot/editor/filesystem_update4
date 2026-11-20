@@ -1,1 +1,7 @@
 res://scripts/world/iso_district_view.gd
+res://scripts/main.gd
+res://scripts/autoload/data_loader.gd
+res://scripts/autoload/game_state.gd
+res://scripts/ui/hud_overlay.gd
+res://scripts/world/pawn_actor.gd
+res://scripts/systems/squad_manager.gd

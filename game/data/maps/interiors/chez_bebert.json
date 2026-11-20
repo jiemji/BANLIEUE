@@ -1,0 +1,68 @@
+{
+  "id": "chez_bebert",
+  "parent_city_id": "cradon_les_gonesse",
+  "zoom_level": 4,
+  "type": "interior",
+  "name": "Bistrot Chez Bébert",
+  "sector": "Le Vieux Bourg",
+  "day_desc": "Comptoir en formica jaune, juke-box à la Renaud et zone franche où Franck et les anciens de Citroën boivent un demi.",
+  "night_desc": "Volets tirés aux trois quarts ; les gyrophares de l'avenue balaient la vitrine par intermittence.",
+  "day_tint": "#e3ce8d",
+  "night_tint": "#26211e",
+  "render_mode": "backdrop",
+  "backdrop": "res://assets/locations/chez_bebert.png",
+  "tile_w": 86,
+  "tile_h": 43,
+  "grid_w": 8,
+  "grid_h": 8,
+  "camera": {
+    "default_zoom": 1.0,
+    "min_zoom": 0.85,
+    "max_zoom": 1.45,
+    "follow_squad": false
+  },
+  "spawn": [4.6, 6.4],
+  "blocked_cells": [],
+  "zones": [],
+  "exits": [
+    {
+      "id": "exit_city",
+      "label": "Sortir (Cradon)",
+      "grid_x": 6.2,
+      "grid_y": 6.4,
+      "target_level": 3,
+      "target_id": "cradon_les_gonesse",
+      "color_hex": "#4aa3df"
+    }
+  ],
+  "lights": [
+    {"grid_x": 5.8, "grid_y": 2.4, "radius": 320.0, "strength": 0.90}
+  ],
+  "props": [
+    {"type": "wall_back", "x": 0, "y": 0, "w": 8, "h": 1, "label": "Vitrine Rue"},
+    {"type": "counter", "x": 1, "y": 2, "w": 4, "h": 1, "label": "Zinc Formica"},
+    {"type": "jukebox", "x": 6, "y": 2, "w": 1, "h": 1, "label": "Juke-box"},
+    {"type": "table", "x": 5, "y": 5, "w": 1, "h": 1, "label": "Table"}
+  ],
+  "hotspots": [],
+  "npcs": [
+    {
+      "id": "npc_franck_bebert",
+      "char_id": "franck",
+      "label": "Franck",
+      "grid_x": 4.0,
+      "grid_y": 4.6,
+      "dialogue_id": "chez_bebert_franck",
+      "phase": "any",
+      "hide_if_in_squad": false,
+      "action_state": "interacting"
+    }
+  ],
+  "neighbors": {
+    "galaxian": 1,
+    "box_garage": 2,
+    "tour_b": 2,
+    "ruelle_relais": 1,
+    "gare_rer_y": 2
+  }
+}

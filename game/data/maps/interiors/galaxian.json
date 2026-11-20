@@ -1,0 +1,118 @@
+{
+  "id": "galaxian",
+  "parent_city_id": "cradon_les_gonesse",
+  "zoom_level": 4,
+  "type": "interior",
+  "name": "Salle de Jeux Le Galaxian",
+  "sector": "Le Vieux Bourg",
+  "day_desc": "Flippers, baby-foot et borne Space Invader sous un rideau à demi tiré : le S.O. municipal vient d'y scotcher un avis de fermeture bidon.",
+  "night_desc": "Vitrine éteinte, reflets bleu électrique des bornes débranchées sur le trottoir humide.",
+  "day_tint": "#dec99d",
+  "night_tint": "#202430",
+  "render_mode": "modular",
+  "backdrop": "",
+  "tile_w": 86,
+  "tile_h": 43,
+  "grid_w": 12,
+  "grid_h": 8,
+  "camera": {
+    "default_zoom": 0.95,
+    "min_zoom": 0.65,
+    "max_zoom": 1.60,
+    "follow_squad": true
+  },
+  "spawn": [5.0, 5.5],
+  "blocked_cells": [
+    [1, 2],
+    [2, 2],
+    [3, 2],
+    [8, 3],
+    [9, 3],
+    [10, 2],
+    [10, 3]
+  ],
+  "zones": [
+    {
+      "name": "Salle d'arcade",
+      "x": 0,
+      "y": 1,
+      "w": 7,
+      "h": 7,
+      "day_tint": "#dec99d",
+      "night_tint": "#202430"
+    },
+    {
+      "name": "Arrière-salle Baby-foot",
+      "x": 7,
+      "y": 1,
+      "w": 5,
+      "h": 7,
+      "day_tint": "#c9b595",
+      "night_tint": "#1b1e28"
+    }
+  ],
+  "exits": [
+    {
+      "id": "exit_city",
+      "label": "Sortir (Cradon)",
+      "grid_x": 6.0,
+      "grid_y": 6.8,
+      "target_level": 3,
+      "target_id": "cradon_les_gonesse",
+      "color_hex": "#4aa3df"
+    }
+  ],
+  "lights": [
+    {"grid_x": 2.0, "grid_y": 2.5, "radius": 280.0, "strength": 0.85}
+  ],
+  "props": [
+    {"type": "wall_back", "x": 0, "y": 0, "w": 12, "h": 1, "label": "Vitrine"},
+    {"type": "arcade", "x": 1, "y": 2, "w": 1, "h": 1, "label": "Space Invader"},
+    {"type": "arcade", "x": 2, "y": 2, "w": 1, "h": 1, "label": "Flipper 82"},
+    {"type": "arcade", "x": 3, "y": 2, "w": 1, "h": 1, "label": "Galaxian"},
+    {"type": "notice", "x": 4, "y": 1, "w": 1, "h": 1, "label": "Avis S.O."},
+    {"type": "babyfoot", "x": 8, "y": 3, "w": 2, "h": 1, "label": "Baby-foot"},
+    {"type": "sofa", "x": 10, "y": 2, "w": 1, "h": 2, "label": "Banquette"},
+    {"type": "table", "x": 9, "y": 5, "w": 1, "h": 1, "label": "Caisse"}
+  ],
+  "hotspots": [
+    {
+      "id": "hs_notice",
+      "label": "Avis du S.O. sur la vitre",
+      "grid_x": 4,
+      "grid_y": 2,
+      "dialogue_id": "galaxian_notice",
+      "phase": "any",
+      "color_hex": "#d92b2b"
+    },
+    {
+      "id": "hs_flipper",
+      "label": "Flipper Space Invader (-5 F)",
+      "grid_x": 1,
+      "grid_y": 3,
+      "dialogue_id": "galaxian_flipper",
+      "phase": "day",
+      "color_hex": "#4aa3df"
+    }
+  ],
+  "npcs": [
+    {
+      "id": "npc_ludo_galaxian",
+      "char_id": "ludo",
+      "label": "Ludo (Flipper)",
+      "grid_x": 2.4,
+      "grid_y": 3.5,
+      "dialogue_id": "galaxian_ludo",
+      "phase": "day",
+      "hide_if_in_squad": true,
+      "action_state": "interacting"
+    }
+  ],
+  "neighbors": {
+    "box_garage": 2,
+    "chez_bebert": 1,
+    "ruelle_relais": 1,
+    "tour_b": 2,
+    "gare_rer_y": 2
+  }
+}

@@ -230,15 +230,58 @@ def validate_project(game_root: str) -> int:
             return json.load(f)
 
     chars_j = load_j("data/characters.json")
-    locs_j = load_j("data/locations.json")
+    idf_j = load_j("data/world/idf.json")
     dlgs_j = load_j("data/dialogues.json")
     encs_j = load_j("data/timeline_encounters.json")
     load_j("data/radio_fm.json")
 
     char_ids = {c["id"] for c in chars_j["characters"]}
-    loc_ids = {l["id"] for l in locs_j["locations"]}
     dlg_ids = set(dlgs_j["dialogues"].keys())
     enc_ids = set(encs_j["encounters"].keys())
+
+    valid_statuses = {"playable", "locked", "undescribed"}
+    reg_ids = {idf_j.get("id", "idf")}
+    dept_ids = set()
+    city_ids = set()
+    interiors_list = []
+
+    def load_res(res_p: str, owner: str):
+        if not res_p.startswith("res://"):
+            errors.append(f"Invalid res:// path in {owner}: {res_p}")
+            return None
+        fp = os.path.join(game_root, res_p[6:])
+        if not os.path.exists(fp):
+            errors.append(f"Missing referenced JSON {res_p} in {owner}")
+            return None
+        with open(fp, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    for dc in idf_j.get("children", []):
+        if dc.get("status") not in valid_statuses:
+            errors.append(f"Invalid status in idf child {dc.get('id')}")
+        cf = dc.get("child_file", "")
+        if cf:
+            dept_j = load_res(cf, f"idf/{dc.get('id')}")
+            if dept_j:
+                dept_ids.add(dept_j.get("id", ""))
+                for cc in dept_j.get("children", []):
+                    if cc.get("status") not in valid_statuses:
+                        errors.append(f"Invalid status in dept child {cc.get('id')}")
+                    ccf = cc.get("child_file", "")
+                    if ccf:
+                        city_j = load_res(ccf, f"{dept_j.get('id')}/{cc.get('id')}")
+                        if city_j:
+                            city_ids.add(city_j.get("id", ""))
+                            for bc in city_j.get("children", []):
+                                if bc.get("status") not in valid_statuses:
+                                    errors.append(f"Invalid status in city child {bc.get('id')}")
+                                inf = bc.get("interior_file", "")
+                                if inf:
+                                    int_j = load_res(inf, f"{city_j.get('id')}/{bc.get('id')}")
+                                    if int_j:
+                                        interiors_list.append(int_j)
+
+    loc_ids = {l["id"] for l in interiors_list}
 
     for c in chars_j["characters"]:
         cid = c["id"]
@@ -262,8 +305,12 @@ def validate_project(game_root: str) -> int:
                         if alpha.getpixel((0, 0)) != 0 or alpha.getpixel((w - 1, h - 1)) != 0:
                             errors.append(f"Pawn transparent padding missing in {fp}")
 
-    for l in locs_j["locations"]:
+    for l in interiors_list:
         lid = l["id"]
+        if int(l.get("grid_w", 0)) < 4 or int(l.get("grid_h", 0)) < 4:
+            errors.append(f"Invalid grid dimensions in interior {lid}")
+        if l.get("render_mode", "") not in ("backdrop", "modular"):
+            errors.append(f"Invalid render_mode in interior {lid}")
         if "lights" not in l or not isinstance(l["lights"], list):
             errors.append(f"Missing lights list in location {lid}")
         for nid in l.get("neighbors", {}):
@@ -273,6 +320,10 @@ def validate_project(game_root: str) -> int:
             did = hs.get("dialogue_id", "")
             if did and did not in dlg_ids:
                 errors.append(f"Unknown hotspot dialogue_id {did} in {lid}")
+        for ex in l.get("exits", []):
+            tl = int(ex.get("target_level", 0))
+            if tl < 1 or tl > 4:
+                errors.append(f"Invalid exit target_level {tl} in {lid}")
         for npc in l.get("npcs", []):
             cid = npc.get("char_id", "")
             did = npc.get("dialogue_id", "")
@@ -326,7 +377,10 @@ def validate_project(game_root: str) -> int:
         for e in errors:
             print(" -", e)
         return 1
-    print(f"VALIDATION PASSED: {len(char_ids)} chars, {len(loc_ids)} locs, {len(dlg_ids)} dialogues, {gd_count} scripts — 0 errors.")
+    print(
+        f"VALIDATION PASSED: {len(reg_ids)} regions, {len(dept_ids)} depts, {len(city_ids)} cities, "
+        f"{len(loc_ids)} interiors, {len(char_ids)} chars, {len(dlg_ids)} dialogues, {gd_count} scripts — 0 errors."
+    )
     return 0
 
 
