@@ -20,6 +20,7 @@ var _btn_mute: Button = null
 var _crumb_btns: Array[Button] = []
 var _btn_zoom_out: Button = null
 var _btn_city_map: Button = null
+var _btn_regroup: Button = null
 
 var _groups_box: VBoxContainer = null
 var _locations_box: VBoxContainer = null
@@ -126,7 +127,7 @@ func _build_ui() -> void:
 
 	# -- Bande modulable
 	var lbl_b: Label = Label.new()
-	lbl_b.text = "BANDE MODULABLE (Touches 1 / 2 / 3)"
+	lbl_b.text = "BANDE MODULABLE (Touches 1–6)"
 	lbl_b.add_theme_font_size_override("font_size", 13)
 	lbl_b.add_theme_color_override("font_color", Color(0.95, 0.55, 0.16))
 	side_vbox.add_child(lbl_b)
@@ -135,11 +136,11 @@ func _build_ui() -> void:
 	split_row.add_theme_constant_override("separation", 4)
 	side_vbox.add_child(split_row)
 
-	var b_reg: Button = Button.new()
-	b_reg.text = "3 Soudés"
-	b_reg.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	b_reg.pressed.connect(func() -> void: squad_regroup_requested.emit())
-	split_row.add_child(b_reg)
+	_btn_regroup = Button.new()
+	_btn_regroup.text = "Soudés"
+	_btn_regroup.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_btn_regroup.pressed.connect(func() -> void: squad_regroup_requested.emit())
+	split_row.add_child(_btn_regroup)
 
 	var b_21: Button = Button.new()
 	b_21.text = "2 + 1"
@@ -148,7 +149,7 @@ func _build_ui() -> void:
 	split_row.add_child(b_21)
 
 	var b_111: Button = Button.new()
-	b_111.text = "1+1+1"
+	b_111.text = "Éclatés"
 	b_111.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	b_111.pressed.connect(func() -> void: squad_split_1_1_1_requested.emit())
 	split_row.add_child(b_111)
@@ -249,6 +250,8 @@ func refresh() -> void:
 		_btn_zoom_out.disabled = (zl <= 1)
 	if _btn_city_map != null:
 		_btn_city_map.text = "Revenir à l'intérieur (N4) [M]" if zl < 4 else "Plan de Cradon (N3) [M]"
+	if _btn_regroup != null:
+		_btn_regroup.text = "%d Soudés" % GameState.squad_members.size()
 
 	if zl == 1:
 		var reg: Dictionary = DataLoader.get_region(GameState.current_region_id)
@@ -322,7 +325,7 @@ func refresh() -> void:
 		card.add_child(sub_loc)
 		_groups_box.add_child(card)
 
-	# Rafraîchir carte 6 lieux
+	# Rafraîchir carte des lieux
 	for c in _locations_box.get_children():
 		c.queue_free()
 
@@ -344,6 +347,12 @@ func refresh() -> void:
 		elif lid == "chez_bebert" and GameState.has_flag("bebert_done"):
 			done_mark = " ✓"
 		elif lid == "ruelle_relais" and GameState.has_flag("ruelle_done"):
+			done_mark = " ✓"
+		elif lid == "garage_bananes" and GameState.has_flag("manu_recruited"):
+			done_mark = " ✓"
+		elif lid == "squat_kepons" and GameState.has_flag("zoe_recruited"):
+			done_mark = " ✓"
+		elif lid == "lisiere_poudrerie" and GameState.has_flag("poudrerie_done"):
 			done_mark = " ✓"
 		b_loc.text = "%s%s%s" % [str(ldef.get("name", lid)), mark_here, done_mark]
 		b_loc.clip_text = true

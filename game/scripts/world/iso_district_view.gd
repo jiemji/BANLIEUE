@@ -812,7 +812,7 @@ func _sync_pawn_actors() -> void:
 					"strength": float(ld.get("strength", 1.0))
 				})
 
-	var offsets: Array[Vector2] = [Vector2(0.0, 0.0), Vector2(-54.0, 16.0), Vector2(54.0, 16.0), Vector2(0.0, 32.0)]
+	var offsets: Array[Vector2] = [Vector2(0.0, 0.0), Vector2(-54.0, 16.0), Vector2(54.0, 16.0), Vector2(0.0, 32.0), Vector2(-78.0, 34.0), Vector2(78.0, 34.0)]
 	var is_moving: bool = pawn_grid_pos.distance_to(pawn_target_pos) > 0.05
 	var groups_here: Array[int] = GameState.get_groups_in_location(current_loc_id)
 	var is_split: bool = GameState.get_present_group_ids().size() > 1

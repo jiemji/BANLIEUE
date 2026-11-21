@@ -266,7 +266,7 @@ func _draw() -> void:
 
 	var has_backdrop: bool = (backdrop_tex != null)
 	if has_backdrop:
-		var tint_b: Color = Color(0.76, 0.79, 0.86) if is_night else Color.WHITE
+		var tint_b: Color = Color(0.54, 0.58, 0.68) if is_night else Color.WHITE
 		draw_texture_rect(backdrop_tex, sheet_rect, false, tint_b)
 	else:
 		var paper_col: Color = Color.html(str(data.get("night_tint", "#191d26"))) if is_night else Color.html(str(data.get("paper_tint", "#dfd5be")))
@@ -476,6 +476,9 @@ func _draw_city_cradon(data: Dictionary, is_night: bool, low_moral: bool, ink_co
 			var kind: String = str(rd.get("kind", "road"))
 			if kind == "rail":
 				draw_polyline(pts, Color(0.28, 0.65, 0.96, 0.82 if has_backdrop else 1.0), 3.4 if has_backdrop else 4.5)
+			elif kind == "water":
+				draw_polyline(pts, Color(0.24, 0.56, 0.72, 0.72 if has_backdrop else 0.90), 10.0)
+				draw_polyline(pts, Color(ink_col.r, ink_col.g, ink_col.b, 0.35), 1.5)
 			elif not has_backdrop:
 				draw_polyline(pts, Color(0.32, 0.34, 0.40) if is_night else Color(0.58, 0.53, 0.44), 5.0)
 				draw_polyline(pts, Color(ink_col.r, ink_col.g, ink_col.b, 0.4), 1.0)
@@ -530,7 +533,7 @@ func _draw_city_cradon(data: Dictionary, is_night: bool, low_moral: bool, ink_co
 			draw_rect(rect, Color(0.95, 0.55, 0.16) if is_current else ink_col, false, 3.0 if (is_current or is_hover) else 1.8)
 
 			var done_txt: String = ""
-			if (lid == "tour_b" and GameState.has_flag("tour_b_done")) or (lid == "chez_bebert" and GameState.has_flag("bebert_done")) or (lid == "ruelle_relais" and GameState.has_flag("ruelle_done")):
+			if (lid == "tour_b" and GameState.has_flag("tour_b_done")) or (lid == "chez_bebert" and GameState.has_flag("bebert_done")) or (lid == "ruelle_relais" and GameState.has_flag("ruelle_done")) or (lid == "garage_bananes" and GameState.has_flag("manu_recruited")) or (lid == "squat_kepons" and GameState.has_flag("zoe_recruited")) or (lid == "lisiere_poudrerie" and GameState.has_flag("poudrerie_done")):
 				done_txt = " ✓"
 
 			var txt_col: Color = Color(0.96, 0.94, 0.90) if is_night else Color(0.10, 0.10, 0.11)

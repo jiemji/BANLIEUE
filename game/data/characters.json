@@ -139,6 +139,46 @@
       "specialty_name": "Patrouille civile",
       "specialty_desc": "Surveille les points de bascule en coupe-vent banalisé.",
       "in_squad_default": false
+    },
+    {
+      "id": "manu",
+      "name": "Manu",
+      "role": "Le Mécano (Bananes du Garage)",
+      "tribe": "Les Bananes du Garage",
+      "color_hex": "#d96b27",
+      "portrait": "res://assets/portraits/manu.png",
+      "pawn": "res://assets/pawns/manu_pawn.png",
+      "fave": 64,
+      "fasa": 5,
+      "moral_start": 68,
+      "moral_max": 100,
+      "stress_threshold": 34,
+      "stress_name": "Sauvagerie / Fierté",
+      "crisis_label": "Démarre au quart de tour sur une vanne",
+      "specialty_id": "interposition",
+      "specialty_name": "Coup de clé / Carrure",
+      "specialty_desc": "Pose le poids mécanique des Bananes et encaisse la pression face au S.O.",
+      "in_squad_default": false
+    },
+    {
+      "id": "zoe",
+      "name": "Zoé",
+      "role": "La Keponne (Squat du Canal)",
+      "tribe": "Les Kepons du Canal",
+      "color_hex": "#d93b6a",
+      "portrait": "res://assets/portraits/zoe.png",
+      "pawn": "res://assets/pawns/zoe_pawn.png",
+      "fave": 62,
+      "fasa": 4,
+      "moral_start": 62,
+      "moral_max": 100,
+      "stress_threshold": 34,
+      "stress_name": "Inconscience / Provocation",
+      "crisis_label": "Nargue ouvertement le S.O. ou les CRS",
+      "specialty_id": "moquerie",
+      "specialty_name": "Provocation Punk",
+      "specialty_desc": "Ridiculise un adversaire sur la Frise et casse son élan d'intimidation.",
+      "in_squad_default": false
     }
   ]
 }

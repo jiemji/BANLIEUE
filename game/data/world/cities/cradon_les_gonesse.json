@@ -7,7 +7,7 @@
   "subtitle": "Plan de ville 1982 — 4 secteurs & 6 lieux clés",
   "map_width": 1040,
   "map_height": 760,
-  "backdrop": "",
+  "backdrop": "res://assets/maps/map_cradon.png",
   "paper_tint": "#ded3bc",
   "night_tint": "#181c24",
   "sectors": [

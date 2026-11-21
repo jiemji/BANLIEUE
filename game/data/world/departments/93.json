@@ -8,7 +8,7 @@
   "subtitle": "Plan départemental 1982 — Axes RER B Nord & RN2",
   "map_width": 1000,
   "map_height": 760,
-  "backdrop": "",
+  "backdrop": "res://assets/maps/map_93.png",
   "paper_tint": "#dbd2bd",
   "night_tint": "#191d26",
   "routes": [

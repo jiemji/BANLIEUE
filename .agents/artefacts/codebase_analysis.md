@@ -1,6 +1,6 @@
 # Analyse Technique de la Codebase — *Banlieue*
 
-> **Version courante : 0.2.1** — Mise à jour : 2026-11-21
+> **Version courante : 0.2.3** — Mise à jour : 2026-11-21
 
 ---
 
@@ -74,5 +74,5 @@
 ---
 
 ## 5. Couverture de Test & Validation
-* **Validation statique & intégrité (`--mode validate`)** : Contrôle JSON atlas N1–N3 (`backdrop` inclus), intérieurs N4, dialogues, rencontres, `player_profiles.json`, `res://` et RGBA `526 px` de tous les pions → **0 erreur** (`0 pending assets`).
-* **Smoke test automatisé Godot 4.7.2 headless (`smoke_test_menus.gd`)** : Vérifie les 5 autoloads, les 4 archétypes sociaux, les 6 portraits/pions réels sur disque, la spécialité `sang_froid`, la persistance `SettingsManager`, le cycle complet `SaveManager` et la machine d'états UI de `main.tscn` → **0 erreur**.
+* **Validation statique & intégrité (`--mode validate`)** : Contrôle JSON atlas N1–N3 (`map_idf.png`, `map_93.png`, `map_cradon.png` inclus), 6/6 intérieurs N4 en mode `backdrop`, **9 personnages** (`manu` & `zoe` inclus), dialogues, rencontres, `player_profiles.json`, `res://` et RGBA `526 px` de tous les pions → **0 erreur** (**0 pending graphic assets**).
+* **Smoke test automatisé Godot 4.7.2 headless (`smoke_test_menus.gd`)** : Vérifie les 5 autoloads, les 4 archétypes sociaux, les 6 portraits/pions joueur réels sur disque, **Manu & Zoé + bande à 6 membres**, les `occluders` calibrés des 6 intérieurs, la spécialité `sang_froid`, la persistance `SettingsManager`, le cycle complet `SaveManager` et la machine d'états UI de `main.tscn` → **0 erreur**.

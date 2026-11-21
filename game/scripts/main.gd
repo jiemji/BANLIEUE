@@ -499,6 +499,12 @@ func _unhandled_input(event: InputEvent) -> void:
 				_squad.call("switch_to_group", 1)
 			elif kev2.keycode == KEY_3:
 				_squad.call("switch_to_group", 2)
+			elif kev2.keycode == KEY_4:
+				_squad.call("switch_to_group", 3)
+			elif kev2.keycode == KEY_5:
+				_squad.call("switch_to_group", 4)
+			elif kev2.keycode == KEY_6:
+				_squad.call("switch_to_group", 5)
 			elif kev2.keycode == KEY_BACKSPACE:
 				_zoom_out_one_level()
 			elif kev2.keycode == KEY_M:
@@ -580,6 +586,12 @@ func _show_end_summary() -> void:
 		outcome_label = "Repli d'urgence face aux sirènes CRS"
 
 	var ludo_txt: String = "Recruté au Box-Garage !" if GameState.has_flag("ludo_recruited") else "Resté dehors pour ce soir (+1 Faveur)"
+	var recruits_extra: Array[String] = []
+	if GameState.has_flag("manu_recruited") or GameState.squad_members.has("manu"):
+		recruits_extra.append("Manu (Bananes)")
+	if GameState.has_flag("zoe_recruited") or GameState.squad_members.has("zoe"):
+		recruits_extra.append("Zoé (Kepons)")
+	var allies_extra_line: String = ("Renforts du Canal : " + ", ".join(recruits_extra) + "\n") if not recruits_extra.is_empty() else ""
 	var moral_lines: Array[String] = []
 	for cid in GameState.squad_members:
 		var cdef: Dictionary = DataLoader.get_character(cid)
@@ -588,12 +600,12 @@ func _show_end_summary() -> void:
 
 	_end_summary_lbl.text = (
 		"Issue à la Gare RER « du Y » : %s\n" +
-		"Statut de Ludo : %s\n\n" +
+		"Statut de Ludo : %s\n%s\n" +
 		"Ressources finales : %d Francs  |  %d Faveurs  |  Notoriété %d  |  FASA %d\n\n" +
-		"État de la bande :\n%s\n\n" +
-		"Ce prototype Data-Driven valide la bascule libre (1/2/3), le Sas Boeing Jour→Nuit, " +
+		"État de la bande (%d membres) :\n%s\n\n" +
+		"Ce prototype Data-Driven valide la bascule libre (1–6), le Sas Boeing Jour→Nuit, " +
 		"la Frise chronologique à Interruptions hors-tour et le préavis des Crises d'autonomie."
-	) % [outcome_label, ludo_txt, GameState.francs, GameState.faveurs, GameState.notoriete, GameState.get_total_fasa(), "\n".join(moral_lines)]
+	) % [outcome_label, ludo_txt, allies_extra_line, GameState.francs, GameState.faveurs, GameState.notoriete, GameState.get_total_fasa(), GameState.squad_members.size(), "\n".join(moral_lines)]
 	_end_overlay.visible = true
 
 func _restart_slice() -> void:

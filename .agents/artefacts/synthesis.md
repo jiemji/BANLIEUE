@@ -1,6 +1,6 @@
 # Synthèse du Projet — *Banlieue*
 
-> **Version courante : 0.2.1** — Dernière mise à jour : 2026-11-21
+> **Version courante : 0.2.3** — Dernière mise à jour : 2026-11-21
 
 ## 1. Identité & Stack
 * **Titre** : *Banlieue* — *Cradon-lès-Gonesse (1980–1984)*
@@ -25,13 +25,12 @@
 * **Interface (`ui/`)** : `TitleMenuPanel` (Accueil/Pause unifié), `NewGamePanel` (4 archétypes + 6 portraits découplés), `SaveLoadPanel` (3 cassettes manuelles), `OptionsPanel`, `HudOverlay`, `DialoguePanel`, `TimelinePanel`.
 * **Orchestrateur** : `main.gd` (machine d'états `AppState`, raccourcis `Échap`/`Backspace`/`M`/`1-3`, Sas Boeing).
 
-## 5. Dernières Améliorations *(v0.2.1 — 2026-11-21)*
-* **Galerie complète des 6 profils joueur** : 5 nouveaux portraits BD (`player_02..06.png`) et 5 pions RGBA `526 px` assortis détourés proprement (nettoyage des poches magenta fermées ajouté à `process_banlieue_assets.py`) ; `"pending_asset"` retiré de `player_profiles.json`.
-* **Décor `ruelle_relais.png`** : Coupe isométrique 2:1 `1200×896` assortie à `box_garage.png`, vérifiée à `162 px`, `ruelle_relais.json` basculé en `render_mode: "backdrop"` (`8×8`).
-* **Préparation cartes IGN / RER (`world_map_view.gd`)** : Support affiné des fonds cartographiques illustrés (`has_backdrop`) et validation des champs `backdrop` N1–N3 dans `process_banlieue_assets.py`.
-* **Socle Menus & Persistance *(v0.2.0)*** : Écran d'accueil vivant 28 s, Menu Pause unifié, `SaveManager` (3 cassettes manuelles), `SettingsManager` (`user://settings.cfg`), `NewGamePanel` (4 archétypes + `sang_froid`) et arbitrage `Échap`/`Backspace`.
+## 5. Dernières Améliorations *(v0.2.3 — 2026-11-21)*
+* **Polish Jalon 0 (Option D)** : Calibration pixel des `occluders[]` sur `galaxian.json` et `ruelle_relais.json` (murets, caisse, baby-foot, poubelles/caisses, fourgon municipal), recalage entier des hotspots du Galaxian, extension du moteur jusqu'à **6 membres de bande** (`iso_district_view.gd`, `main.gd` touches `1–6`, `hud_overlay.gd`), contraste nocturne et rendu Canal de l'Ourcq dans `world_map_view.gd`, plus réactivité `[Enfant de la Dalle]` et `[Grande Gueule du Bourg]` dans `dialogues.json`.
+* **Compagnons Canal (Vague 1 Option C)** : Portraits BD (`1024×1024`) et pions RGBA `526 px` de **Manu** (`manu.png` / `manu_pawn.png`) et **Zoé** (`zoe.png` / `zoe_pawn.png`) générés, nettoyés et intégrés dans `characters.json` (9 personnages).
+* **Lot décors & cartes IGN/RER *(v0.2.2)*** : `galaxian.png` (`8×8` `backdrop`, 6/6 intérieurs illustrés) et 3 cartes IGN État-Major / RER (`map_idf.png`, `map_93.png`, `map_cradon.png`).
 
 ## Statut du Code
-* **Validation statique & assets** : `process_banlieue_assets.py --mode validate` → **0 erreur** (`0 pending assets`).
+* **Validation statique & assets** : `process_banlieue_assets.py --mode validate` → **0 erreur** (**0 pending graphic assets**).
 * **Tests headless Godot 4.7.2** : `smoke_test_menus.gd` et boot `--quit-after 30` → **0 erreur**.
-* **Reste graphique planifié** : 4 images (`galaxian.png` + 3 cartes IGN/RER `map_idf.png`, `map_93.png`, `map_cradon.png`) planifiées pour le prochain reset quota (~06:36).
+* **Reste planifié (`/schedule`)** : Les 3 décors isométriques Option C (*Garage des Bananes*, *Squat des Kepons*, *Lisière de la Poudrerie*), leur intégration atlas/dialogues et le passage en `v0.3.0` après reset quota.

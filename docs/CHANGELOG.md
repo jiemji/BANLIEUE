@@ -2,6 +2,19 @@
 
 Toutes les évolutions notables du projet Godot 4 et de ses documents de conception sont consignées ici.
 
+## [0.2.3] - 2026-11-21
+### Polish Jalon 0 (Option D) & Recrutables Canal (Vague 1 Option C)
+- **Profondeur premier plan (`occluders[]`) & Hotspots** : Calibration au pixel des `occluders` sur `game/data/maps/interiors/galaxian.json` (murets avant, comptoir-caisse, baby-foot) et `ruelle_relais.json` (poubelles/caisses et fourgon Type H municipal) ; recalage entier des hotspots de `galaxian.json` (`hs_notice`, `hs_flipper`).
+- **Support fluide jusqu'à 6 membres de bande** : Extension de la formation isométrique (`iso_district_view.gd`), des raccourcis clavier `1–6` (`main.gd`), des libellés dynamiques du panneau latéral (`hud_overlay.gd`) et du bilan final du Jalon 0.
+- **Lisibilité cartographique (`world_map_view.gd`)** : Contraste nocturne renforcé des cartes IGN/RER, rendu dédié du tracé `water` pour le **Canal de l'Ourcq** en N3 et coches d'accomplissement étendues.
+- **Réactivité des Archétypes (`dialogues.json`)** : Ajout de choix dédiés `[Enfant de la Dalle]` (`tour_b_concierge`, flag `bg_dalle`) et `[Grande Gueule du Bourg]` (`chez_bebert_franck`, flag `bg_bourg`).
+- **Personnages Manu & Zoé prêts (`characters.json`)** : Génération, détourage RGBA (`526 px` sans socle) et intégration de `manu.png` / `manu_pawn.png` et `zoe.png` / `zoe_pawn.png` (catalogue porté à **9 personnages** ; les 3 décors Canal/Poudrerie de la Vague 2 restent planifiés après reset quota).
+
+## [0.2.2] - 2026-11-21
+### Assets & Cartographie
+- **Décor isométrique 2:1 `Le Galaxian` (`galaxian.png`, `1200×896`)** : Finalisation des 6/6 intérieurs du Jalon 0 en mode `backdrop` ; contrôle d'échelle à `162 px`, bascule de `game/data/maps/interiors/galaxian.json` en `render_mode: "backdrop"` (`8×8`) et recalage des collisions, lumières, sortie, hotspots (`hs_notice`, `hs_flipper`) et `npc_ludo_galaxian`.
+- **3 cartes réalistes IGN État-Major / Réseau RER 1982** : Production et alignement géométrique strict sur les coordonnées JSON de `game/assets/maps/map_idf.png` (`1000×760`), `map_93.png` (`1000×760`) et `map_cradon.png` (`1040×760`), reliées via `"backdrop"` dans `game/data/world/idf.json`, `departments/93.json` et `cities/cradon_les_gonesse.json`.
+
 ## [0.2.1] - 2026-11-21
 ### Assets & Visuels
 - **Galerie complète des 6 profils joueur (`player_01..06`)** : Génération, contrôle visuel et détourage RGBA (`526 px` sans socle, nettoyage des poches magenta fermées dans `process_banlieue_assets.py`) des 5 nouveaux portraits BD (`player_02..06.png`) et de leurs 5 pions en pied assortis (`player_02..06_pawn.png`) ; retrait de `"pending_asset"` dans `game/data/player_profiles.json`.

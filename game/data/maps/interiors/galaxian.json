@@ -9,77 +9,95 @@
   "night_desc": "Vitrine éteinte, reflets bleu électrique des bornes débranchées sur le trottoir humide.",
   "day_tint": "#dec99d",
   "night_tint": "#202430",
-  "render_mode": "modular",
-  "backdrop": "",
+  "render_mode": "backdrop",
+  "backdrop": "res://assets/locations/galaxian.png",
   "tile_w": 86,
   "tile_h": 43,
-  "grid_w": 12,
+  "grid_w": 8,
   "grid_h": 8,
   "camera": {
-    "default_zoom": 0.95,
-    "min_zoom": 0.65,
-    "max_zoom": 1.60,
-    "follow_squad": true
+    "default_zoom": 1.0,
+    "min_zoom": 0.85,
+    "max_zoom": 1.45,
+    "follow_squad": false
   },
-  "spawn": [5.0, 5.5],
+  "spawn": [4.5, 4.5],
   "blocked_cells": [
-    [1, 2],
-    [2, 2],
-    [3, 2],
-    [8, 3],
-    [9, 3],
-    [10, 2],
-    [10, 3]
+    [0, 0],
+    [0, 1],
+    [0, 2],
+    [0, 3],
+    [0, 4],
+    [0, 5],
+    [0, 6],
+    [0, 7],
+    [1, 0],
+    [1, 1],
+    [1, 4],
+    [1, 5],
+    [1, 6],
+    [2, 0],
+    [3, 0],
+    [3, 1],
+    [4, 0],
+    [4, 1],
+    [5, 0],
+    [6, 0],
+    [6, 1],
+    [7, 0],
+    [7, 1],
+    [7, 2],
+    [7, 4],
+    [7, 5]
   ],
-  "zones": [
-    {
-      "name": "Salle d'arcade",
-      "x": 0,
-      "y": 1,
-      "w": 7,
-      "h": 7,
-      "day_tint": "#dec99d",
-      "night_tint": "#202430"
-    },
-    {
-      "name": "Arrière-salle Baby-foot",
-      "x": 7,
-      "y": 1,
-      "w": 5,
-      "h": 7,
-      "day_tint": "#c9b595",
-      "night_tint": "#1b1e28"
-    }
-  ],
+  "zones": [],
   "exits": [
     {
       "id": "exit_city",
       "label": "Sortir (Cradon)",
-      "grid_x": 6.0,
-      "grid_y": 6.8,
+      "grid_x": 7.2,
+      "grid_y": 6.3,
       "target_level": 3,
       "target_id": "cradon_les_gonesse",
       "color_hex": "#4aa3df"
     }
   ],
   "lights": [
-    {"grid_x": 2.0, "grid_y": 2.5, "radius": 280.0, "strength": 0.85}
+    {"grid_x": 1.6, "grid_y": 5.0, "radius": 260.0, "strength": 0.85},
+    {"grid_x": 1.6, "grid_y": 1.8, "radius": 220.0, "strength": 0.70}
   ],
-  "props": [
-    {"type": "wall_back", "x": 0, "y": 0, "w": 12, "h": 1, "label": "Vitrine"},
-    {"type": "arcade", "x": 1, "y": 2, "w": 1, "h": 1, "label": "Space Invader"},
-    {"type": "arcade", "x": 2, "y": 2, "w": 1, "h": 1, "label": "Flipper 82"},
-    {"type": "arcade", "x": 3, "y": 2, "w": 1, "h": 1, "label": "Galaxian"},
-    {"type": "notice", "x": 4, "y": 1, "w": 1, "h": 1, "label": "Avis S.O."},
-    {"type": "babyfoot", "x": 8, "y": 3, "w": 2, "h": 1, "label": "Baby-foot"},
-    {"type": "sofa", "x": 10, "y": 2, "w": 1, "h": 2, "label": "Banquette"},
-    {"type": "table", "x": 9, "y": 5, "w": 1, "h": 1, "label": "Caisse"}
+  "occluders": [
+    {
+      "id": "occ_wall_front_left",
+      "always_front": true,
+      "polygon_px": [[150, 540], [176, 552], [600, 796], [600, 848], [150, 592]]
+    },
+    {
+      "id": "occ_wall_front_right_low",
+      "always_front": true,
+      "polygon_px": [[598, 796], [716, 728], [734, 696], [755, 708], [755, 758], [600, 848]]
+    },
+    {
+      "id": "occ_wall_front_right_high",
+      "always_front": true,
+      "polygon_px": [[826, 646], [1024, 532], [1048, 545], [1048, 588], [826, 717]]
+    },
+    {
+      "id": "occ_cashier_desk",
+      "sort_y_px": 650,
+      "polygon_px": [[648, 608], [716, 566], [744, 544], [766, 542], [786, 594], [782, 622], [695, 676], [652, 650]]
+    },
+    {
+      "id": "occ_babyfoot",
+      "sort_y_px": 520,
+      "polygon_px": [[808, 434], [888, 386], [998, 448], [945, 554], [910, 554], [826, 502], [808, 466]]
+    }
   ],
   "hotspots": [
     {
       "id": "hs_notice",
       "label": "Avis du S.O. sur la vitre",
-      "grid_x": 4,
+      "grid_x": 1,
       "grid_y": 2,
       "dialogue_id": "galaxian_notice",
       "phase": "any",
@@ -88,8 +106,8 @@
     {
       "id": "hs_flipper",
       "label": "Flipper Space Invader (-5 F)",
-      "grid_x": 1,
-      "grid_y": 3,
+      "grid_x": 2,
+      "grid_y": 5,
       "dialogue_id": "galaxian_flipper",
       "phase": "day",
       "color_hex": "#4aa3df"
@@ -100,8 +118,8 @@
       "id": "npc_ludo_galaxian",
       "char_id": "ludo",
       "label": "Ludo (Flipper)",
-      "grid_x": 2.4,
-      "grid_y": 3.5,
+      "grid_x": 2.8,
+      "grid_y": 2.2,
       "dialogue_id": "galaxian_ludo",
       "phase": "day",
       "hide_if_in_squad": true,

@@ -163,6 +163,18 @@
       "text": "La Concierge-Cerbère trie le courrier derrière sa vitre entrebaîllée. Juste devant elle : le double de l'arrêté municipal et le trousseau menant aux chaufferies vers la gare. La tante de Nadia discute dans le couloir...",
       "choices": [
         {
+          "label": "[Enfant de la Dalle] Passer par le soupirail des chaufferies sans passer devant la loge",
+          "tag": "Enfant de la Dalle • +1 Faveur",
+          "conditions": { "require_flag": "bg_dalle", "require_not_flag": "tour_b_done" },
+          "effects": {
+            "set_flag": { "tour_b_done": true, "has_caves_key": true },
+            "faveurs": 1,
+            "moral": { "leader": 4 },
+            "unlock_clue": "Raccourci des chaufferies connu par cœur : double de l'arrêté & clé subtilisés incognito."
+          },
+          "next": "tour_b_success"
+        },
+        {
           "label": "[Nadia] Couper le fusible du tableau électrique du hall (ruse Système D)",
           "tag": "Nadia requise • Sans griller la famille",
           "conditions": { "require_member": "nadia", "require_not_flag": "tour_b_done" },
@@ -211,6 +223,18 @@
       "speaker_name": "Franck — Chez Bébert",
       "text": "Au comptoir en formica, Franck tape l'épaule d'un ancien cheminot des Vieux de la Rouge : « On peut faire sauter leur arrêté bidon demain devant le préfet — mais il faut que quelqu'un nous rende un vrai coup de main ou paie sa dette de quartier. »\n\nSoudain, deux gars du S.O. passent devant la vitrine en toisant le bistrot : Karim serre la mâchoire à blanc.",
       "choices": [
+        {
+          "label": "[Grande Gueule du Bourg] Prendre la tournée sur ton ardoise de comptoir",
+          "tag": "Grande Gueule • Gratuit / +1 Faveur",
+          "conditions": { "require_flag": "bg_bourg", "require_not_flag": "bebert_done" },
+          "effects": {
+            "faveurs": 1,
+            "set_flag": { "bebert_done": true },
+            "moral": { "karim": -10, "leader": 4 },
+            "unlock_clue": "Ardoise chez Bébert honorée : Faveur gratuite avec les cheminots et moral préservé."
+          },
+          "next": "chez_bebert_so_pass"
+        },
         {
           "label": "Payer la tournée au comptoir pour sceller l'accord",
           "tag": "-10 F • +1 Faveur",
