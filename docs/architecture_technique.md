@@ -38,9 +38,9 @@ BANLIEUE/
     ├── project.godot                    # Configuration Godot 4.4+ (GL Compatibility) & Autoloads
     ├── icon.svg                         # Icône du projet
     ├── assets/                          # Portraits BD (1024px), sprites en pied RGBA (526px), décors iso
-    │   ├── portraits/                   # leader, karim, nadia, ludo, franck, concierge, so_agent...
+    │   ├── portraits/                   # leader, player_02..06, karim, nadia, ludo, franck, concierge, so_agent
     │   ├── pawns/                       # *_pawn.png (RGBA propre sans socle pour contour 2px + ombre 4h)
-    │   └── locations/                   # Décors iso 1200x896 (box_garage, tour_b, chez_bebert, gare_rer_y...)
+    │   └── locations/                   # Décors iso 1200x896 (box_garage, tour_b, chez_bebert, ruelle_relais, gare_rer_y)
     ├── data/                            # Cœur Data-Driven 100 % JSON (atlas hiérarchique + systèmes)
     │   ├── characters.json              # Compagnons & PNJ (FAVE/FASA, Moral, Stress, Spécialités)
     │   ├── player_profiles.json         # 4 archétypes sociaux & galerie de 6 portraits/pions libres
@@ -53,7 +53,7 @@ BANLIEUE/
     │   │   ├── galaxian.json            # 12×8 (modular, 2 zones)
     │   │   ├── tour_b.json              # 8×8 (backdrop)
     │   │   ├── chez_bebert.json         # 8×8 (backdrop)
-    │   │   ├── ruelle_relais.json       # 14×7 (modular, 2 zones)
+    │   │   ├── ruelle_relais.json       # 8×8 (backdrop — ruelle_relais.png)
     │   │   └── gare_rer_y.json          # 8×8 (backdrop)
     │   ├── dialogues.json               # Nœuds narratifs, conditions et effets (Francs/Faveurs/Flags/Recrutement)
     │   ├── timeline_encounters.json     # Rencontre Gare RER « du Y », ennemis, CRS, Train Fantôme & interruptions
@@ -132,9 +132,9 @@ BANLIEUE/
 5. **Frise Chronologique Nocturne — Gare RER « du Y »** : Confrontation sur le quai contre Skin nerveux, cousin S.O. et S.O. vétéran, gestion des **Interruptions hors-tour**, préavis et arbitrage de la **Crise d'autonomie de Karim**, arrivée des CRS et apparition du **Train Fantôme du RER B**.
 6. **Retour au Box-Garage & Bilan** : Résolution humaine de la crise, choix d'ouvrir ou non la porte à **Ludo** (recrutement), bref signal sur la **104.7 FM** et récapitulatif du Jalon 0.
 
-### Structure des Menus, Persistance & Création de Partie *(livré en v0.2.0)*
+### Structure des Menus, Persistance & Création de Partie *(livré en v0.2.0 / v0.2.1)*
 Conformément à la spécification validée dans [structure_menus_et_ecrans.md](file:///e:/JDR/BANLIEUE/docs/structure_menus_et_ecrans.md), la couche accueil, sauvegarde, options et sélection du protagoniste s'appuie sur les modules suivants :
-* **Données & Assets** : `data/player_profiles.json` (4 archétypes sociaux dont la spécialité Frise `sang_froid` câblée dans `tension_timeline.gd` + galerie libre de **6 profils visuels** `player_01..06` avec **pions en pied assortis** ; les profils `player_02..06` portent `"pending_asset": true` avec repli gracieux sur `leader.png`/`leader_pawn.png` en attendant leur génération via `banlieue-asset-artist`).
+* **Données & Assets** : `data/player_profiles.json` (4 archétypes sociaux dont la spécialité Frise `sang_froid` câblée dans `tension_timeline.gd` + galerie complète et opérationnelle de **6 portraits BD** et **6 pions en pied RGBA 526 px assortis** `player_01..06`, plus repli automatique dans `DataLoader.apply_leader_profile()` si un futur profil manque sur disque).
 * **Persistance *(Autoloads)*** : `scripts/autoload/save_manager.gd` (3 emplacements manuels `user://saves/slot_1.json`..`slot_3.json`, zéro auto-save) et `scripts/autoload/settings_manager.gd` (`user://settings.cfg` pour affichage, audio/FM, grain 16mm, secousse écran et taille de texte).
 * **Écrans UI** : `scripts/ui/title_menu_panel.gd` (menu unifié Accueil/Pause sur fond vivant du Box-Garage piloté par `AppState` dans `main.gd`), `scripts/ui/save_load_panel.gd`, `scripts/ui/options_panel.gd` et `scripts/ui/new_game_panel.gd`.
 

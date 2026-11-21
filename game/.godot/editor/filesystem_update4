@@ -1,0 +1,15 @@
+res://scripts/main.gd
+res://scripts/autoload/audio_radio.gd
+res://scripts/autoload/data_loader.gd
+res://scripts/autoload/game_state.gd
+res://scripts/autoload/save_manager.gd
+res://scripts/autoload/settings_manager.gd
+res://scripts/systems/tension_timeline.gd
+res://scripts/ui/dialogue_panel.gd
+res://scripts/ui/hud_overlay.gd
+res://scripts/ui/new_game_panel.gd
+res://scripts/ui/options_panel.gd
+res://scripts/ui/save_load_panel.gd
+res://scripts/ui/title_menu_panel.gd
+res://scripts/world/iso_district_view.gd
+res://scripts/world/world_map_view.gd

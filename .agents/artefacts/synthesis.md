@@ -1,6 +1,6 @@
 # Synthèse du Projet — *Banlieue*
 
-> **Version courante : 0.2.0** — Dernière mise à jour : 2026-11-20
+> **Version courante : 0.2.1** — Dernière mise à jour : 2026-11-21
 
 ## 1. Identité & Stack
 * **Titre** : *Banlieue* — *Cradon-lès-Gonesse (1980–1984)*
@@ -25,13 +25,13 @@
 * **Interface (`ui/`)** : `TitleMenuPanel` (Accueil/Pause unifié), `NewGamePanel` (4 archétypes + 6 portraits découplés), `SaveLoadPanel` (3 cassettes manuelles), `OptionsPanel`, `HudOverlay`, `DialoguePanel`, `TimelinePanel`.
 * **Orchestrateur** : `main.gd` (machine d'états `AppState`, raccourcis `Échap`/`Backspace`/`M`/`1-3`, Sas Boeing).
 
-## 5. Dernières Améliorations *(v0.2.0 — 2026-11-20)*
-* **Écran d'accueil & Menu Principal unifié** sur fond vivant temps réel du Box-Garage (respiration cyclique 28 s Jour/Crépuscule/Nuit et souffle FM feutré).
-* **Sauvegarde manuelle sur 3 Cassettes (`SaveManager`)** dans `user://saves/slot_1..3.json` (zéro auto-save) avec aperçus détaillés et confirmations.
-* **Options persistantes (`SettingsManager`)** dans `user://settings.cfg` (affichage, volume/mute/radio FM, grain 16mm, secousse écran, taille des dialogues).
-* **Écran « Nouvelle partie »** avec prénom libre, 6 portraits/pions 100 % découplés de l'histoire et 4 archétypes sociaux (*Enfant de la Dalle*, *Grande Gueule du Bourg*, *Mains-Noires*, *Échappé·e des Pavillons* + spécialité `sang_froid`).
-* **Arbitrage clavier** : `Échap` dédié au Menu/modales et `Backspace` au dézoom `N4 → N1`.
+## 5. Dernières Améliorations *(v0.2.1 — 2026-11-21)*
+* **Galerie complète des 6 profils joueur** : 5 nouveaux portraits BD (`player_02..06.png`) et 5 pions RGBA `526 px` assortis détourés proprement (nettoyage des poches magenta fermées ajouté à `process_banlieue_assets.py`) ; `"pending_asset"` retiré de `player_profiles.json`.
+* **Décor `ruelle_relais.png`** : Coupe isométrique 2:1 `1200×896` assortie à `box_garage.png`, vérifiée à `162 px`, `ruelle_relais.json` basculé en `render_mode: "backdrop"` (`8×8`).
+* **Préparation cartes IGN / RER (`world_map_view.gd`)** : Support affiné des fonds cartographiques illustrés (`has_backdrop`) et validation des champs `backdrop` N1–N3 dans `process_banlieue_assets.py`.
+* **Socle Menus & Persistance *(v0.2.0)*** : Écran d'accueil vivant 28 s, Menu Pause unifié, `SaveManager` (3 cassettes manuelles), `SettingsManager` (`user://settings.cfg`), `NewGamePanel` (4 archétypes + `sang_froid`) et arbitrage `Échap`/`Backspace`.
 
 ## Statut du Code
-* **Validation statique & assets** : `process_banlieue_assets.py --mode validate` → **0 erreur** (`PENDING ASSETS (10)` pour `player_02..06` en attente de reset quota `image-generator` à `00:31Z`, couverts par repli propre sur `leader.png`/`leader_pawn.png`).
+* **Validation statique & assets** : `process_banlieue_assets.py --mode validate` → **0 erreur** (`0 pending assets`).
 * **Tests headless Godot 4.7.2** : `smoke_test_menus.gd` et boot `--quit-after 30` → **0 erreur**.
+* **Reste graphique planifié** : 4 images (`galaxian.png` + 3 cartes IGN/RER `map_idf.png`, `map_93.png`, `map_cradon.png`) planifiées pour le prochain reset quota (~06:36).

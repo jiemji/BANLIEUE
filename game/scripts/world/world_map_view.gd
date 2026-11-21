@@ -264,8 +264,9 @@ func _draw() -> void:
 	var backdrop_tex: Texture2D = _load_texture_safe(backdrop_path) if backdrop_path != "" else null
 	var ink_col: Color = Color(0.86, 0.88, 0.90) if is_night else Color(0.11, 0.10, 0.09)
 
-	if backdrop_tex != null:
-		var tint_b: Color = Color(0.72, 0.76, 0.84) if is_night else Color.WHITE
+	var has_backdrop: bool = (backdrop_tex != null)
+	if has_backdrop:
+		var tint_b: Color = Color(0.76, 0.79, 0.86) if is_night else Color.WHITE
 		draw_texture_rect(backdrop_tex, sheet_rect, false, tint_b)
 	else:
 		var paper_col: Color = Color.html(str(data.get("night_tint", "#191d26"))) if is_night else Color.html(str(data.get("paper_tint", "#dfd5be")))
@@ -276,11 +277,11 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2(6.0, 6.0), Vector2(mw - 12.0, mh - 12.0)), Color(ink_col.r, ink_col.g, ink_col.b, 0.35), false, 1.2)
 
 	if _zoom_level == 1:
-		_draw_region_idf(data, is_night, ink_col)
+		_draw_region_idf(data, is_night, ink_col, has_backdrop)
 	elif _zoom_level == 2:
-		_draw_department_93(data, is_night, low_moral, ink_col)
+		_draw_department_93(data, is_night, low_moral, ink_col, has_backdrop)
 	else:
-		_draw_city_cradon(data, is_night, low_moral, ink_col)
+		_draw_city_cradon(data, is_night, low_moral, ink_col, has_backdrop)
 
 	_draw_cartouche(data, mw, mh, is_night, ink_col)
 
@@ -299,7 +300,7 @@ func _draw_paper_grid_and_folds(mw: float, mh: float, is_night: bool) -> void:
 	draw_line(Vector2(mw * 0.5, 0.0), Vector2(mw * 0.5, mh), fold_c, 2.0)
 	draw_line(Vector2(0.0, mh * 0.5), Vector2(mw, mh * 0.5), fold_c, 2.0)
 
-func _draw_region_idf(data: Dictionary, is_night: bool, ink_col: Color) -> void:
+func _draw_region_idf(data: Dictionary, is_night: bool, ink_col: Color, has_backdrop: bool = false) -> void:
 	var ch_var: Variant = data.get("children", [])
 	if ch_var is Array:
 		for cv in (ch_var as Array):
@@ -315,22 +316,30 @@ func _draw_region_idf(data: Dictionary, is_night: bool, ink_col: Color) -> void:
 				continue
 
 			var fill_col: Color
-			if is_playable:
-				fill_col = Color(0.55, 0.16, 0.16, 0.65) if is_night else Color(0.92, 0.44, 0.24, 0.48)
+			if has_backdrop:
+				if is_playable:
+					fill_col = Color(0.88, 0.22, 0.20, 0.22 if is_hover else 0.12)
+				else:
+					fill_col = Color(0.95, 0.88, 0.72, 0.16) if is_hover else Color(0.0, 0.0, 0.0, 0.0)
 			else:
-				fill_col = Color(0.18, 0.21, 0.26, 0.58) if is_night else Color(0.76, 0.72, 0.64, 0.52)
-			if is_hover:
-				fill_col = fill_col.lightened(0.18)
+				if is_playable:
+					fill_col = Color(0.55, 0.16, 0.16, 0.65) if is_night else Color(0.92, 0.44, 0.24, 0.48)
+				else:
+					fill_col = Color(0.18, 0.21, 0.26, 0.58) if is_night else Color(0.76, 0.72, 0.64, 0.52)
+				if is_hover:
+					fill_col = fill_col.lightened(0.18)
 
-			draw_colored_polygon(poly, fill_col)
+			if fill_col.a > 0.01:
+				draw_colored_polygon(poly, fill_col)
 			var closed: PackedVector2Array = poly.duplicate()
 			closed.append(poly[0])
-			var border_c: Color = Color(0.92, 0.24, 0.22) if is_playable else Color(ink_col.r, ink_col.g, ink_col.b, 0.7)
-			draw_polyline(closed, border_c, 2.8 if is_playable else 1.5)
+			var border_alpha: float = 0.88 if is_playable else (0.35 if has_backdrop else 0.70)
+			var border_c: Color = Color(0.92, 0.24, 0.22, border_alpha) if is_playable else Color(ink_col.r, ink_col.g, ink_col.b, border_alpha)
+			draw_polyline(closed, border_c, 2.8 if is_playable else (1.1 if has_backdrop else 1.5))
 
 	# Cours d'eau (Seine / Marne)
 	var ww_var: Variant = data.get("waterways", [])
-	if ww_var is Array:
+	if ww_var is Array and not has_backdrop:
 		for wv in (ww_var as Array):
 			if wv is Dictionary:
 				var pts: PackedVector2Array = _to_poly((wv as Dictionary).get("points", []))
@@ -345,7 +354,9 @@ func _draw_region_idf(data: Dictionary, is_night: bool, ink_col: Color) -> void:
 				var rd: Dictionary = rv as Dictionary
 				var pts_r: PackedVector2Array = _to_poly(rd.get("points", []))
 				if pts_r.size() >= 2:
-					draw_polyline(pts_r, Color.html(str(rd.get("color_hex", "#4aa3df"))), 3.2)
+					var rc: Color = Color.html(str(rd.get("color_hex", "#4aa3df")))
+					rc.a = 0.78 if has_backdrop else 1.0
+					draw_polyline(pts_r, rc, 2.4 if has_backdrop else 3.2)
 
 	# Étiquettes & feutre rouge sur le 93
 	if ch_var is Array:
@@ -362,11 +373,13 @@ func _draw_region_idf(data: Dictionary, is_night: bool, ink_col: Color) -> void:
 				draw_arc(cpos, 32.0 + sin(_pulse_time * 3.0) * 2.5, 0.0, TAU, 32, Color(0.92, 0.18, 0.18), 3.0)
 				_draw_map_badge(cpos + Vector2(-58.0, -14.0), "%s — %s ★" % [code, cname], Color(0.88, 0.20, 0.20), is_night)
 				_draw_squad_pin(cpos + Vector2(36.0, -24.0), "BANDE")
+			elif has_backdrop:
+				_draw_map_badge(cpos + Vector2(-42.0, -10.0), "%s · %s" % [code, cname], Color(0.32, 0.30, 0.26, 0.75), is_night)
 			else:
 				draw_string(ThemeDB.fallback_font, cpos + Vector2(-18.0, -4.0), code, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, tag_col)
 				draw_string(ThemeDB.fallback_font, cpos + Vector2(-38.0, 12.0), cname, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(tag_col.r, tag_col.g, tag_col.b, 0.78))
 
-func _draw_department_93(data: Dictionary, is_night: bool, low_moral: bool, ink_col: Color) -> void:
+func _draw_department_93(data: Dictionary, is_night: bool, low_moral: bool, ink_col: Color, has_backdrop: bool = false) -> void:
 	# Axes routes / canal / RER B Nord en Y
 	var rt_var: Variant = data.get("routes", [])
 	if rt_var is Array:
@@ -378,12 +391,15 @@ func _draw_department_93(data: Dictionary, is_night: bool, low_moral: bool, ink_
 			if pts.size() < 2:
 				continue
 			var kind: String = str(rd.get("kind", "road"))
+			if has_backdrop and kind != "rail":
+				continue
 			var col: Color = Color.html(str(rd.get("color_hex", "#4aa3df")))
-			var width: float = 4.5 if kind == "rail" else (5.5 if kind == "water" else 2.6)
+			col.a = 0.75 if has_backdrop else 1.0
+			var width: float = (3.2 if has_backdrop else 4.5) if kind == "rail" else (5.5 if kind == "water" else 2.6)
 			draw_polyline(pts, col, width)
 			if kind == "rail":
 				for i in range(pts.size()):
-					draw_circle(pts[i], 3.5, Color.WHITE)
+					draw_circle(pts[i], 3.0 if has_backdrop else 3.5, Color.WHITE)
 
 	# Communes du 93
 	var ch_var: Variant = data.get("children", [])
@@ -415,11 +431,14 @@ func _draw_department_93(data: Dictionary, is_night: bool, low_moral: bool, ink_
 				fill_c = fill_c.lightened(0.22)
 			draw_circle(cpos, rad * 0.75, fill_c)
 			draw_arc(cpos, rad * 0.75, 0.0, TAU, 20, ink_col, 1.5)
-			var lbl_col: Color = Color(0.84, 0.86, 0.90) if is_night else Color(0.18, 0.16, 0.14)
-			draw_string(ThemeDB.fallback_font, cpos + Vector2(rad + 4.0, 4.0), str(cd.get("name", cid)), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, lbl_col)
-			draw_string(ThemeDB.fallback_font, cpos + Vector2(rad + 4.0, 17.0), "(Non décrit)", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(lbl_col.r, lbl_col.g, lbl_col.b, 0.65))
+			if has_backdrop:
+				_draw_map_badge(cpos + Vector2(rad + 2.0, -11.0), str(cd.get("name", cid)), Color(0.32, 0.30, 0.26, 0.75), is_night)
+			else:
+				var lbl_col: Color = Color(0.84, 0.86, 0.90) if is_night else Color(0.18, 0.16, 0.14)
+				draw_string(ThemeDB.fallback_font, cpos + Vector2(rad + 4.0, 4.0), str(cd.get("name", cid)), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, lbl_col)
+				draw_string(ThemeDB.fallback_font, cpos + Vector2(rad + 4.0, 17.0), "(Non décrit)", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(lbl_col.r, lbl_col.g, lbl_col.b, 0.65))
 
-func _draw_city_cradon(data: Dictionary, is_night: bool, low_moral: bool, ink_col: Color) -> void:
+func _draw_city_cradon(data: Dictionary, is_night: bool, low_moral: bool, ink_col: Color, has_backdrop: bool = false) -> void:
 	# 1. Secteurs surfaciques
 	var sec_var: Variant = data.get("sectors", [])
 	if sec_var is Array:
@@ -431,12 +450,15 @@ func _draw_city_cradon(data: Dictionary, is_night: bool, low_moral: bool, ink_co
 			if poly.size() < 3:
 				continue
 			var scol: Color = Color.html(str(sd.get("color_hex", "#9b8c7d")))
-			var alpha: float = 0.20 if is_night else 0.26
+			var alpha: float = (0.08 if has_backdrop else 0.20) if is_night else (0.10 if has_backdrop else 0.26)
 			draw_colored_polygon(poly, Color(scol.r, scol.g, scol.b, alpha))
 			var closed: PackedVector2Array = poly.duplicate()
 			closed.append(poly[0])
-			draw_polyline(closed, Color(scol.r, scol.g, scol.b, 0.75), 1.8)
-			draw_string(ThemeDB.fallback_font, poly[0] + Vector2(12.0, 22.0), str(sd.get("name", "")).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(scol.r, scol.g, scol.b, 0.92))
+			draw_polyline(closed, Color(scol.r, scol.g, scol.b, 0.45 if has_backdrop else 0.75), 1.4 if has_backdrop else 1.8)
+			if has_backdrop:
+				_draw_map_badge(poly[0] + Vector2(8.0, 8.0), str(sd.get("name", "")).to_upper(), Color(scol.r, scol.g, scol.b, 0.82), is_night)
+			else:
+				draw_string(ThemeDB.fallback_font, poly[0] + Vector2(12.0, 22.0), str(sd.get("name", "")).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(scol.r, scol.g, scol.b, 0.92))
 
 	if is_night or low_moral:
 		draw_circle(Vector2(175.0, 155.0), 48.0 + sin(_pulse_time * 1.4) * 5.0, Color(0.45, 0.85, 0.95, 0.14))
@@ -453,8 +475,8 @@ func _draw_city_cradon(data: Dictionary, is_night: bool, low_moral: bool, ink_co
 				continue
 			var kind: String = str(rd.get("kind", "road"))
 			if kind == "rail":
-				draw_polyline(pts, Color(0.28, 0.65, 0.96), 4.5)
-			else:
+				draw_polyline(pts, Color(0.28, 0.65, 0.96, 0.82 if has_backdrop else 1.0), 3.4 if has_backdrop else 4.5)
+			elif not has_backdrop:
 				draw_polyline(pts, Color(0.32, 0.34, 0.40) if is_night else Color(0.58, 0.53, 0.44), 5.0)
 				draw_polyline(pts, Color(ink_col.r, ink_col.g, ink_col.b, 0.4), 1.0)
 

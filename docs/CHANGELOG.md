@@ -2,6 +2,12 @@
 
 Toutes les évolutions notables du projet Godot 4 et de ses documents de conception sont consignées ici.
 
+## [0.2.1] - 2026-11-21
+### Assets & Visuels
+- **Galerie complète des 6 profils joueur (`player_01..06`)** : Génération, contrôle visuel et détourage RGBA (`526 px` sans socle, nettoyage des poches magenta fermées dans `process_banlieue_assets.py`) des 5 nouveaux portraits BD (`player_02..06.png`) et de leurs 5 pions en pied assortis (`player_02..06_pawn.png`) ; retrait de `"pending_asset"` dans `game/data/player_profiles.json`.
+- **Décor isométrique `Ruelle du Relais Municipal`** : Production de `game/assets/locations/ruelle_relais.png` (`1200×896`) assorti à `box_garage.png`, contrôle d'échelle à `162 px` et bascule de `game/data/maps/interiors/ruelle_relais.json` en `render_mode: "backdrop"` (`8×8`).
+- **Préparation cartes réalistes IGN / Réseau RER (`world_map_view.gd`)** : Adaptation de `WorldMapView` pour afficher proprement des fonds cartographiques illustrés (`has_backdrop`) et extension de `process_banlieue_assets.py --mode validate` aux cartes N1–N3.
+
 ## [0.2.0] - 2026-11-20
 ### Feature
 - **Écran d'accueil & Menu Principal unifié** : Lancement direct sur le décor vivant du **Box-Garage** animé par une respiration cyclique lente Jour → Crépuscule → Nuit (28 s) sous shader pellicule 16mm et lit radio FM feutré. Un même panneau gère l'accueil (`TITLE_MENU`) et la pause en cours de partie (`PAUSE_MENU`).

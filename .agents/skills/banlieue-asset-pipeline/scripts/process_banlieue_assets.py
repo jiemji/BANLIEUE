@@ -52,15 +52,17 @@ def cutout_clean_pawn(src_path: str, dst_path: str, strip_standee: bool = False,
     ], axis=0)
     bg_rgb = np.median(corners, axis=0)
     dist = np.sqrt(np.sum((rgb - bg_rgb) ** 2, axis=2))
-    is_magenta = (r - g > 28) & (b - g > 28) & (np.minimum(r, b) > g + 22)
-    elig_bg = (dist < 120.0) & (is_magenta | (dist < 65.0))
+    is_magenta = (r - g > 24) & (b - g > 24) & (np.minimum(r, b) > g + 18)
+    is_strong_magenta = (r - g > 48) & (b - g > 48) & (np.minimum(r, b) > g + 40)
+    elig_bg = (dist < 130.0) & (is_magenta | (dist < 65.0))
 
     seed_border = np.zeros((h, w), dtype=bool)
     seed_border[0, :] = elig_bg[0, :]
     seed_border[-1, :] = elig_bg[-1, :]
     seed_border[:, 0] = elig_bg[:, 0]
     seed_border[:, -1] = elig_bg[:, -1]
-    bg_mask = _flood_from_mask(seed_border, elig_bg)
+    seed_all = seed_border | (is_strong_magenta & elig_bg)
+    bg_mask = _flood_from_mask(seed_all, elig_bg)
 
     fg_ys, _ = np.where(~bg_mask)
     if len(fg_ys) == 0:
@@ -264,6 +266,9 @@ def validate_project(game_root: str) -> int:
             dept_j = load_res(cf, f"idf/{dc.get('id')}")
             if dept_j:
                 dept_ids.add(dept_j.get("id", ""))
+                db_p = dept_j.get("backdrop", "")
+                if db_p and (not db_p.startswith("res://") or not os.path.exists(os.path.join(game_root, db_p[6:]))):
+                    errors.append(f"Missing map backdrop {db_p} in {dept_j.get('id')}")
                 for cc in dept_j.get("children", []):
                     if cc.get("status") not in valid_statuses:
                         errors.append(f"Invalid status in dept child {cc.get('id')}")
@@ -272,6 +277,9 @@ def validate_project(game_root: str) -> int:
                         city_j = load_res(ccf, f"{dept_j.get('id')}/{cc.get('id')}")
                         if city_j:
                             city_ids.add(city_j.get("id", ""))
+                            cb_p = city_j.get("backdrop", "")
+                            if cb_p and (not cb_p.startswith("res://") or not os.path.exists(os.path.join(game_root, cb_p[6:]))):
+                                errors.append(f"Missing map backdrop {cb_p} in {city_j.get('id')}")
                             for bc in city_j.get("children", []):
                                 if bc.get("status") not in valid_statuses:
                                     errors.append(f"Invalid status in city child {bc.get('id')}")
@@ -280,6 +288,10 @@ def validate_project(game_root: str) -> int:
                                     int_j = load_res(inf, f"{city_j.get('id')}/{bc.get('id')}")
                                     if int_j:
                                         interiors_list.append(int_j)
+
+    ib_p = idf_j.get("backdrop", "")
+    if ib_p and (not ib_p.startswith("res://") or not os.path.exists(os.path.join(game_root, ib_p[6:]))):
+        errors.append(f"Missing map backdrop {ib_p} in idf")
 
     loc_ids = {l["id"] for l in interiors_list}
 

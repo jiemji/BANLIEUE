@@ -18,36 +18,31 @@
       "id": "player_02",
       "label": "Parka kaki",
       "portrait": "res://assets/portraits/player_02.png",
-      "pawn": "res://assets/pawns/player_02_pawn.png",
-      "pending_asset": true
+      "pawn": "res://assets/pawns/player_02_pawn.png"
     },
     {
       "id": "player_03",
       "label": "Veste jean",
       "portrait": "res://assets/portraits/player_03.png",
-      "pawn": "res://assets/pawns/player_03_pawn.png",
-      "pending_asset": true
+      "pawn": "res://assets/pawns/player_03_pawn.png"
     },
     {
       "id": "player_04",
       "label": "Bomber bordeaux",
       "portrait": "res://assets/portraits/player_04.png",
-      "pawn": "res://assets/pawns/player_04_pawn.png",
-      "pending_asset": true
+      "pawn": "res://assets/pawns/player_04_pawn.png"
     },
     {
       "id": "player_05",
       "label": "Velours ocre",
       "portrait": "res://assets/portraits/player_05.png",
-      "pawn": "res://assets/pawns/player_05_pawn.png",
-      "pending_asset": true
+      "pawn": "res://assets/pawns/player_05_pawn.png"
     },
     {
       "id": "player_06",
       "label": "Coupe-vent bleu",
       "portrait": "res://assets/portraits/player_06.png",
-      "pawn": "res://assets/pawns/player_06_pawn.png",
-      "pending_asset": true
+      "pawn": "res://assets/pawns/player_06_pawn.png"
     }
   ],
   "archetypes": [
