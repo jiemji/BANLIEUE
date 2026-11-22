@@ -54,7 +54,7 @@ func reset_new_slice(profile: Dictionary = {}) -> void:
 	squad_members.clear()
 	member_states.clear()
 	member_progression.clear()
-	box_stash = ["perfecto_cloute", "parka_anonyme", "treillis_rangers", "pantalon_velours_ville", "cassettes_tdk"]
+	box_stash = ["perfecto_cloute", "parka_anonyme", "treillis_rangers", "pantalon_velours_ville", "cassettes_tdk", "petards_mammouth"]
 	forced_roll_queue.clear()
 	active_group_id = 0
 	current_station_idx = 0
@@ -448,6 +448,42 @@ func get_equipped_action_item_name(char_id: String, action_id: String) -> String
 				if av is Dictionary and str((av as Dictionary).get("id", "")) == action_id:
 					return str(idef.get("name", iid))
 	return ""
+
+## Analyse les équipements portés par un PJ et retourne ses capacités de tir et bonus de lancer 1982.
+func get_ranged_combat_profile(char_id: String) -> Dictionary:
+	var has_ranged: bool = false
+	var ranged_bonus: int = 0
+	var ranged_label: String = ""
+	var item_id: String = ""
+	var item_name: String = ""
+	var throw_bonus: int = 0
+	var throw_label: String = ""
+	for iid in _get_equipped_item_ids(char_id):
+		var idef: Dictionary = DataLoader.get_equipment_def(iid)
+		var ct_v: Variant = idef.get("combat_tags", [])
+		if ct_v is Array:
+			var ct_arr: Array = ct_v as Array
+			if ct_arr.has("ranged_shoot"):
+				has_ranged = true
+				var rb: int = int(idef.get("ranged_bonus", 0))
+				if rb >= ranged_bonus:
+					ranged_bonus = rb
+					ranged_label = str(idef.get("ranged_label", idef.get("name", iid)))
+					item_id = iid
+					item_name = str(idef.get("name", iid))
+			if ct_arr.has("throw_bonus"):
+				var tb: int = int(idef.get("throw_bonus", 1))
+				throw_bonus += tb
+				throw_label = str(idef.get("ranged_label", idef.get("name", iid)))
+	return {
+		"has_ranged": has_ranged,
+		"ranged_bonus": ranged_bonus,
+		"ranged_label": ranged_label,
+		"item_id": item_id,
+		"item_name": item_name,
+		"throw_bonus": throw_bonus,
+		"throw_label": throw_label
+	}
 
 ## Retourne l'identifiant de caractéristique rattaché à une compétence (esprit, corps ou energie).
 func get_skill_charac_id(skill_id: String) -> String:
@@ -995,7 +1031,7 @@ func load_from_save_dict(profile_data: Dictionary, state_data: Dictionary) -> vo
 			for iv in (bs_var as Array):
 				box_stash.append(str(iv))
 	else:
-		box_stash = ["perfecto_cloute", "parka_anonyme", "treillis_rangers", "pantalon_velours_ville", "cassettes_tdk"]
+		box_stash = ["perfecto_cloute", "parka_anonyme", "treillis_rangers", "pantalon_velours_ville", "cassettes_tdk", "petards_mammouth"]
 	forced_roll_queue.clear()
 
 	active_group_id = int(state_data.get("active_group_id", 0))

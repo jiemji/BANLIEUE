@@ -20,6 +20,8 @@ var _combat_hovered: bool = false
 var _combat_targetable: bool = false
 var _combat_target_kind: String = ""
 var _combat_pulse: float = 0.0
+var _combat_stunned: bool = false
+var _combat_charging: bool = false
 
 func _ready() -> void:
 	_shadow_sprite = Sprite2D.new()
@@ -97,17 +99,27 @@ func setup_standee_character(portrait_tex: Texture2D, short_name: String, char_c
 	_name_panel.position = Vector2(-pw * 0.5, -target_h - 24.0)
 	queue_redraw()
 
-## Applique la surbrillance tactique combat (acteur au tour, cible valide, survol, atténuation).
-func set_combat_highlight(is_active: bool, is_targetable: bool, is_hovered: bool, is_dimmed: bool, target_kind: String = "", pulse_t: float = 0.0) -> void:
+## Applique la surbrillance tactique combat (acteur au tour, cible valide, survol, assommé, charge en cours).
+func set_combat_highlight(is_active: bool, is_targetable: bool, is_hovered: bool, is_dimmed: bool, target_kind: String = "", pulse_t: float = 0.0, is_stunned: bool = false, is_charging: bool = false) -> void:
 	_combat_active = is_active
 	_combat_targetable = is_targetable
 	_combat_hovered = is_hovered
 	_combat_target_kind = target_kind
 	_combat_pulse = pulse_t
-	modulate = Color(0.56, 0.58, 0.66, 0.90) if is_dimmed else Color.WHITE
+	_combat_stunned = is_stunned
+	_combat_charging = is_charging
+	if is_dimmed:
+		modulate = Color(0.56, 0.58, 0.66, 0.90)
+	elif is_stunned:
+		modulate = Color(0.84, 0.78, 0.96, 0.96)
+	else:
+		modulate = Color.WHITE
 
 	if not _is_standee and _body_mat != null:
-		if is_hovered:
+		if is_charging:
+			_body_mat.set_shader_parameter("outline_px", 4.0)
+			_body_mat.set_shader_parameter("outline_color", Color(1.0, 0.22, 0.22, 1.0))
+		elif is_hovered:
 			_body_mat.set_shader_parameter("outline_px", 3.6)
 			_body_mat.set_shader_parameter("outline_color", Color(1.0, 0.94, 0.56, 1.0))
 		elif is_active:
@@ -116,25 +128,36 @@ func set_combat_highlight(is_active: bool, is_targetable: bool, is_hovered: bool
 		elif is_targetable:
 			_body_mat.set_shader_parameter("outline_px", 3.0)
 			_body_mat.set_shader_parameter("outline_color", Color(0.98, 0.28, 0.28, 1.0) if target_kind == "enemy" else Color(0.32, 0.88, 0.96, 1.0))
+		elif is_stunned:
+			_body_mat.set_shader_parameter("outline_px", 2.8)
+			_body_mat.set_shader_parameter("outline_color", Color(0.76, 0.52, 0.98, 1.0))
 
 	if _name_style != null:
-		if is_hovered:
+		if is_charging:
+			_name_style.border_color = Color(1.0, 0.24, 0.24)
+		elif is_hovered:
 			_name_style.border_color = Color(1.0, 0.94, 0.56)
 		elif is_active:
 			_name_style.border_color = Color(1.0, 0.84, 0.24)
 		elif is_targetable:
 			_name_style.border_color = Color(0.98, 0.30, 0.30) if target_kind == "enemy" else Color(0.34, 0.88, 0.98)
+		elif is_stunned:
+			_name_style.border_color = Color(0.76, 0.52, 0.98)
 	queue_redraw()
 
 func _draw() -> void:
 	var hl_col: Color = _char_color
-	var show_ring: bool = _combat_active or _combat_hovered or _combat_targetable
-	if _combat_hovered:
+	var show_ring: bool = _combat_active or _combat_hovered or _combat_targetable or _combat_stunned or _combat_charging
+	if _combat_charging:
+		hl_col = Color(1.0, 0.22, 0.22)
+	elif _combat_hovered:
 		hl_col = Color(1.0, 0.94, 0.56)
 	elif _combat_active:
 		hl_col = Color(1.0, 0.84, 0.24)
 	elif _combat_targetable:
 		hl_col = Color(0.98, 0.28, 0.28) if _combat_target_kind == "enemy" else Color(0.32, 0.90, 0.98)
+	elif _combat_stunned:
+		hl_col = Color(0.76, 0.52, 0.98)
 
 	if show_ring:
 		var pulse_amp: float = 2.6 if (_combat_active or _combat_targetable) else 1.2
@@ -184,6 +207,13 @@ func _draw() -> void:
 		])
 		draw_colored_polygon(arrow, Color(1.0, 0.86, 0.26))
 		draw_polyline(PackedVector2Array([arrow[0], arrow[1], arrow[2], arrow[0]]), Color(0.08, 0.08, 0.10), 1.4)
+
+	if _combat_stunned:
+		var sy: float = -_target_h - 46.0
+		var s_rect: Rect2 = Rect2(-38.0, sy, 76.0, 17.0)
+		draw_rect(s_rect, Color(0.18, 0.09, 0.28, 0.94), true)
+		draw_rect(s_rect, Color(0.84, 0.62, 1.0), false, 1.5)
+		draw_string(ThemeDB.fallback_font, Vector2(-34.0, sy + 12.0), "💫 ASSOMMÉ", HORIZONTAL_ALIGNMENT_CENTER, 68, 9, Color(1.0, 0.90, 0.56))
 
 func update_state(action_state: String, is_night: bool, low_moral: bool, lights: Array) -> void:
 	var outline_col: Color = _color_for_action(action_state)

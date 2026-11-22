@@ -5,6 +5,7 @@ signal exit_activated(exit_data: Dictionary)
 signal squad_member_clicked(group_id: int, char_id: String)
 signal combat_actor_hovered(kind: String, entity_id: String)
 signal combat_actor_clicked(kind: String, entity_id: String)
+signal combat_cell_clicked(gx: int, gy: int)
 signal combat_cancel_requested
 
 const PawnActorScript: GDScript = preload("res://scripts/world/pawn_actor.gd")
@@ -58,6 +59,9 @@ var _combat_ext_hovered_id: String = ""
 var _combat_target_kind: String = ""
 var _combat_valid_targets: Array[String] = []
 var _combat_hit_entries: Array[Dictionary] = []
+var _combat_action_id: String = ""
+var _combat_hovered_cell: Vector2i = Vector2i(-1, -1)
+var _combat_visual_grid: Dictionary = {}
 
 func _ready() -> void:
 	_camera = Camera2D.new()
@@ -110,8 +114,9 @@ func bind_combat_timeline(tl: Node) -> void:
 		_combat_timeline.timeline_updated.connect(refresh_combat_stage)
 
 ## Met à jour l'état de ciblage sur la grille isométrique ("enemy", "ally", "ally_crisis" ou "").
-func set_combat_targeting(target_kind: String, valid_ids: Array) -> void:
+func set_combat_targeting(target_kind: String, valid_ids: Array, action_id: String = "") -> void:
 	_combat_target_kind = target_kind
+	_combat_action_id = action_id
 	_combat_valid_targets.clear()
 	for vid in valid_ids:
 		_combat_valid_targets.append(str(vid))
@@ -152,6 +157,9 @@ func set_combat_stage_mode(enabled: bool) -> void:
 	_combat_ext_hovered_kind = ""
 	_combat_ext_hovered_id = ""
 	_combat_target_kind = ""
+	_combat_action_id = ""
+	_combat_hovered_cell = Vector2i(-1, -1)
+	_combat_visual_grid.clear()
 	_combat_valid_targets.clear()
 	if _markers_overlay != null:
 		_markers_overlay.visible = not _title_backdrop_mode and not _combat_stage_mode
@@ -302,6 +310,7 @@ func _process(delta: float) -> void:
 			train_x_progress += delta * 2.1
 			if train_x_progress > float(grid_w) + 2.5:
 				train_x_progress = 3.2
+		_step_combat_visual_interpolation(delta)
 		_sync_pawn_actors()
 		queue_redraw()
 		return
@@ -1074,18 +1083,31 @@ func _load_texture_safe(res_path: String) -> Texture2D:
 	_backdrop_cache[res_path] = tex
 	return tex
 
-## Gère survol et clic sur les pions déployés en mode combat isométrique.
+## Gère survol et clic sur les pions et cases tactiques en mode combat isométrique.
 func _handle_combat_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		var mm: InputEventMouseMotion = event as InputEventMouseMotion
 		if mm.position.y < 126.0 or mm.position.y > 478.0:
+			var need_redraw_out: bool = false
+			if _combat_hovered_cell != Vector2i(-1, -1):
+				_combat_hovered_cell = Vector2i(-1, -1)
+				need_redraw_out = true
 			if _combat_hovered_kind != "" or _combat_hovered_id != "":
 				_combat_hovered_kind = ""
 				_combat_hovered_id = ""
-				refresh_combat_stage()
 				combat_actor_hovered.emit("", "")
+				need_redraw_out = true
+			if need_redraw_out:
+				refresh_combat_stage()
 			return
 		var world_pos: Vector2 = get_canvas_transform().affine_inverse() * mm.position
+		var iso_f: Vector2 = screen_to_iso(world_pos)
+		var cgx: int = int(floor(iso_f.x))
+		var cgy: int = int(floor(iso_f.y))
+		var new_cell: Vector2i = Vector2i(cgx, cgy) if (cgx >= 0 and cgx < grid_w and cgy >= 1 and cgy < grid_h) else Vector2i(-1, -1)
+		var cell_changed: bool = (new_cell != _combat_hovered_cell)
+		_combat_hovered_cell = new_cell
+
 		var hit: Dictionary = _pick_combat_actor_at(world_pos)
 		var hk: String = str(hit.get("kind", ""))
 		var hid: String = str(hit.get("id", ""))
@@ -1094,6 +1116,8 @@ func _handle_combat_input(event: InputEvent) -> void:
 			_combat_hovered_id = hid
 			refresh_combat_stage()
 			combat_actor_hovered.emit(hk, hid)
+		elif cell_changed:
+			queue_redraw()
 		return
 
 	if event is InputEventMouseButton:
@@ -1110,6 +1134,13 @@ func _handle_combat_input(event: InputEvent) -> void:
 			if not hit_c.is_empty():
 				combat_actor_clicked.emit(str(hit_c.get("kind", "")), str(hit_c.get("id", "")))
 				AudioRadio.play_cassette_click()
+				get_viewport().set_input_as_handled()
+				return
+			var click_iso: Vector2 = screen_to_iso(click_world)
+			var gx_c: int = int(floor(click_iso.x))
+			var gy_c: int = int(floor(click_iso.y))
+			if gx_c >= 0 and gx_c < grid_w and gy_c >= 1 and gy_c < grid_h:
+				combat_cell_clicked.emit(gx_c, gy_c)
 				get_viewport().set_input_as_handled()
 
 func _pick_combat_actor_at(world_pos: Vector2) -> Dictionary:
@@ -1133,25 +1164,72 @@ func _is_combat_targetable(kind: String, eid: String) -> bool:
 		return _combat_valid_targets.has(eid)
 	return false
 
-## Dessine le quadrillage isométrique 2:1, les axes de déploiement (PJ bas→gauche, PNJ haut→droite) et les dalles ciblées.
+func _draw_iso_tile(gx: int, gy: int, fill_col: Color, border_col: Color, lw: float) -> void:
+	var p0: Vector2 = iso_to_screen(float(gx), float(gy))
+	var p1: Vector2 = iso_to_screen(float(gx + 1), float(gy))
+	var p2: Vector2 = iso_to_screen(float(gx + 1), float(gy + 1))
+	var p3: Vector2 = iso_to_screen(float(gx), float(gy + 1))
+	if fill_col.a > 0.001:
+		draw_colored_polygon(PackedVector2Array([p0, p1, p2, p3]), fill_col)
+	draw_polyline(PackedVector2Array([p0, p1, p2, p3, p0]), border_col, lw)
+
+func _draw_iso_arrow(from_sc: Vector2, to_sc: Vector2, col: Color, lw: float) -> void:
+	var dir: Vector2 = to_sc - from_sc
+	if dir.length() < 8.0:
+		return
+	var u: Vector2 = dir.normalized()
+	var n: Vector2 = Vector2(-u.y, u.x)
+	draw_line(from_sc, to_sc - u * 10.0, col, lw)
+	var head_pts: PackedVector2Array = PackedVector2Array([
+		to_sc,
+		to_sc - u * 15.0 + n * 7.5,
+		to_sc - u * 15.0 - n * 7.5
+	])
+	draw_colored_polygon(head_pts, col)
+
+func _step_combat_visual_interpolation(delta: float) -> void:
+	if _combat_timeline == null or not bool(_combat_timeline.get("active")):
+		return
+	var speed: float = delta * 7.8
+	var allies_var: Variant = _combat_timeline.get("allies")
+	if allies_var is Array:
+		for av in (allies_var as Array):
+			if av is Dictionary and bool((av as Dictionary).get("present", false)):
+				var ad: Dictionary = av as Dictionary
+				var cid: String = str(ad.get("char_id", ""))
+				var key: String = "ally:" + cid
+				var tgt: Vector2 = Vector2(float(int(ad.get("grid_x", 3))) + 0.5, float(int(ad.get("grid_y", 6))) + 0.5)
+				if _combat_visual_grid.has(key):
+					var cur_v: Variant = _combat_visual_grid.get(key, tgt)
+					var cur: Vector2 = cur_v if cur_v is Vector2 else tgt
+					_combat_visual_grid[key] = cur.move_toward(tgt, speed)
+				else:
+					_combat_visual_grid[key] = tgt
+	var enemies_var: Variant = _combat_timeline.get("enemies")
+	if enemies_var is Array:
+		for ev in (enemies_var as Array):
+			if ev is Dictionary and not bool((ev as Dictionary).get("defeated", false)):
+				var ed: Dictionary = ev as Dictionary
+				var eid: String = str(ed.get("id", ""))
+				var ekey: String = "enemy:" + eid
+				var etgt: Vector2 = Vector2(float(int(ed.get("grid_x", 4))) + 0.5, float(int(ed.get("grid_y", 2))) + 0.5)
+				if _combat_visual_grid.has(ekey):
+					var ecur_v: Variant = _combat_visual_grid.get(ekey, etgt)
+					var ecur: Vector2 = ecur_v if ecur_v is Vector2 else etgt
+					_combat_visual_grid[ekey] = ecur.move_toward(etgt, speed)
+				else:
+					_combat_visual_grid[ekey] = etgt
+
+## Dessine le quadrillage isométrique 8x8, les cases de déplacement, les couronnes de portée et la flèche de Charge.
 func _draw_combat_iso_grid() -> void:
 	for gy in range(grid_h):
 		for gx in range(grid_w):
-			var p0: Vector2 = iso_to_screen(float(gx), float(gy))
-			var p1: Vector2 = iso_to_screen(float(gx + 1), float(gy))
-			var p2: Vector2 = iso_to_screen(float(gx + 1), float(gy + 1))
-			var p3: Vector2 = iso_to_screen(float(gx), float(gy + 1))
 			var fill_col: Color = Color(0.06, 0.08, 0.12, 0.16)
-			var line_col: Color = Color(0.84, 0.88, 0.96, 0.24)
-			var lw: float = 1.1
-			if gy == 6 and gx >= 1 and gx <= 5:
-				fill_col = Color(0.95, 0.55, 0.16, 0.14)
-				line_col = Color(0.96, 0.64, 0.28, 0.42)
-			elif gy == 2 and gx >= 1 and gx <= 5:
-				fill_col = Color(0.86, 0.20, 0.22, 0.14)
-				line_col = Color(0.94, 0.34, 0.34, 0.42)
-			draw_colored_polygon(PackedVector2Array([p0, p1, p2, p3]), fill_col)
-			draw_polyline(PackedVector2Array([p0, p1, p2, p3, p0]), line_col, lw)
+			var line_col: Color = Color(0.84, 0.88, 0.96, 0.22)
+			if gy == 0 or _blocked_cells.has("%d,%d" % [gx, gy]):
+				fill_col = Color(0.04, 0.04, 0.06, 0.24)
+				line_col = Color(0.45, 0.48, 0.54, 0.16)
+			_draw_iso_tile(gx, gy, fill_col, line_col, 1.0)
 
 	var eff_h_kind: String = _combat_hovered_kind if _combat_hovered_id != "" else _combat_ext_hovered_kind
 	var eff_h_id: String = _combat_hovered_id if _combat_hovered_id != "" else _combat_ext_hovered_id
@@ -1163,6 +1241,46 @@ func _draw_combat_iso_grid() -> void:
 	var act_k: String = str(active_ent.get("kind", ""))
 	var act_id: String = str(active_ent.get("id", ""))
 
+	# 1. Couronne de portée si action ciblée sélectionnée
+	if _combat_timeline != null and _combat_target_kind == "enemy" and _combat_action_id != "" and act_k == "ally" and act_id != "":
+		var rng_var: Variant = _combat_timeline.call("get_action_range", _combat_action_id)
+		var rng_d: Dictionary = rng_var as Dictionary if rng_var is Dictionary else {}
+		var min_r: int = int(rng_d.get("min", 0))
+		var max_r: int = int(rng_d.get("max", 0))
+		if max_r > 0:
+			var ap_var: Variant = _combat_timeline.call("get_entity_grid_pos", "ally", act_id)
+			var ap: Vector2i = ap_var if ap_var is Vector2i else Vector2i(3, 6)
+			var r_col: Color = Color(0.98, 0.56, 0.20) if (_combat_action_id == "act_charge" or _combat_action_id == "act_pression") else Color(0.32, 0.88, 0.72)
+			for gy2 in range(1, grid_h):
+				for gx2 in range(grid_w):
+					var d_tile: int = maxi(absi(gx2 - ap.x), absi(gy2 - ap.y))
+					if d_tile >= min_r and d_tile <= max_r:
+						_draw_iso_tile(gx2, gy2, Color(r_col.r, r_col.g, r_col.b, 0.10), Color(r_col.r, r_col.g, r_col.b, 0.34), 1.2)
+
+	# 2. Cases bleues accessibles par PM pendant le tour PJ (hors mode ciblage et alerte charge)
+	if _combat_timeline != null and _combat_target_kind == "":
+		var reach_var: Variant = _combat_timeline.call("get_reachable_cells_for_active_ally")
+		if reach_var is Dictionary:
+			var reach_d: Dictionary = reach_var as Dictionary
+			for rk_var in reach_d.keys():
+				var parts: PackedStringArray = str(rk_var).split(",")
+				if parts.size() >= 2:
+					var rx: int = int(parts[0])
+					var ry: int = int(parts[1])
+					var is_h_cell: bool = (_combat_hovered_cell.x == rx and _combat_hovered_cell.y == ry)
+					var a_fill: float = 0.36 if is_h_cell else 0.18
+					_draw_iso_tile(rx, ry, Color(0.24, 0.68, 0.98, a_fill), Color(0.42, 0.88, 1.0, 0.75 if is_h_cell else 0.48), 2.0 if is_h_cell else 1.4)
+
+	# 3. Anneaux d'acteurs (actif, survolé, ciblable, assommé, charge)
+	var charging_eid: String = ""
+	var is_charge_win: bool = (_combat_timeline != null and bool(_combat_timeline.call("is_charge_window_active")))
+	var charge_data: Dictionary = {}
+	if is_charge_win:
+		var ch_v: Variant = _combat_timeline.get("pending_enemy_charge")
+		if ch_v is Dictionary:
+			charge_data = ch_v as Dictionary
+			charging_eid = str(charge_data.get("enemy_id", ""))
+
 	for he in _combat_hit_entries:
 		var k: String = str(he.get("kind", ""))
 		var eid: String = str(he.get("id", ""))
@@ -1172,20 +1290,45 @@ func _draw_combat_iso_grid() -> void:
 		var is_a: bool = (k == act_k and eid == act_id)
 		var is_h: bool = (k == eff_h_kind and eid == eff_h_id)
 		var is_t: bool = _is_combat_targetable(k, eid)
-		if is_a or is_h or is_t:
-			var t0: Vector2 = iso_to_screen(float(cx), float(cy))
-			var t1: Vector2 = iso_to_screen(float(cx + 1), float(cy))
-			var t2: Vector2 = iso_to_screen(float(cx + 1), float(cy + 1))
-			var t3: Vector2 = iso_to_screen(float(cx), float(cy + 1))
+		var is_ch: bool = (k == "enemy" and eid == charging_eid)
+		if is_a or is_h or is_t or is_ch:
 			var dcol: Color = Color(1.0, 0.84, 0.24)
-			if is_h:
+			if is_ch:
+				dcol = Color(1.0, 0.24, 0.22)
+			elif is_h:
 				dcol = Color(1.0, 0.94, 0.56)
 			elif is_t and not is_a:
 				dcol = Color(0.98, 0.28, 0.28) if k == "enemy" else Color(0.32, 0.88, 0.96)
-			draw_colored_polygon(PackedVector2Array([t0, t1, t2, t3]), Color(dcol.r, dcol.g, dcol.b, 0.22))
-			draw_polyline(PackedVector2Array([t0, t1, t2, t3, t0]), dcol, 2.2)
+			_draw_iso_tile(cx, cy, Color(dcol.r, dcol.g, dcol.b, 0.24), dcol, 2.4)
 
-## Aligne les héros présents (axe bas vers gauche) et les PNJ (axe haut vers droite) sur le quadrillage isométrique.
+	# 4. Aperçu case d'atterrissage Charge PJ -> PNJ survolé
+	if _combat_timeline != null and _combat_action_id == "act_charge" and eff_h_kind == "enemy" and _is_combat_targetable("enemy", eff_h_id) and act_k == "ally":
+		var ap2_v: Variant = _combat_timeline.call("get_entity_grid_pos", "ally", act_id)
+		var ep2_v: Variant = _combat_timeline.call("get_entity_grid_pos", "enemy", eff_h_id)
+		var ap2: Vector2i = ap2_v if ap2_v is Vector2i else Vector2i(3, 6)
+		var ep2: Vector2i = ep2_v if ep2_v is Vector2i else Vector2i(4, 2)
+		var land_v: Variant = _combat_timeline.call("find_closest_adjacent_cell", ap2.x, ap2.y, ep2.x, ep2.y, "ally", act_id)
+		var land: Vector2i = land_v if land_v is Vector2i else Vector2i(-1, -1)
+		if land.x >= 0:
+			_draw_iso_tile(land.x, land.y, Color(1.0, 0.82, 0.24, 0.34), Color(1.0, 0.90, 0.36, 0.95), 2.6)
+			_draw_iso_arrow(iso_to_screen(float(ap2.x) + 0.5, float(ap2.y) + 0.5), iso_to_screen(float(land.x) + 0.5, float(land.y) + 0.5), Color(1.0, 0.84, 0.24, 0.92), 3.0)
+
+	# 5. Alerte visuelle Charge PNJ (flèche rouge trajectoire pendant la fenêtre 10 s)
+	if is_charge_win and not charge_data.is_empty():
+		var fx: int = int(charge_data.get("from_x", 4))
+		var fy: int = int(charge_data.get("from_y", 2))
+		var tx: int = int(charge_data.get("to_x", 4))
+		var ty: int = int(charge_data.get("to_y", 5))
+		var px_t: int = int(charge_data.get("target_x", 3))
+		var py_t: int = int(charge_data.get("target_y", 6))
+		var pulse_a: float = 0.32 + 0.14 * sin(_pulse_time * 8.0)
+		_draw_iso_tile(tx, ty, Color(0.98, 0.22, 0.20, pulse_a), Color(1.0, 0.32, 0.28, 0.96), 2.8)
+		_draw_iso_tile(px_t, py_t, Color(1.0, 0.52, 0.18, 0.26), Color(1.0, 0.68, 0.26, 0.90), 2.4)
+		var sc_from: Vector2 = iso_to_screen(float(fx) + 0.5, float(fy) + 0.5)
+		var sc_land: Vector2 = iso_to_screen(float(tx) + 0.5, float(ty) + 0.5)
+		_draw_iso_arrow(sc_from, sc_land, Color(1.0, 0.26, 0.24, 0.96), 4.0)
+
+## Déploie les héros présents et les PNJ à leurs vraies coordonnées tactiques (grid_x, grid_y) avec interpolation visuelle.
 func _sync_combat_pawns() -> void:
 	_combat_hit_entries.clear()
 	var loc: Dictionary = DataLoader.get_location(current_loc_id)
@@ -1224,125 +1367,141 @@ func _sync_combat_pawns() -> void:
 		active_ent = ae_var as Dictionary
 	var act_kind: String = str(active_ent.get("kind", ""))
 	var act_id: String = str(active_ent.get("id", ""))
+	var charging_eid: String = ""
+	if bool(_combat_timeline.call("is_charge_window_active")):
+		var ch_v2: Variant = _combat_timeline.get("pending_enemy_charge")
+		if ch_v2 is Dictionary:
+			charging_eid = str((ch_v2 as Dictionary).get("enemy_id", ""))
 	var eff_h_kind: String = _combat_hovered_kind if _combat_hovered_id != "" else _combat_ext_hovered_kind
 	var eff_h_id: String = _combat_hovered_id if _combat_hovered_id != "" else _combat_ext_hovered_id
 	var target_h: float = 126.0
 
-	# 1. Héros du groupe présents : axe bas vers gauche (gy = 6.2, gx décroissant de 4.8..5.5 vers 1.2..2.2)
-	var present_allies: Array[Dictionary] = []
+	# 1. Héros présents (coordonnées gérées par TensionTimeline)
 	var allies_var: Variant = _combat_timeline.get("allies")
 	if allies_var is Array:
 		for av in (allies_var as Array):
-			if av is Dictionary and bool((av as Dictionary).get("present", false)):
-				present_allies.append(av as Dictionary)
+			if not (av is Dictionary):
+				continue
+			var al: Dictionary = av as Dictionary
+			if not bool(al.get("present", false)):
+				continue
+			var cid: String = str(al.get("char_id", ""))
+			var cdef: Dictionary = DataLoader.get_character(cid)
+			var st: Dictionary = GameState.get_member_state(cid)
+			var col: Color = Color.html(str(cdef.get("color_hex", "#f28c28")))
+			var gx_log: float = float(int(al.get("grid_x", 3))) + 0.5
+			var gy_log: float = float(int(al.get("grid_y", 6))) + 0.5
+			var akey: String = "ally:" + cid
+			var gx_vis: float = gx_log
+			var gy_vis: float = gy_log
+			if _combat_visual_grid.has(akey):
+				var vpos_v: Variant = _combat_visual_grid.get(akey, Vector2(gx_log, gy_log))
+				if vpos_v is Vector2:
+					gx_vis = (vpos_v as Vector2).x
+					gy_vis = (vpos_v as Vector2).y
+			else:
+				_combat_visual_grid[akey] = Vector2(gx_log, gy_log)
+			var pos: Vector2 = iso_to_screen(gx_vis, gy_vis)
 
-	var na: int = present_allies.size()
-	for i in range(na):
-		var al: Dictionary = present_allies[i]
-		var cid: String = str(al.get("char_id", ""))
-		var cdef: Dictionary = DataLoader.get_character(cid)
-		var st: Dictionary = GameState.get_member_state(cid)
-		var col: Color = Color.html(str(cdef.get("color_hex", "#f28c28")))
-		var gx: float = 3.4
-		if na >= 2:
-			var hi_x: float = 4.8 if na <= 3 else 5.5
-			var lo_x: float = 2.0 if na <= 3 else 1.2
-			gx = lerpf(hi_x, lo_x, float(i) / float(na - 1))
-		var gy: float = 6.2
-		var pos: Vector2 = iso_to_screen(gx, gy)
+			var actor: Node2D = null
+			if _pawn_actors.has(cid):
+				var a_var: Variant = _pawn_actors.get(cid, null)
+				if a_var is Node2D:
+					actor = a_var as Node2D
+			if actor == null:
+				actor = PawnActorScript.new()
+				_pawn_container.add_child(actor)
+				_pawn_actors[cid] = actor
 
-		var actor: Node2D = null
-		if _pawn_actors.has(cid):
-			var a_var: Variant = _pawn_actors.get(cid, null)
-			if a_var is Node2D:
-				actor = a_var as Node2D
-		if actor == null:
-			actor = PawnActorScript.new()
-			_pawn_container.add_child(actor)
-			_pawn_actors[cid] = actor
+			var pawn_tex: Texture2D = GameState.get_character_pawn_texture(cid)
+			var base_name: String = str(cdef.get("name", cid)).split(" ")[0]
+			actor.visible = true
+			actor.position = pos
+			actor.z_index = clampi(int(pos.y), -3500, 3500)
+			if pawn_tex != null:
+				actor.call("setup_character", pawn_tex, base_name, col, target_h)
+			else:
+				var ptex_fb: Texture2D = _load_texture_safe(str(cdef.get("portrait", "")))
+				actor.call("setup_standee_character", ptex_fb, base_name, col, target_h)
 
-		var pawn_tex: Texture2D = GameState.get_character_pawn_texture(cid)
-		var base_name: String = str(cdef.get("name", cid)).split(" ")[0]
-		actor.visible = true
-		actor.position = pos
-		actor.z_index = clampi(int(pos.y), -3500, 3500)
-		if pawn_tex != null:
-			actor.call("setup_character", pawn_tex, base_name, col, target_h)
-		else:
-			var ptex_fb: Texture2D = _load_texture_safe(str(cdef.get("portrait", "")))
-			actor.call("setup_standee_character", ptex_fb, base_name, col, target_h)
+			var is_a: bool = (act_kind == "ally" and act_id == cid)
+			var is_t: bool = _is_combat_targetable("ally", cid)
+			var is_h: bool = (eff_h_kind == "ally" and eff_h_id == cid)
+			var is_dim: bool = (_combat_target_kind != "" and not is_t and not is_a)
+			var is_stun: bool = bool(al.get("stunned", false))
+			var state_str: String = "stress" if bool(st.get("stress_active", false)) else ("interacting" if is_a else "idle")
+			actor.call("update_state", state_str, is_night, low_moral, screen_lights)
+			actor.call("set_combat_highlight", is_a, is_t, is_h, is_dim, "ally", _pulse_time, is_stun, false)
+			_combat_hit_entries.append({
+				"kind": "ally",
+				"id": cid,
+				"grid": Vector2(gx_log, gy_log),
+				"screen": pos,
+				"hit_h": target_h + 10.0,
+				"actor": actor
+			})
 
-		var is_a: bool = (act_kind == "ally" and act_id == cid)
-		var is_t: bool = _is_combat_targetable("ally", cid)
-		var is_h: bool = (eff_h_kind == "ally" and eff_h_id == cid)
-		var is_dim: bool = (_combat_target_kind != "" and not is_t and not is_a)
-		var state_str: String = "stress" if bool(st.get("stress_active", false)) else ("interacting" if is_a else "idle")
-		actor.call("update_state", state_str, is_night, low_moral, screen_lights)
-		actor.call("set_combat_highlight", is_a, is_t, is_h, is_dim, "ally", _pulse_time)
-		_combat_hit_entries.append({
-			"kind": "ally",
-			"id": cid,
-			"grid": Vector2(gx, gy),
-			"screen": pos,
-			"hit_h": target_h + 10.0,
-			"actor": actor
-		})
-
-	# 2. PNJ ennemis actifs : axe haut vers droite (gy = 2.0, gx croissant de 2.4 vers 5.6)
-	var alive_enemies: Array[Dictionary] = []
+	# 2. PNJ ennemis actifs (coordonnées gérées par TensionTimeline)
 	var enemies_var: Variant = _combat_timeline.get("enemies")
 	if enemies_var is Array:
 		for ev in (enemies_var as Array):
-			if ev is Dictionary and not bool((ev as Dictionary).get("defeated", false)):
-				alive_enemies.append(ev as Dictionary)
+			if not (ev is Dictionary):
+				continue
+			var en: Dictionary = ev as Dictionary
+			if bool(en.get("defeated", false)):
+				continue
+			var eid: String = str(en.get("id", ""))
+			var gxe_log: float = float(int(en.get("grid_x", 4))) + 0.5
+			var gye_log: float = float(int(en.get("grid_y", 2))) + 0.5
+			var ekey: String = "enemy:" + eid
+			var gxe_vis: float = gxe_log
+			var gye_vis: float = gye_log
+			if _combat_visual_grid.has(ekey):
+				var evpos_v: Variant = _combat_visual_grid.get(ekey, Vector2(gxe_log, gye_log))
+				if evpos_v is Vector2:
+					gxe_vis = (evpos_v as Vector2).x
+					gye_vis = (evpos_v as Vector2).y
+			else:
+				_combat_visual_grid[ekey] = Vector2(gxe_log, gye_log)
+			var epos: Vector2 = iso_to_screen(gxe_vis, gye_vis)
 
-	var ne: int = alive_enemies.size()
-	for j in range(ne):
-		var en: Dictionary = alive_enemies[j]
-		var eid: String = str(en.get("id", ""))
-		var gxe: float = 4.0
-		if ne >= 2:
-			var lo_xe: float = 2.4 if ne <= 3 else 1.8
-			var hi_xe: float = 5.6 if ne <= 3 else 6.2
-			gxe = lerpf(lo_xe, hi_xe, float(j) / float(ne - 1))
-		var gye: float = 2.0
-		var epos: Vector2 = iso_to_screen(gxe, gye)
+			var e_actor: Node2D = null
+			if _combat_enemy_actors.has(eid):
+				var ea_var: Variant = _combat_enemy_actors.get(eid, null)
+				if ea_var is Node2D:
+					e_actor = ea_var as Node2D
+			if e_actor == null:
+				e_actor = PawnActorScript.new()
+				_pawn_container.add_child(e_actor)
+				_combat_enemy_actors[eid] = e_actor
 
-		var e_actor: Node2D = null
-		if _combat_enemy_actors.has(eid):
-			var ea_var: Variant = _combat_enemy_actors.get(eid, null)
-			if ea_var is Node2D:
-				e_actor = ea_var as Node2D
-		if e_actor == null:
-			e_actor = PawnActorScript.new()
-			_pawn_container.add_child(e_actor)
-			_combat_enemy_actors[eid] = e_actor
+			var e_name: String = str(en.get("name", eid))
+			var e_app_var: Variant = en.get("appearance", {})
+			var e_app: Dictionary = e_app_var as Dictionary if e_app_var is Dictionary else {}
+			var e_tex: Texture2D = DataLoader.get_appearance_pawn_texture(e_app)
+			var e_col: Color = Color(0.88, 0.24, 0.24)
+			e_actor.visible = true
+			e_actor.position = epos
+			e_actor.z_index = clampi(int(epos.y), -3500, 3500)
+			if e_tex != null:
+				e_actor.call("setup_character", e_tex, e_name, e_col, target_h)
+			else:
+				var e_port: Texture2D = _load_texture_safe(str(en.get("portrait", "res://assets/portraits/so_agent.png")))
+				e_actor.call("setup_standee_character", e_port, e_name, e_col, target_h)
 
-		var e_name: String = str(en.get("name", eid))
-		var e_app_var: Variant = en.get("appearance", {})
-		var e_app: Dictionary = e_app_var as Dictionary if e_app_var is Dictionary else {}
-		var e_tex: Texture2D = DataLoader.get_appearance_pawn_texture(e_app)
-		var e_col: Color = Color(0.88, 0.24, 0.24)
-		e_actor.visible = true
-		e_actor.position = epos
-		e_actor.z_index = clampi(int(epos.y), -3500, 3500)
-		if e_tex != null:
-			e_actor.call("setup_character", e_tex, e_name, e_col, target_h)
-		else:
-			var e_port: Texture2D = _load_texture_safe(str(en.get("portrait", "res://assets/portraits/so_agent.png")))
-			e_actor.call("setup_standee_character", e_port, e_name, e_col, target_h)
-
-		var e_is_a: bool = (act_kind == "enemy" and act_id == eid)
-		var e_is_t: bool = _is_combat_targetable("enemy", eid)
-		var e_is_h: bool = (eff_h_kind == "enemy" and eff_h_id == eid)
-		var e_is_dim: bool = (_combat_target_kind != "" and not e_is_t and not e_is_a)
-		e_actor.call("update_state", "idle", is_night, low_moral, screen_lights)
-		e_actor.call("set_combat_highlight", e_is_a, e_is_t, e_is_h, e_is_dim, "enemy", _pulse_time)
-		_combat_hit_entries.append({
-			"kind": "enemy",
-			"id": eid,
-			"grid": Vector2(gxe, gye),
-			"screen": epos,
-			"hit_h": target_h + 10.0,
-			"actor": e_actor
-		})
+			var e_is_a: bool = (act_kind == "enemy" and act_id == eid)
+			var e_is_t: bool = _is_combat_targetable("enemy", eid)
+			var e_is_h: bool = (eff_h_kind == "enemy" and eff_h_id == eid)
+			var e_is_dim: bool = (_combat_target_kind != "" and not e_is_t and not e_is_a)
+			var e_is_stun: bool = bool(en.get("stunned", false))
+			var e_is_ch: bool = (eid == charging_eid)
+			e_actor.call("update_state", "idle", is_night, low_moral, screen_lights)
+			e_actor.call("set_combat_highlight", e_is_a, e_is_t, e_is_h, e_is_dim, "enemy", _pulse_time, e_is_stun, e_is_ch)
+			_combat_hit_entries.append({
+				"kind": "enemy",
+				"id": eid,
+				"grid": Vector2(gxe_log, gye_log),
+				"screen": epos,
+				"hit_h": target_h + 10.0,
+				"actor": e_actor
+			})

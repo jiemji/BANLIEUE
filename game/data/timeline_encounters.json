@@ -18,6 +18,10 @@
             "top": "res://assets/modular/tops/harrington_skin.png",
             "bottom": "res://assets/modular/bottoms/treillis_rangers.png"
           },
+          "start_grid": [2, 2],
+          "move_points": 3,
+          "can_charge": true,
+          "intercept_bonus": 1,
           "resolve_max": 3,
           "initial_tick": 1,
           "speed": 2,
@@ -38,6 +42,10 @@
             "top": "res://assets/modular/tops/coupe_vent_lycee.png",
             "bottom": "res://assets/modular/bottoms/pantalon_so.png"
           },
+          "start_grid": [4, 2],
+          "move_points": 2,
+          "can_charge": true,
+          "intercept_bonus": 2,
           "resolve_max": 4,
           "initial_tick": 2,
           "speed": 3,
@@ -58,6 +66,10 @@
             "top": "res://assets/modular/tops/blouson_so.png",
             "bottom": "res://assets/modular/bottoms/treillis_rangers.png"
           },
+          "start_grid": [6, 2],
+          "move_points": 2,
+          "can_charge": true,
+          "intercept_bonus": 3,
           "resolve_max": 5,
           "initial_tick": 3,
           "speed": 3,
@@ -66,26 +78,57 @@
           "intent_label": "Coup de pression / Matraque préventive",
           "bark": "« Approche d'un cran et je te règle ton compte à la matraque. »",
           "has_counter_interrupt": true,
-          "counter_label": "Contre-interruption : Coup de pression prêt !"
+          "counter_label": "Interception & Contre prêts !"
         }
       ],
       "player_actions": [
         {
-          "id": "act_tchatche",
-          "label": "Tchatche",
-          "desc": "Jet Tchatche & Baratin (Esprit) : entame la résolution (-2/-3 si réussi, +bonus Faveur/dossier).",
+          "id": "act_pression",
+          "label": "Corps à corps",
+          "min_range": 1,
+          "max_range": 1,
+          "desc": "Jet Caisse & Pression (Corps, 1 case) : -2/-3 résolution et recule la cible (+1/+2 crans), bonus si Aura ≥ 5.",
           "cost_tick": 2
         },
         {
-          "id": "act_pression",
-          "label": "Pression",
-          "desc": "Jet Caisse & Pression (Corps) : -2/-3 résolution et recule la cible (+1/+2 cran), bonus si Aura ≥ 5.",
+          "id": "act_lancer",
+          "label": "Lancer",
+          "min_range": 2,
+          "max_range": 4,
+          "desc": "Jet Caves & Esquive (Corps, 2–4 cases) : canette ou pavé (-2/-3 résolution, +1 cran si Coup d'éclat).",
+          "cost_tick": 2
+        },
+        {
+          "id": "act_tir",
+          "label": "Tir",
+          "min_range": 2,
+          "max_range": 6,
+          "requires_ranged_tool": true,
+          "desc": "Jet Système D (Esprit, 2–6 cases, outil de tir 1982 requis) : -2/-3 résolution et coupe la garde.",
+          "cost_tick": 2
+        },
+        {
+          "id": "act_charge",
+          "label": "Charge",
+          "min_range": 2,
+          "max_range": 5,
+          "desc": "Bondit (2–5 cases) sur la case adjacente libre et frappe (Corps + Caisse) ; risque d'être Assommé (-2 rangs) si intercepté !",
+          "cost_tick": 2
+        },
+        {
+          "id": "act_tchatche",
+          "label": "Tchatche",
+          "min_range": 1,
+          "max_range": 5,
+          "desc": "Jet Tchatche & Baratin (Esprit, 1–5 cases) : entame la résolution (-2/-3 si réussi, +bonus Faveur/dossier).",
           "cost_tick": 2
         },
         {
           "id": "act_repli",
           "label": "Échappée",
-          "desc": "Jet Caves & Esquive (Corps) : retarde les CRS (+2/+3 crans) et rapproche l'évacuation (+1).",
+          "min_range": 0,
+          "max_range": 0,
+          "desc": "Jet Caves & Esquive (Corps, toute portée) : retarde les CRS (+2/+3 crans) et rapproche l'évacuation (+1).",
           "cost_tick": 2
         }
       ],

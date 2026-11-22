@@ -68,7 +68,7 @@
       "arc_summary": "Transformer sa colère légitime contre la matraque en force collective avant qu'une nuit électrique ne lui coûte la bande.",
       "characteristics": { "esprit": 2, "corps": 4, "energie": 3 },
       "skills": { "caves_esquive": 3, "solidarite_bande": 3, "tchatche": 2, "jeux_culture": 1, "ondes_radio": -1, "sang_froid_nerfs": -2 },
-      "default_equipment": { "look_top": "veste_survet", "look_bottom": "bas_survet_baskets", "tool": "", "fetish": "ghetto_blaster" },
+      "default_equipment": { "look_top": "veste_survet", "look_bottom": "bas_survet_baskets", "tool": "lance_pierre", "fetish": "ghetto_blaster" },
       "relations": {
         "leader": { "status": "soudes", "label": "Pote d'enfance de la Dalle" },
         "nadia": { "status": "soudes", "label": "Trio inséparable du Box-Garage" },

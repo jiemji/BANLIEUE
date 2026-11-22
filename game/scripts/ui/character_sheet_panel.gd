@@ -603,6 +603,13 @@ func _format_item_bonus(idef: Dictionary) -> String:
 		var first_a: Variant = (act_v as Array)[0]
 		if first_a is Dictionary:
 			parts.append("Action: " + str((first_a as Dictionary).get("label", "")))
+	var ct_v: Variant = idef.get("combat_tags", [])
+	if ct_v is Array:
+		var ct_arr: Array = ct_v as Array
+		if ct_arr.has("ranged_shoot"):
+			parts.append("Tir (2–6c)")
+		if ct_arr.has("throw_bonus"):
+			parts.append("Lancer +%d" % int(idef.get("throw_bonus", 1)))
 	return ", ".join(parts) if not parts.is_empty() else str(idef.get("desc", ""))
 
 func _make_box(bg: Color, border: Color, bw: int, pad: int) -> StyleBoxFlat:

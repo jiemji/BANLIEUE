@@ -225,11 +225,14 @@ func _wire_signals() -> void:
 	_iso_view.combat_actor_clicked.connect(func(k: String, eid: String) -> void:
 		_tl_panel.call("on_stage_actor_clicked", k, eid)
 	)
+	_iso_view.combat_cell_clicked.connect(func(gx: int, gy: int) -> void:
+		_tl_panel.call("on_stage_cell_clicked", gx, gy)
+	)
 	_iso_view.combat_cancel_requested.connect(func() -> void:
 		_tl_panel.call("cancel_targeting")
 	)
-	_tl_panel.targeting_state_changed.connect(func(tk: String, vids: Array) -> void:
-		_iso_view.call("set_combat_targeting", tk, vids)
+	_tl_panel.targeting_state_changed.connect(func(tk: String, vids: Array, aid: String) -> void:
+		_iso_view.call("set_combat_targeting", tk, vids, aid)
 	)
 	_tl_panel.frise_actor_hovered.connect(func(k: String, eid: String) -> void:
 		_iso_view.call("set_combat_external_hover", k, eid)
@@ -700,3 +703,4 @@ func _update_input_lock() -> void:
 	_iso_view.set("combat_input_blocked", menu_open or _sas_active or _end_overlay.visible)
 	_world_map_view.set("input_blocked", blocked)
 	_tl_panel.set("input_blocked", menu_open or _sas_active or _end_overlay.visible)
+	_timeline.set("charge_timer_paused", menu_open or _sas_active or _end_overlay.visible)

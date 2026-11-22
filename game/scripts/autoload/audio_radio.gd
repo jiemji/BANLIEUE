@@ -69,6 +69,12 @@ func play_radio_zap() -> void:
 	_sfx_timer = 0.20
 	_sfx_freq = 320.0
 
+## Joue un signal d'alerte bicolore urgent lorsqu'un PNJ amorce une Charge (fenêtre d'interception 10 s).
+func play_charge_alert() -> void:
+	_sfx_kind = "charge_alert"
+	_sfx_timer = 0.28
+	_sfx_freq = 520.0
+
 func _process(_delta: float) -> void:
 	if _playback == null or _muted:
 		return
@@ -124,6 +130,10 @@ func _process(_delta: float) -> void:
 				sample += (_next_noise() * 0.22 + sin(_phase_wave * TAU) * 0.14) * env_b
 			elif _sfx_kind == "zap":
 				sample += _next_noise() * 0.18 * clampf(_sfx_timer / 0.20, 0.0, 1.0)
+			elif _sfx_kind == "charge_alert":
+				var tone_mult: float = 1.0 if fmod(_sfx_timer, 0.14) > 0.07 else 0.75
+				var env_c: float = clampf(_sfx_timer / 0.28, 0.0, 1.0)
+				sample += sin(_phase_wave * TAU * tone_mult) * 0.28 * env_c
 
 		sample = clampf(sample, -0.65, 0.65)
 		_playback.push_frame(Vector2(sample, sample))

@@ -1,7 +1,7 @@
-## HUD Tactique Isométrique « Frise Haute + Fiche Actif / Minutes / Fiche Survolé » (1280×720).
+## HUD Tactique Isométrique « Frise Haute + Fiche Actif / Minutes / Fiche Survolé + Alerte Charge 10 s » (1280×720).
 extends Control
 
-signal targeting_state_changed(target_kind: String, valid_ids: Array)
+signal targeting_state_changed(target_kind: String, valid_ids: Array, action_id: String)
 signal frise_actor_hovered(kind: String, entity_id: String)
 
 var input_blocked: bool = false
@@ -39,6 +39,13 @@ var _hover_panel: PanelContainer = null
 var _hover_sheet_style: StyleBoxFlat = null
 var _hover_sheet_vbox: VBoxContainer = null
 
+# Zone 5 : Bandeau d'alerte Charge PNJ 10 s (centré haut du plateau, n'obstrue pas les pions)
+var _charge_alert_panel: PanelContainer = null
+var _lbl_charge_title: Label = null
+var _lbl_charge_timer: Label = null
+var _bar_charge_timer: ProgressBar = null
+var _charge_btns_hbox: HBoxContainer = null
+
 # État de ciblage sur pion & survol
 var _pending_kind: String = "" # "" | "action" | "interrupt" | "restrain"
 var _pending_id: String = ""
@@ -48,6 +55,7 @@ var _hovered_kind: String = ""
 var _hovered_id: String = ""
 var _current_action_ids: Array[String] = []
 var _bark_override_text: String = ""
+var _last_rendered_charge_key: String = ""
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -62,6 +70,12 @@ func bind_timeline(tl: Node) -> void:
 	_timeline.encounter_finished.connect(_on_encounter_finished)
 	if _timeline.has_signal("combat_feedback_emitted"):
 		_timeline.combat_feedback_emitted.connect(_on_combat_feedback)
+	if _timeline.has_signal("charge_window_started"):
+		_timeline.charge_window_started.connect(_on_charge_window_started)
+	if _timeline.has_signal("charge_window_ticked"):
+		_timeline.charge_window_ticked.connect(_on_charge_window_ticked)
+	if _timeline.has_signal("charge_window_ended"):
+		_timeline.charge_window_ended.connect(_on_charge_window_ended)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible or input_blocked or _timeline == null or not bool(_timeline.get("active")):
@@ -70,12 +84,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		var kev: InputEventKey = event as InputEventKey
 		if kev.pressed and not kev.echo:
 			var is_waiting: bool = bool(_timeline.get("awaiting_step"))
+			var is_charge_win: bool = bool(_timeline.call("is_charge_window_active"))
 			if kev.keycode == KEY_SPACE or kev.keycode == KEY_ENTER or kev.keycode == KEY_KP_ENTER:
-				if is_waiting and _pending_kind == "":
+				if is_waiting and not is_charge_win and _pending_kind == "":
 					_timeline.call("step_next_beat")
 					get_viewport().set_input_as_handled()
-			elif kev.keycode >= KEY_1 and kev.keycode <= KEY_6:
-				if not is_waiting:
+			elif kev.keycode >= KEY_1 and kev.keycode <= KEY_9:
+				if not is_waiting and not is_charge_win:
 					var idx: int = int(kev.keycode - KEY_1)
 					if idx >= 0 and idx < _current_action_ids.size():
 						select_action(_current_action_ids[idx])
@@ -232,6 +247,49 @@ func _build_ui() -> void:
 	_hover_sheet_vbox.add_theme_constant_override("separation", 5)
 	_hover_panel.add_child(_hover_sheet_vbox)
 
+	# 5. BANDEAU D'ALERTE CHARGE PNJ 10 s (x=230..1050, y=130..204 — dégage les pions dès y=214)
+	_charge_alert_panel = PanelContainer.new()
+	_charge_alert_panel.position = Vector2(230, 130)
+	_charge_alert_panel.size = Vector2(820, 74)
+	_charge_alert_panel.visible = false
+	_charge_alert_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_charge_alert_panel.add_theme_stylebox_override("panel", _make_box(Color(0.20, 0.04, 0.05, 0.96), Color(1.0, 0.28, 0.24), 2, 6))
+	add_child(_charge_alert_panel)
+
+	var ch_v: VBoxContainer = VBoxContainer.new()
+	ch_v.add_theme_constant_override("separation", 4)
+	_charge_alert_panel.add_child(ch_v)
+
+	var ch_head: HBoxContainer = HBoxContainer.new()
+	ch_head.add_theme_constant_override("separation", 8)
+	ch_v.add_child(ch_head)
+
+	_lbl_charge_title = Label.new()
+	_lbl_charge_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_lbl_charge_title.clip_text = true
+	_lbl_charge_title.add_theme_font_size_override("font_size", 12)
+	_lbl_charge_title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.42))
+	ch_head.add_child(_lbl_charge_title)
+
+	_lbl_charge_timer = Label.new()
+	_lbl_charge_timer.custom_minimum_size = Vector2(72, 0)
+	_lbl_charge_timer.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_lbl_charge_timer.add_theme_font_size_override("font_size", 13)
+	_lbl_charge_timer.add_theme_color_override("font_color", Color(1.0, 0.42, 0.36))
+	ch_head.add_child(_lbl_charge_timer)
+
+	_bar_charge_timer = ProgressBar.new()
+	_bar_charge_timer.custom_minimum_size = Vector2(0, 7)
+	_bar_charge_timer.show_percentage = false
+	_bar_charge_timer.max_value = 10.0
+	_bar_charge_timer.value = 10.0
+	_bar_charge_timer.modulate = Color(1.0, 0.32, 0.28)
+	ch_v.add_child(_bar_charge_timer)
+
+	_charge_btns_hbox = HBoxContainer.new()
+	_charge_btns_hbox.add_theme_constant_override("separation", 6)
+	ch_v.add_child(_charge_btns_hbox)
+
 ## Indique si le joueur est en train de sélectionner une cible PJ ou PNJ sur le plateau isométrique.
 func has_pending_targeting() -> bool:
 	return _pending_kind != ""
@@ -241,7 +299,7 @@ func cancel_targeting() -> void:
 	if _pending_kind == "":
 		return
 	_clear_pending_targeting()
-	targeting_state_changed.emit("", [])
+	targeting_state_changed.emit("", [], "")
 	refresh()
 
 func _clear_pending_targeting() -> void:
@@ -256,7 +314,7 @@ func _start_targeting(pk: String, pid: String, tkind: String) -> void:
 	if _pending_kind == pk and _pending_id == pid:
 		cancel_targeting()
 		return
-	var valid_var: Variant = _timeline.call("get_valid_target_ids", tkind)
+	var valid_var: Variant = _timeline.call("get_valid_target_ids_for_action", pid) if pk == "action" else _timeline.call("get_valid_target_ids", tkind)
 	var valid_arr: Array[String] = []
 	if valid_var is Array:
 		for vv in (valid_var as Array):
@@ -267,40 +325,48 @@ func _start_targeting(pk: String, pid: String, tkind: String) -> void:
 	_pending_id = pid
 	_pending_target_kind = tkind
 	_pending_valid_targets = valid_arr
-	targeting_state_changed.emit(tkind, valid_arr)
+	targeting_state_changed.emit(tkind, valid_arr, pid if pk == "action" else "")
 	refresh()
 
 ## Sélectionne une option du tour PJ actif (exécute si sans cible, sinon active le ciblage sur pion).
 func select_action(action_id: String) -> void:
 	if _timeline == null or not bool(_timeline.get("active")):
 		return
-	if bool(_timeline.get("awaiting_step")):
+	if bool(_timeline.get("awaiting_step")) or bool(_timeline.call("is_charge_window_active")):
 		return
 	var tkind: String = str(_timeline.call("get_action_target_kind", action_id))
 	if tkind == "none":
 		_clear_pending_targeting()
-		targeting_state_changed.emit("", [])
+		targeting_state_changed.emit("", [], "")
 		_timeline.call("execute_player_action", action_id)
 	else:
 		_start_targeting("action", action_id, tkind)
 
 ## Déclenche ou prépare le ciblage d'une Interruption hors-tour.
 func select_interruption(char_id: String) -> void:
-	if _timeline == null or not bool(_timeline.get("active")):
+	if _timeline == null or not bool(_timeline.get("active")) or bool(_timeline.call("is_charge_window_active")):
 		return
 	var tkind: String = str(_timeline.call("get_interruption_target_kind", char_id))
 	if tkind == "none":
 		_clear_pending_targeting()
-		targeting_state_changed.emit("", [])
+		targeting_state_changed.emit("", [], "")
 		_timeline.call("trigger_interruption", char_id)
 	else:
 		_start_targeting("interrupt", char_id, tkind)
 
 ## Prépare le ciblage du pion PJ en Crise d'autonomie à retenir.
 func select_restrain() -> void:
-	if _timeline == null or not bool(_timeline.get("active")):
+	if _timeline == null or not bool(_timeline.get("active")) or bool(_timeline.call("is_charge_window_active")):
 		return
 	_start_targeting("restrain", "restrain", "ally_crisis")
+
+## Reçoit un clic sur une case vide de la grille isométrique pour déplacer le PJ actif (PM restants).
+func on_stage_cell_clicked(gx: int, gy: int) -> void:
+	if input_blocked or _timeline == null or not bool(_timeline.get("active")):
+		return
+	if _pending_kind != "" or bool(_timeline.get("awaiting_step")) or bool(_timeline.call("is_charge_window_active")):
+		return
+	_timeline.call("move_active_ally_to", gx, gy)
 
 ## Reçoit le survol d'un pion depuis le quadrillage isométrique central.
 func on_stage_actor_hovered(kind: String, entity_id: String) -> void:
@@ -312,13 +378,30 @@ func on_stage_actor_hovered(kind: String, entity_id: String) -> void:
 func on_stage_actor_clicked(kind: String, entity_id: String) -> void:
 	if _timeline == null or not bool(_timeline.get("active")):
 		return
+	if bool(_timeline.call("is_charge_window_active")) and kind == "enemy":
+		var ch_v: Variant = _timeline.get("pending_enemy_charge")
+		if ch_v is Dictionary and str((ch_v as Dictionary).get("enemy_id", "")) == entity_id:
+			var cand_v: Variant = _timeline.call("get_charge_interceptor_candidates")
+			if cand_v is Array and not (cand_v as Array).is_empty():
+				var best_cid: String = ""
+				var best_pct: int = -1
+				for cv in (cand_v as Array):
+					if cv is Dictionary:
+						var cd: Dictionary = cv as Dictionary
+						var pct_c: int = int(cd.get("chance_pct", 0)) + (1000 if bool(cd.get("is_target_ally", false)) else 0)
+						if pct_c > best_pct:
+							best_pct = pct_c
+							best_cid = str(cd.get("char_id", ""))
+				if best_cid != "":
+					_timeline.call("trigger_charge_interception", best_cid)
+					return
 	if _pending_kind != "":
 		var kind_ok: bool = ((_pending_target_kind == "enemy" and kind == "enemy") or ((_pending_target_kind == "ally" or _pending_target_kind == "ally_crisis") and kind == "ally"))
 		if kind_ok and _pending_valid_targets.has(entity_id):
 			var pk: String = _pending_kind
 			var pid: String = _pending_id
 			_clear_pending_targeting()
-			targeting_state_changed.emit("", [])
+			targeting_state_changed.emit("", [], "")
 			if pk == "action":
 				_timeline.call("execute_player_action_on", pid, entity_id)
 			elif pk == "interrupt":
@@ -342,46 +425,157 @@ func _on_combat_feedback(event_data: Dictionary) -> void:
 		if k == "ally_brilliant":
 			_bark_panel_style.border_color = Color(0.98, 0.78, 0.24)
 			_bark_panel_style.bg_color = Color(0.14, 0.11, 0.05, 0.96)
-		elif k == "ally_flaw" or k == "enemy" or k == "crisis" or k == "counter":
+		elif k == "ally_flaw" or k == "enemy" or k == "crisis" or k == "counter" or k == "charge_alert":
 			_bark_panel_style.border_color = Color(0.92, 0.24, 0.24)
 			_bark_panel_style.bg_color = Color(0.14, 0.06, 0.07, 0.96)
 		else:
 			_bark_panel_style.border_color = Color(0.95, 0.55, 0.16)
 			_bark_panel_style.bg_color = Color(0.10, 0.09, 0.12, 0.96)
 
+func _on_charge_window_started(_charge_data: Dictionary) -> void:
+	_last_rendered_charge_key = ""
+	_sync_charge_alert_panel()
+
+func _on_charge_window_ticked(time_left: float, time_max: float) -> void:
+	if _lbl_charge_timer != null:
+		_lbl_charge_timer.text = "⏱ %.1f s" % maxf(0.0, time_left)
+	if _bar_charge_timer != null:
+		_bar_charge_timer.max_value = maxf(0.1, time_max)
+		_bar_charge_timer.value = clampf(time_left, 0.0, time_max)
+
+func _on_charge_window_ended(_outcome: String, _summary: String) -> void:
+	_last_rendered_charge_key = ""
+	if _charge_alert_panel != null:
+		_charge_alert_panel.visible = false
+
+func _sync_charge_alert_panel() -> void:
+	if _charge_alert_panel == null or _timeline == null:
+		return
+	var is_cw: bool = bool(_timeline.call("is_charge_window_active"))
+	if not is_cw:
+		_charge_alert_panel.visible = false
+		_last_rendered_charge_key = ""
+		return
+	_charge_alert_panel.visible = true
+	var ch_v: Variant = _timeline.get("pending_enemy_charge")
+	var ch: Dictionary = ch_v as Dictionary if ch_v is Dictionary else {}
+	var tl: float = float(ch.get("time_left", 10.0))
+	var tm: float = float(ch.get("time_max", 10.0))
+	_lbl_charge_timer.text = "⏱ %.1f s" % maxf(0.0, tl)
+	_bar_charge_timer.max_value = maxf(0.1, tm)
+	_bar_charge_timer.value = clampf(tl, 0.0, tm)
+
+	var cands_v: Variant = _timeline.call("get_charge_interceptor_candidates")
+	var cands: Array = cands_v as Array if cands_v is Array else []
+	var cid_parts: Array[String] = []
+	for cv in cands:
+		if cv is Dictionary:
+			cid_parts.append(str((cv as Dictionary).get("char_id", "")))
+	var ename: String = str(ch.get("enemy_name", "PNJ"))
+	var tname: String = str(ch.get("target_ally_name", "PJ"))
+	var render_key: String = "%s|%s|%s" % [ename, tname, ",".join(cid_parts)]
+	if render_key == _last_rendered_charge_key:
+		return
+	_last_rendered_charge_key = render_key
+
+	_lbl_charge_title.text = "⚡ CHARGE PNJ ! %s fonce sur %s → (%d,%d) — Clique un PJ ou le pion pour INTERCEPTER (-2 rangs) !" % [
+		ename, tname, int(ch.get("to_x", 0)), int(ch.get("to_y", 0))
+	]
+	for b in _charge_btns_hbox.get_children():
+		b.queue_free()
+
+	var l_int: Label = Label.new()
+	l_int.text = "Interception (10 s) :"
+	l_int.add_theme_font_size_override("font_size", 11)
+	l_int.add_theme_color_override("font_color", Color(0.95, 0.88, 0.72))
+	_charge_btns_hbox.add_child(l_int)
+
+	if cands.is_empty():
+		var l_none: Label = Label.new()
+		l_none.text = "Aucun PJ avec Réaction disponible…"
+		l_none.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		l_none.add_theme_font_size_override("font_size", 11)
+		l_none.add_theme_color_override("font_color", Color(0.75, 0.65, 0.65))
+		_charge_btns_hbox.add_child(l_none)
+	else:
+		for cv2 in cands:
+			if cv2 is Dictionary:
+				var cd: Dictionary = cv2 as Dictionary
+				var cid: String = str(cd.get("char_id", ""))
+				var btn_i: Button = Button.new()
+				btn_i.custom_minimum_size = Vector2(0, 26)
+				btn_i.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				btn_i.clip_text = true
+				btn_i.focus_mode = Control.FOCUS_NONE
+				btn_i.add_theme_font_size_override("font_size", 11)
+				var tgt_tag: String = " [Cible]" if bool(cd.get("is_target_ally", false)) else ""
+				btn_i.text = "⚡ %s%s · %d%%" % [str(cd.get("name", cid)), tgt_tag, int(cd.get("chance_pct", 50))]
+				btn_i.tooltip_text = "%s vs DD %d — Réussite : %s ASSOMMÉ & perd 2 rangs !" % [str(cd.get("skill_name", "")), int(cd.get("dc", 11)), ename]
+				btn_i.add_theme_stylebox_override("normal", _make_box(Color(0.12, 0.24, 0.36), Color(0.36, 0.86, 0.98), 1, 4))
+				var cid_cap: String = cid
+				btn_i.pressed.connect(func() -> void:
+					if _timeline != null:
+						_timeline.call("trigger_charge_interception", cid_cap)
+				)
+				_charge_btns_hbox.add_child(btn_i)
+
+	var btn_pass: Button = Button.new()
+	btn_pass.text = "Encaisser / Passer ▶"
+	btn_pass.custom_minimum_size = Vector2(142, 26)
+	btn_pass.focus_mode = Control.FOCUS_NONE
+	btn_pass.add_theme_font_size_override("font_size", 10)
+	btn_pass.add_theme_stylebox_override("normal", _make_box(Color(0.30, 0.14, 0.12), Color(0.90, 0.42, 0.32), 1, 4))
+	btn_pass.pressed.connect(func() -> void:
+		if _timeline != null:
+			_timeline.call("resolve_pending_enemy_charge")
+	)
+	_charge_btns_hbox.add_child(btn_pass)
+
 func _on_encounter_finished(_outcome_id: String, _summary: String) -> void:
 	visible = false
 	_clear_pending_targeting()
+	_last_rendered_charge_key = ""
+	if _charge_alert_panel != null:
+		_charge_alert_panel.visible = false
 	_hovered_kind = ""
 	_hovered_id = ""
 	_bark_override_text = ""
-	targeting_state_changed.emit("", [])
+	targeting_state_changed.emit("", [], "")
 	frise_actor_hovered.emit("", "")
 	if _bark_panel_style != null:
 		_bark_panel_style.border_color = Color(0.86, 0.22, 0.22)
 		_bark_panel_style.bg_color = Color(0.10, 0.09, 0.12, 0.96)
 
-## Reconstruit la Frise haute, la fiche active, les Minutes du combat et l'éventuelle fiche survolée.
+## Reconstruit la Frise haute, le bandeau d'alerte Charge, la fiche active, les Minutes du combat et la fiche survolée.
 func refresh() -> void:
 	if _timeline == null:
 		return
 	var is_act: bool = bool(_timeline.get("active"))
 	visible = is_act
 	if not is_act:
+		if _charge_alert_panel != null:
+			_charge_alert_panel.visible = false
 		return
 
+	var is_cw_now: bool = bool(_timeline.call("is_charge_window_active"))
+	if is_cw_now and _pending_kind != "":
+		_clear_pending_targeting()
+		targeting_state_changed.emit("", [], "")
+
 	if _pending_kind != "":
-		var valid_now_var: Variant = _timeline.call("get_valid_target_ids", _pending_target_kind)
+		var valid_now_var: Variant = _timeline.call("get_valid_target_ids_for_action", _pending_id) if _pending_kind == "action" else _timeline.call("get_valid_target_ids", _pending_target_kind)
 		var valid_now: Array[String] = []
 		if valid_now_var is Array:
 			for vn in (valid_now_var as Array):
 				valid_now.append(str(vn))
 		if valid_now.is_empty():
 			_clear_pending_targeting()
-			targeting_state_changed.emit("", [])
+			targeting_state_changed.emit("", [], "")
 		else:
 			_pending_valid_targets = valid_now
-			targeting_state_changed.emit(_pending_target_kind, _pending_valid_targets)
+			targeting_state_changed.emit(_pending_target_kind, _pending_valid_targets, _pending_id if _pending_kind == "action" else "")
+
+	_sync_charge_alert_panel()
 
 	var turn_c: int = int(_timeline.get("turn_count"))
 	var crs_t: int = int(_timeline.get("crs_ticks"))
@@ -424,14 +618,15 @@ func _build_frise_vertical_card(ed: Dictionary) -> Control:
 	var eid: String = str(ed.get("id", ""))
 	var is_acting: bool = bool(ed.get("acting", false))
 	var in_crisis: bool = bool(ed.get("in_crisis", false))
+	var is_stun: bool = bool(ed.get("stunned", false))
 
 	var card: PanelContainer = PanelContainer.new()
 	card.custom_minimum_size = Vector2(82, 104)
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 	var col_char: Color = Color.html(str(ed.get("color", "#f28c28")))
-	var b_col: Color = Color(1.0, 0.82, 0.24) if is_acting else (Color(1.0, 0.28, 0.28) if in_crisis else col_char)
-	var bg_col: Color = Color(0.20, 0.14, 0.08, 0.96) if is_acting else (Color(0.22, 0.08, 0.09, 0.96) if in_crisis else Color(0.10, 0.11, 0.14, 0.94))
-	card.add_theme_stylebox_override("panel", _make_box(bg_col, b_col, 3 if (is_acting or in_crisis) else 1, 4))
+	var b_col: Color = Color(1.0, 0.82, 0.24) if is_acting else (Color(1.0, 0.28, 0.28) if in_crisis else (Color(0.76, 0.52, 0.98) if is_stun else col_char))
+	var bg_col: Color = Color(0.20, 0.14, 0.08, 0.96) if is_acting else (Color(0.22, 0.08, 0.09, 0.96) if in_crisis else (Color(0.16, 0.10, 0.22, 0.95) if is_stun else Color(0.10, 0.11, 0.14, 0.94)))
+	card.add_theme_stylebox_override("panel", _make_box(bg_col, b_col, 3 if (is_acting or in_crisis or is_stun) else 1, 4))
 
 	if kind == "ally" or kind == "enemy":
 		var k_cap: String = kind
@@ -463,11 +658,11 @@ func _build_frise_vertical_card(ed: Dictionary) -> Control:
 	cv.add_child(ptex)
 
 	var l_name: Label = Label.new()
-	l_name.text = str(ed.get("label", eid))
+	l_name.text = ("💫 " if is_stun else "") + str(ed.get("label", eid))
 	l_name.clip_text = true
 	l_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l_name.add_theme_font_size_override("font_size", 10)
-	l_name.add_theme_color_override("font_color", Color(1.0, 0.88, 0.42) if is_acting else Color(0.95, 0.93, 0.88))
+	l_name.add_theme_color_override("font_color", Color(1.0, 0.88, 0.42) if is_acting else (Color(0.86, 0.72, 1.0) if is_stun else Color(0.95, 0.93, 0.88)))
 	l_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cv.add_child(l_name)
 
@@ -594,15 +789,21 @@ func _populate_character_sheet_into(parent: VBoxContainer, sheet: Dictionary, mo
 	title_row.add_child(l_badge)
 
 	if kind == "ally":
+		var mp_l: int = int(sheet.get("move_points_left", 0))
+		var mp_m: int = int(sheet.get("move_points_max", 2))
+		var stun_s: String = "  ·  💫 ASSOMMÉ" if bool(sheet.get("stunned", false)) else ""
 		var l_st1: Label = Label.new()
-		l_st1.text = "Moral %d/%d (Seuil %d)  ·  Att. %d  ·  Aura %d" % [
+		l_st1.clip_text = true
+		l_st1.text = "Mor %d/%d · PM %d/%d · Att %d · Aura %d%s" % [
 			int(sheet.get("moral", 60)),
 			int(sheet.get("moral_max", 100)),
-			int(sheet.get("stress_threshold", 35)),
+			mp_l,
+			mp_m,
 			int(sheet.get("attitude", 60)),
-			int(sheet.get("aura", 3))
+			int(sheet.get("aura", 3)),
+			stun_s
 		]
-		l_st1.add_theme_font_size_override("font_size", 11)
+		l_st1.add_theme_font_size_override("font_size", 10)
 		l_st1.add_theme_color_override("font_color", Color(0.86, 0.90, 0.94))
 		info_v.add_child(l_st1)
 
@@ -622,24 +823,27 @@ func _populate_character_sheet_into(parent: VBoxContainer, sheet: Dictionary, mo
 	else:
 		var rmax_e: int = maxi(1, int(sheet.get("resolve_max", 1)))
 		var rcur_e: int = int(sheet.get("resolve", 1))
+		var stun_es: String = " · 💫 ASSOMMÉ" if bool(sheet.get("stunned", false)) else ""
 		var l_es1: Label = Label.new()
-		l_es1.text = "Résolution %d/%d  ·  DD Social %d  ·  DD Pression %d" % [
-			rcur_e, rmax_e, int(sheet.get("dc_social", 11)), int(sheet.get("dc_pression", 11))
+		l_es1.clip_text = true
+		l_es1.text = "Résol. %d/%d · DD Soc %d · DD Pres %d%s" % [
+			rcur_e, rmax_e, int(sheet.get("dc_social", 11)), int(sheet.get("dc_pression", 11)), stun_es
 		]
-		l_es1.add_theme_font_size_override("font_size", 11)
+		l_es1.add_theme_font_size_override("font_size", 10)
 		l_es1.add_theme_color_override("font_color", Color(1.0, 0.68, 0.64))
 		info_v.add_child(l_es1)
 
 		var l_es2: Label = Label.new()
 		l_es2.clip_text = true
-		l_es2.text = ("⚠ Contre prête (-6 Mor.)" if bool(sheet.get("counter_ready", false)) else "Pas de contre active") + "  ·  Cran +%d" % int(sheet.get("next_tick", 1))
+		l_es2.text = ("⚠ Intercept./Contre prêt" if bool(sheet.get("counter_ready", false)) else "Pas de contre active") + "  ·  Cran +%d" % int(sheet.get("next_tick", 1))
 		l_es2.add_theme_font_size_override("font_size", 10)
 		l_es2.add_theme_color_override("font_color", Color(1.0, 0.40, 0.40) if bool(sheet.get("counter_ready", false)) else Color(0.76, 0.80, 0.86))
 		info_v.add_child(l_es2)
 
 	# Corps central spécifique Actif vs Survol
+	var is_cw_sheet: bool = bool(_timeline.call("is_charge_window_active"))
 	if mode == "active":
-		if kind == "ally" and not is_crisis_turn and not is_waiting:
+		if kind == "ally" and not is_crisis_turn and not is_waiting and not is_cw_sheet:
 			var act_scroll: ScrollContainer = ScrollContainer.new()
 			act_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			act_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -662,21 +866,25 @@ func _populate_character_sheet_into(parent: VBoxContainer, sheet: Dictionary, mo
 				var aid: String = str(ad.get("id", ""))
 				var is_eq: bool = bool(ad.get("is_equipment", false))
 				var is_used: bool = bool(ad.get("used", false))
+				var usable: bool = bool(ad.get("usable", true))
+				var lock_r: String = str(ad.get("locked_reason", ""))
 				var pct: int = int(ad.get("chance_pct", 0))
 				var is_fl: bool = bool(ad.get("is_flaw", false))
+				var r_tag: String = str(ad.get("range_label", ""))
+				var r_suffix: String = (" (%s)" % r_tag) if (r_tag != "" and r_tag != "∞") else ""
 				var slbl: String = str(ad.get("short_label", aid))
 				var tkind: String = str(_timeline.call("get_action_target_kind", aid))
-				var tgt_mark: String = " 🎯" if tkind != "none" else ""
+				var tgt_mark: String = " 🎯" if (tkind != "none" and usable) else ""
 				_current_action_ids.append(aid)
 
 				var btn: Button = Button.new()
-				btn.custom_minimum_size = Vector2(0, 32)
+				btn.custom_minimum_size = Vector2(0, 29)
 				btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 				btn.clip_text = true
 				btn.focus_mode = Control.FOCUS_NONE
-				btn.disabled = is_used
+				btn.disabled = (is_used or not usable)
 				btn.tooltip_text = str(ad.get("tooltip", slbl))
-				btn.add_theme_font_size_override("font_size", 11)
+				btn.add_theme_font_size_override("font_size", 10)
 
 				var is_sel_pending: bool = (_pending_kind == "action" and _pending_id == aid)
 				if aid == "act_escape_now":
@@ -688,11 +896,16 @@ func _populate_character_sheet_into(parent: VBoxContainer, sheet: Dictionary, mo
 				elif is_eq:
 					if is_used:
 						btn.text = "[%d] ★ %s [Util.]" % [slot_num, slbl]
+					elif not usable:
+						btn.text = "[%d] ★ %s%s [H.P.]" % [slot_num, slbl, r_suffix]
 					else:
-						btn.text = "[%d] ★ %s%s · %d%%%s" % [slot_num, slbl, tgt_mark, pct, (" ⚠" if is_fl else "")]
+						btn.text = "[%d] ★ %s%s%s · %d%%%s" % [slot_num, slbl, r_suffix, tgt_mark, pct, (" ⚠" if is_fl else "")]
 						btn.add_theme_stylebox_override("normal", _make_box(Color(0.18, 0.14, 0.08), Color(0.92, 0.70, 0.24), 1, 4))
+				elif not usable:
+					var lock_short: String = "Outil tir" if aid == "act_tir" and "Outil" in lock_r else "H.P."
+					btn.text = "[%d] 🔒 %s%s · %s" % [slot_num, slbl, r_suffix, lock_short]
 				else:
-					btn.text = "[%d] %s%s · %d%%%s" % [slot_num, slbl, tgt_mark, pct, (" ⚠" if is_fl else "")]
+					btn.text = "[%d] %s%s%s · %d%%%s" % [slot_num, slbl, r_suffix, tgt_mark, pct, (" ⚠" if is_fl else "")]
 					if is_fl:
 						btn.add_theme_color_override("font_color", Color(1.0, 0.56, 0.52))
 						btn.add_theme_stylebox_override("normal", _make_box(Color(0.16, 0.09, 0.10), Color(0.88, 0.34, 0.32), 1, 4))
@@ -710,7 +923,10 @@ func _populate_character_sheet_into(parent: VBoxContainer, sheet: Dictionary, mo
 			var l_body: Label = Label.new()
 			l_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			l_body.add_theme_font_size_override("font_size", 11)
-			if is_crisis_turn:
+			if is_cw_sheet:
+				l_body.text = "⚡ CHARGE EN COURS (%s) !\nClique un PJ sur le bandeau ci-dessus ou ce pion pour l'intercepter avant la fin des 10 s !" % str(sheet.get("name", ""))
+				l_body.add_theme_color_override("font_color", Color(1.0, 0.62, 0.44))
+			elif is_crisis_turn:
 				l_body.text = "🔥 CRISE D'AUTONOMIE IMMINENTE : %s\nRetiens %s hors-frise ou résous avec [Espace]." % [str(sheet.get("crisis_label", "")), str(sheet.get("name", ""))]
 				l_body.add_theme_color_override("font_color", Color(1.0, 0.58, 0.54))
 			elif kind == "enemy":
@@ -721,10 +937,25 @@ func _populate_character_sheet_into(parent: VBoxContainer, sheet: Dictionary, mo
 				l_body.add_theme_color_override("font_color", Color(0.84, 0.88, 0.92))
 			desc_panel.add_child(l_body)
 
-		# Pied de fiche active : Réactions hors-frise + Retenir crise
+		# Pied de fiche active : Fin tour (+1c) + Réactions hors-frise + Retenir crise
 		var react_h: HBoxContainer = HBoxContainer.new()
 		react_h.add_theme_constant_override("separation", 4)
 		parent.add_child(react_h)
+
+		if kind == "ally" and not is_crisis_turn and not is_waiting and not is_cw_sheet:
+			var btn_wait: Button = Button.new()
+			btn_wait.text = "⏳ Fin (+1c)"
+			btn_wait.custom_minimum_size = Vector2(76, 26)
+			btn_wait.focus_mode = Control.FOCUS_NONE
+			btn_wait.tooltip_text = "Clôturer le tour sans attaquer (+1 cran, garde Réaction)"
+			btn_wait.add_theme_font_size_override("font_size", 10)
+			btn_wait.pressed.connect(func() -> void:
+				if _timeline != null:
+					_clear_pending_targeting()
+					targeting_state_changed.emit("", [], "")
+					_timeline.call("end_active_ally_turn_wait")
+			)
+			react_h.add_child(btn_wait)
 
 		var l_hr: Label = Label.new()
 		l_hr.text = "Hors-frise:"
@@ -789,6 +1020,16 @@ func _populate_character_sheet_into(parent: VBoxContainer, sheet: Dictionary, mo
 		var l_pv_tgt: Label = Label.new()
 		l_pv_tgt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l_pv_tgt.add_theme_font_size_override("font_size", 11)
+		var dist_str: String = ""
+		var ent_act_v: Variant = _timeline.call("get_active_turn_entity")
+		if ent_act_v is Dictionary:
+			var ent_act: Dictionary = ent_act_v as Dictionary
+			var ak_act: String = str(ent_act.get("kind", ""))
+			var aid_act: String = str(ent_act.get("id", ""))
+			if aid_act != "" and not (ak_act == kind and aid_act == eid):
+				var d_val: int = int(_timeline.call("get_distance_between", ak_act, aid_act, kind, eid))
+				if d_val >= 0:
+					dist_str = "Dist. : %d case(s) · " % d_val
 		if _pending_kind != "":
 			var k_ok: bool = ((_pending_target_kind == "enemy" and kind == "enemy") or ((_pending_target_kind == "ally" or _pending_target_kind == "ally_crisis") and kind == "ally"))
 			if k_ok and _pending_valid_targets.has(eid):
@@ -809,28 +1050,38 @@ func _populate_character_sheet_into(parent: VBoxContainer, sheet: Dictionary, mo
 				var pct_s: String = ("🎲 %d%% · " % pct_v) if pct_v > 0 else ""
 				var warn_s: String = ""
 				if bool(pv_res.get("counter_warning", false)):
-					warn_s = "\n⚠ CONTRE (-6 Moral !)"
+					warn_s = "\n⚠ %s" % str(pv_res.get("counter_label", "INTERCEPTION / CONTRE PRÊT !"))
 				elif bool(pv_res.get("is_flaw", false)):
 					warn_s = "\n⚠ FAILLE (%s %+d)" % [str(pv_res.get("skill_name", "")), int(pv_res.get("skill_val", -1))]
-				l_pv_tgt.text = "🎯 CIBLE VALIDE — %s%s%s\n▸ Clic gauche sur le pion pour valider" % [pct_s, str(pv_res.get("summary", "")), warn_s]
+				l_pv_tgt.text = "🎯 CIBLE VALIDE (%s%s)%s%s\n▸ Clic gauche sur le pion pour valider" % [dist_str, pct_s, str(pv_res.get("summary", "")), warn_s]
 				l_pv_tgt.add_theme_color_override("font_color", Color(1.0, 0.88, 0.34))
+			elif _pending_kind == "action" and kind == "enemy":
+				var pva_bad: Variant = _timeline.call("preview_player_action_on", _pending_id, eid)
+				var bad_r: String = str((pva_bad as Dictionary).get("reason", "Hors portée / non ciblable")) if pva_bad is Dictionary else "Non ciblable"
+				l_pv_tgt.text = "%s🚫 %s" % [dist_str, bad_r]
+				l_pv_tgt.add_theme_color_override("font_color", Color(0.95, 0.56, 0.44))
 			else:
-				l_pv_tgt.text = "Non ciblable pour l'option sélectionnée."
+				l_pv_tgt.text = "%sNon ciblable pour l'option sélectionnée." % dist_str
 				l_pv_tgt.add_theme_color_override("font_color", Color(0.62, 0.64, 0.70))
 		else:
-			l_pv_tgt.text = "Statut : prochain tour dans +%d cran(s)." % int(sheet.get("next_tick", 0))
-			l_pv_tgt.add_theme_color_override("font_color", Color(0.70, 0.78, 0.88))
+			var stun_tag: String = "💫 ASSOMMÉ · " if bool(sheet.get("stunned", false)) else ""
+			l_pv_tgt.text = "%s%sProchain tour dans +%d cran(s)." % [dist_str, stun_tag, int(sheet.get("next_tick", 0))]
+			l_pv_tgt.add_theme_color_override("font_color", Color(0.86, 0.74, 1.0) if bool(sheet.get("stunned", false)) else Color(0.70, 0.78, 0.88))
 		mid_v.add_child(l_pv_tgt)
 
 func _rebuild_minutes_panel(is_waiting: bool, step_lbl: String) -> void:
-	if _pending_kind != "":
+	var is_cw_min: bool = bool(_timeline.call("is_charge_window_active"))
+	if is_cw_min:
+		_lbl_minutes_status.text = "⚡ CHARGE PNJ — INTERCEPTE OU ENCAISSE !"
+		_lbl_minutes_status.add_theme_color_override("font_color", Color(1.0, 0.36, 0.32))
+	elif _pending_kind != "":
 		_lbl_minutes_status.text = "🎯 Clique le pion ciblé sur la scène"
 		_lbl_minutes_status.add_theme_color_override("font_color", Color(1.0, 0.86, 0.30))
 	elif is_waiting:
 		_lbl_minutes_status.text = "BEAT PRÊT ([Espace])"
 		_lbl_minutes_status.add_theme_color_override("font_color", Color(0.98, 0.72, 0.24))
 	else:
-		_lbl_minutes_status.text = "Tour PJ — Actions à gauche"
+		_lbl_minutes_status.text = "Tour PJ — Case bleue (PM) ou Action [1–9]"
 		_lbl_minutes_status.add_theme_color_override("font_color", Color(0.70, 0.88, 0.74))
 
 	var bark_txt: String = _bark_override_text
@@ -849,13 +1100,13 @@ func _rebuild_minutes_panel(is_waiting: bool, step_lbl: String) -> void:
 		_minutes_scroll.set_deferred("scroll_vertical", 99999)
 
 	_btn_cancel_target.visible = (_pending_kind != "")
-	if is_waiting and _pending_kind == "":
+	if is_waiting and not is_cw_min and _pending_kind == "":
 		_btn_step.disabled = false
 		_btn_step.text = "[Espace] %s ▶" % step_lbl
 		_btn_step.add_theme_stylebox_override("normal", _make_box(Color(0.46, 0.18, 0.10), Color(0.98, 0.72, 0.24), 2, 4))
 	else:
 		_btn_step.disabled = true
-		_btn_step.text = "Sélectionne un pion sur la scène…" if _pending_kind != "" else "Choisis une action [1–6] ou ⚡"
+		_btn_step.text = "Alerte Charge (10 s) en cours…" if is_cw_min else ("Sélectionne un pion sur la scène…" if _pending_kind != "" else "Case bleue (PM) · Action [1–9] · ⚡")
 		_btn_step.add_theme_stylebox_override("normal", _make_box(Color(0.14, 0.14, 0.18), Color(0.36, 0.38, 0.44), 1, 4))
 
 func _make_box(bg: Color, border: Color, bw: int, pad: int) -> StyleBoxFlat:

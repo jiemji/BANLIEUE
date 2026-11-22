@@ -496,6 +496,33 @@
       "unlocks_actions": [
         { "id": "act_equip_pause_musique", "label": "Pause musique au Box", "desc": "Apaise la tension nerveuse de la bande." }
       ]
+    },
+    {
+      "id": "lance_pierre",
+      "name": "Lance-pierre artisanal",
+      "slot": "tool",
+      "desc": "Fourche en acier gainée d'élastiques noirs et bille d'acier pour tenir le S.O. à distance.",
+      "stat_mods": {},
+      "skill_mods": { "systeme_d": 1 },
+      "combat_tags": ["ranged_shoot"],
+      "ranged_bonus": 1,
+      "ranged_label": "Lance-pierre",
+      "unlocks_skills": [],
+      "unlocks_actions": []
+    },
+    {
+      "id": "petards_mammouth",
+      "name": "Pétards Mammouth & briquet",
+      "slot": "tool",
+      "desc": "Gros pétards à mèche épaisse pour tirer un coup de semonce ou couvrir un repli sur le quai.",
+      "stat_mods": {},
+      "skill_mods": { "systeme_d": 1 },
+      "combat_tags": ["ranged_shoot", "throw_bonus"],
+      "ranged_bonus": 1,
+      "throw_bonus": 1,
+      "ranged_label": "Pétards Mammouth",
+      "unlocks_skills": [],
+      "unlocks_actions": []
     }
   ]
 }
