@@ -59,7 +59,7 @@ BANLIEUE/
     │   │   ├── garage_bananes.json      # 8×8 (backdrop — garage_bananes.png)
     │   │   ├── squat_kepons.json        # 8×8 (backdrop — squat_kepons.png)
     │   │   └── lisiere_poudrerie.json   # 8×8 (backdrop — lisiere_poudrerie.png)
-    │   ├── dialogues.json               # Nœuds narratifs, conditions (min_skill, require_item) et effets (XP/Objets/Traits/Recrutement)
+    │   ├── dialogues.json               # 40 nœuds narratifs, Jets de rue (skill_check), conditions (min_skill, require_item, require_action) et effets (XP/Objets/Traits/Recrutement)
     │   ├── equipment.json               # Catalogue des 10 compétences (-3..+5) et des 24 équipements Look/Outil/Fétiche
     │   ├── timeline_encounters.json     # Rencontre Gare RER « du Y », ennemis, CRS, Train Fantôme & interruptions
     │   └── radio_fm.json                # 5 fréquences FM (92.4, 95.8, 98.6, 101.2, 104.7 nuit)
@@ -87,7 +87,7 @@ BANLIEUE/
         │   └── pawn_actor.gd            # Nœud pion : shader contour 2px, ombre silhouette 4h (+ lights), cartel
         └── ui/
             ├── hud_overlay.gd           # Bandeau 1982, fil d'Ariane N1-N4, bouton Menu, bande 1–6 & Tuner Radio FM
-            ├── dialogue_panel.gd        # Boîte de dialogue BD/fanzine avec portraits et choix annotés
+            ├── dialogue_panel.gd        # Boîte de dialogue BD/fanzine avec portrait, badges 🎲 % / ⚠ FAILLE et bandeau _roll_banner
             ├── timeline_panel.gd        # Frise-Cartes Unifiée (Option A : fiches portraits/stats/hors-frise + barre timing)
             ├── character_sheet_panel.gd # Carnet de Bande [F] : fiches PJ (Esprit/Corps/Énergie, -3..+5, XP, coffre, relations)
             ├── title_menu_panel.gd      # Menu Principal / Pause unifié sur fond vivant du Box-Garage
@@ -103,7 +103,7 @@ BANLIEUE/
 ### Autoloads *(Singletons sans `class_name`)*
 1. **`DataLoader`** : Charge la hiérarchie modulaire (`data/world/idf.json` → `departments/*.json` → `cities/*.json` → `maps/interiors/*.json`), les personnages, dialogues, rencontres, stations FM ainsi que `data/player_profiles.json` ; expose les accesseurs typés (`get_region`, `get_department`, `get_city`, `get_interior`, `get_location`, `get_character`, `get_dialogue`, `get_encounter`, `get_portrait_def`, `get_archetype_def`) et `apply_leader_profile()`.
 2. **`SettingsManager`** : Persiste les préférences utilisateur dans `user://settings.cfg` (`ConfigFile`) — mode fenêtré/plein écran, volume général, coupure du son, ambiance FM, grain 16mm, secousse d'écran et taille de police des dialogues.
-3. **`GameState`** : Source unique de vérité pour l'état de la partie (`has_active_session`, `leader_profile`, `current_zoom_level` `1..4`, `current_region_id`, `current_department_id`, `current_city_id`, `phase` `"day" | "twilight" | "night"`, `clock_minutes`, `francs`, `faveurs`, `notoriete`, `aura_bonus`, `flags`, `clues`, `squad_members`, `member_states`, `active_group_id`, `current_station_idx`) ; expose `to_save_dict()` / `load_from_save_dict()` et émet des signaux découplés (`state_changed`, `phase_changed`, `active_group_changed`, `zoom_changed`, `log_added`).
+3. **`GameState`** : Source unique de vérité pour l'état de la partie (`has_active_session`, `leader_profile`, `current_zoom_level` `1..4`, `current_region_id`, `current_department_id`, `current_city_id`, `phase` `"day" | "twilight" | "night"`, `clock_minutes`, `francs`, `faveurs`, `notoriete`, `aura_bonus`, `flags`, `clues`, `squad_members`, `member_states`, `member_progression`, `box_stash`, `active_group_id`, `current_station_idx`) et moteur centralisé de **Jets de rue `2d6 + Carac + Comp`** (`preview_street_roll`, `perform_street_roll`) ; expose `to_save_dict()` / `load_from_save_dict()` et émet des signaux découplés (`state_changed`, `phase_changed`, `active_group_changed`, `zoom_changed`, `log_added`).
 4. **`AudioRadio`** : Synthétiseur procédural alimenté par `GameState` et `SettingsManager` (tonalité adaptée au changement de phase Jour/Sas/Nuit, lit FM feutré en mode accueil `title_mode` et zapping des 5 fréquences FM).
 5. **`SaveManager`** : Gère les 3 emplacements manuels (`Cassette A`, `Cassette B`, `Cassette C` → `user://saves/slot_1..3.json`, zéro auto-save) avec lecture rapide des métadonnées (`read_slot_meta`), sauvegarde, chargement et suppression.
 
@@ -145,5 +145,5 @@ Conformément à la spécification validée dans [structure_menus_et_ecrans.md](
 * **Écrans UI** : `scripts/ui/title_menu_panel.gd` (menu unifié Accueil/Pause sur fond vivant du Box-Garage piloté par `AppState` dans `main.gd`), `scripts/ui/save_load_panel.gd`, `scripts/ui/options_panel.gd` et `scripts/ui/new_game_panel.gd`.
 
 ### Jalons ultérieurs
-* **Jalon 1 *(Fiches PJ, Équipements & Audio — socle `v0.5.0` livré)*** : Implémentation du **Carnet de Bande `[F]`** ([fiches_personnages_pj.md](file:///e:/JDR/BANLIEUE/docs/fiches_personnages_pj.md) — `Esprit/Corps/Énergie`, 10 compétences `-3..+5`, XP et `equipment.json` à effets actifs) ; reste l'enrichissement des stems audio Cold Wave / FM (les 9 décors isométriques N4 et 3 cartes IGN N1–N3 étant déjà illustrés).
+* **Jalon 1 *(Fiches PJ, Équipements & Audio — socle `v0.5.0 / v0.5.1` livré)*** : Implémentation du **Carnet de Bande `[F]`** ([fiches_personnages_pj.md](file:///e:/JDR/BANLIEUE/docs/fiches_personnages_pj.md) — `Esprit/Corps/Énergie`, 10 compétences `-3..+5`, XP et `equipment.json` à effets actifs) et câblage complet des **Jets de rue `2d6`** et des **8 actions actives d'équipement `★`** en dialogue et sur la Frise ; reste l'enrichissement des stems audio Cold Wave / FM (les 9 décors isométriques N4 et 3 cartes IGN N1–N3 étant déjà illustrés).
 * **Jalon 2 *(Chantier D — Campagne Complète)*** : Ouverture du **Chantier D** dans `docs/` pour injecter le scénario principal, les 4 autres compagnons recrutables et les 4 fins directement via de nouveaux fichiers JSON sans refondre le moteur.

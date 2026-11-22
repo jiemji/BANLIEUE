@@ -1,3 +1,4 @@
+## Interpréteur Data-Driven des dialogues : prérequis, Jets de rue (skill_check) et effets sur GameState.
 extends Node
 
 signal node_updated(dialogue_id: String, node_data: Dictionary, choices: Array)
@@ -11,6 +12,7 @@ signal skill_roll_resolved(roll_result: Dictionary)
 var current_dialogue_id: String = ""
 var last_roll_result: Dictionary = {}
 
+## Ouvre un nœud de dialogue, évalue les conditions/jets des choix et injecte l'éventuel verdict précédent.
 func start_dialogue(dialogue_id: String) -> void:
 	var node: Dictionary = DataLoader.get_dialogue(dialogue_id)
 	if node.is_empty():
@@ -42,6 +44,7 @@ func start_dialogue(dialogue_id: String) -> void:
 				evaluated.append(cd)
 	node_updated.emit(dialogue_id, node_out, evaluated)
 
+## Traite le choix sélectionné : exécute un éventuel Jet de rue (next / fail_next) et applique les effets.
 func pick_choice(choice_index: int) -> void:
 	if current_dialogue_id == "":
 		return
@@ -131,11 +134,13 @@ func pick_choice(choice_index: int) -> void:
 	else:
 		close_dialogue()
 
+## Ferme le dialogue en cours et réinitialise le dernier verdict de jet.
 func close_dialogue() -> void:
 	current_dialogue_id = ""
 	last_roll_result = {}
 	dialogue_finished.emit()
 
+## Résout les paramètres du meilleur lanceur et des bonus contextuels d'un choix à skill_check.
 func _get_choice_roll_params(choice: Dictionary) -> Dictionary:
 	var sc_var: Variant = choice.get("skill_check", {})
 	if not (sc_var is Dictionary):
@@ -180,6 +185,7 @@ func _get_choice_roll_params(choice: Dictionary) -> Dictionary:
 		"bonus_label": " + ".join(bonus_parts)
 	}
 
+## Calcule la prévisualisation en lecture seule (_roll_preview) d'un choix à Jet de rue.
 func _evaluate_choice_roll(choice: Dictionary) -> Dictionary:
 	var rp: Dictionary = _get_choice_roll_params(choice)
 	if rp.is_empty():
@@ -192,6 +198,7 @@ func _evaluate_choice_roll(choice: Dictionary) -> Dictionary:
 		str(rp.get("bonus_label", ""))
 	)
 
+## Évalue l'ensemble des prérequis d'un choix (ressources, compétences, objets, actions équipées, flags, phase).
 func _check_conditions(cond_var: Variant) -> Dictionary:
 	if not (cond_var is Dictionary):
 		return {"ok": true, "reason": ""}
@@ -248,6 +255,7 @@ func _check_conditions(cond_var: Variant) -> Dictionary:
 			return {"ok": false, "reason": label_p}
 	return {"ok": true, "reason": ""}
 
+## Applique les effets d'un nœud sur GameState et retourne les déclencheurs spéciaux (move_to, rencontre, crépuscule).
 func _apply_effects(eff_var: Variant) -> Dictionary:
 	var triggers: Dictionary = {}
 	if not (eff_var is Dictionary):
@@ -308,6 +316,7 @@ func _apply_effects(eff_var: Variant) -> Dictionary:
 	GameState.state_changed.emit()
 	return triggers
 
+## Recherche dans DataLoader le nom de l'équipement fournissant une action donnée pour les info-bulles de blocage.
 func _find_item_name_for_action(action_id: String) -> String:
 	for iid_var in DataLoader.equipment_catalog.keys():
 		var idef: Dictionary = DataLoader.get_equipment_def(str(iid_var))

@@ -1,3 +1,4 @@
+## Boîte de dialogue BD/fanzine : portraits, bandeau verdict _roll_banner et badges de probabilité 🎲 % / Faille.
 extends Control
 
 signal choice_selected(choice_index: int)
@@ -120,6 +121,7 @@ func _build_ui() -> void:
 	_choices_box.add_theme_constant_override("separation", 4)
 	choices_scroll.add_child(_choices_box)
 
+## Affiche un nœud de dialogue, le bandeau de dernier jet (_roll_banner) et les choix annotés (🎲 % / ⚠ FAILLE).
 func show_node(node_data: Dictionary, choices: Array) -> void:
 	visible = true
 	var spk_id: String = str(node_data.get("speaker_id", "leader"))
@@ -217,6 +219,7 @@ func show_node(node_data: Dictionary, choices: Array) -> void:
 			btn.pressed.connect(func() -> void: choice_selected.emit(idx_cap))
 			_choices_box.add_child(btn)
 
+## Masque la boîte de dialogue.
 func hide_panel() -> void:
 	visible = false
 

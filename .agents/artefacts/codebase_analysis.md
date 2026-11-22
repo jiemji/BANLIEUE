@@ -57,8 +57,8 @@
 | **Monde** | `world/iso_prop_node.gd` | Props isométriques triés par Y-sort en mode modulaire |
 | **Monde** | `world/pawn_actor.gd` | Pion RGBA 526 px, shader contour dynamique 2 px et ombre portée 4h |
 | **UI Jeu** | `ui/hud_overlay.gd` | Bandeau 1982 (`Fiches [F]`), fil d'Ariane N1–N4, bouton `Menu`, gestion bande, tuner FM, pistes (masqué en combat) |
-| **UI Jeu** | `ui/dialogue_panel.gd` | Boîte de dialogue BD avec portrait, choix annotés et police dynamique |
-| **UI Jeu** | `ui/timeline_panel.gd` | HUD unifié Option A : barre fine haut, Frise-Cartes Unifiée (portraits, stats, hors-frise) & barre actions timing |
+| **UI Jeu** | `ui/dialogue_panel.gd` | Boîte de dialogue BD avec portrait, choix en `ScrollContainer`, badges `🎲 %` / `⚠ FAILLE`, bandeau verdict `_roll_banner` & police dynamique |
+| **UI Jeu** | `ui/timeline_panel.gd` | HUD unifié Option A : barre fine haut, Frise-Cartes Unifiée (portraits, stats, hors-frise) & actions `[1–6]` (`%`, `★` équipement, alerte Faille) |
 | **UI Jeu** | `ui/character_sheet_panel.gd` | Carnet de Bande `[F]` double-page : `Esprit/Corps/Énergie`, compétences `-3..+5`, XP, coffre équipement & relations |
 | **UI Menu** | `ui/title_menu_panel.gd` | Menu unifié Accueil (`TITLE_MENU`) / Pause (`PAUSE_MENU`) avec confirmations |
 | **UI Menu** | `ui/new_game_panel.gd` | Écran « Nouvelle partie » 2 colonnes (prénom + 6 portraits/pions + 4 archétypes) |
@@ -68,12 +68,12 @@
 ---
 
 ## 4. Conventions & Contrats Vérifiés Automatiquement
-* **Strict GDScript 2.0** : `process_banlieue_assets.py` interdit `class_name` dans `autoload/` et interdit toute inférence `:=` sur `.get(`, `.call(`, `JSON.parse_string` ou `[` (zéro violation sur les 20 scripts).
+* **Strict GDScript 2.0** : `process_banlieue_assets.py` interdit `class_name` dans `autoload/` et interdit toute inférence `:=` sur `.get(`, `.call(`, `JSON.parse_string` ou `[` (zéro violation sur les 21 scripts).
 * **Chargement d'images robuste** : Les vues UI et monde utilisent `_load_texture_safe()` (fallback `Image.load_from_file`) pour tolérer les PNG hors cache `.import`, et `DataLoader.apply_leader_profile()` / `NewGamePanel` basculent proprement sur `leader.png` / `leader_pawn.png` pour les profils `pending_asset`.
 * **Persistance séparée** : Préférences globales dans `user://settings.cfg` (`ConfigFile`) ; sauvegardes de session manuelles exclusivement dans `user://saves/slot_1..3.json`.
 
 ---
 
 ## 5. Couverture de Test & Validation
-* **Validation statique & intégrité (`--mode validate`)** : Contrôle JSON atlas N1–N3 (`map_idf.png`, `map_93.png`, `map_cradon.png` + 5 secteurs & 9 lieux inclus), **9/9 intérieurs N4** en mode `backdrop` (`garage_bananes`, `squat_kepons`, `lisiere_poudrerie` inclus), **9 personnages** (`manu` & `zoe` inclus), **dialogues (`skill_check`, `fail_next`, `require_action`)**, `equipment.json`, rencontres, `player_profiles.json`, `res://` et RGBA `526 px` de tous les pions → **0 erreur** (**0 pending graphic assets**).
+* **Validation statique & intégrité (`--mode validate`)** : Contrôle JSON atlas N1–N3 (`map_idf.png`, `map_93.png`, `map_cradon.png` + 5 secteurs & 9 lieux inclus), **9/9 intérieurs N4** en mode `backdrop` (`garage_bananes`, `squat_kepons`, `lisiere_poudrerie` inclus), **9 personnages** (`manu` & `zoe` inclus), **40 dialogues (`skill_check`, `fail_next`, `require_action`)**, `equipment.json`, rencontres, `player_profiles.json`, `res://` et RGBA `526 px` de tous les pions → **0 erreur** (**0 pending graphic assets**).
 * **Smoke test automatisé Godot 4.7.2 headless (`smoke_test_menus.gd`)** : Vérifie les 5 autoloads, les 4 archétypes sociaux, les 6 portraits/pions joueur réels sur disque, **Manu & Zoé + bande à 6 membres**, les 5 secteurs / 9 lieux de Cradon, les `occluders` calibrés des 9 intérieurs `backdrop`, la spécialité `sang_froid`, la persistance `SettingsManager`, le cycle complet `SaveManager`, la machine d'états UI de `main.tscn` et la suite `v0.5.1` (Jets de rue `2d6`, Couacs de faille, `require_action` et actions d'équipement actives sur la Frise) → **0 erreur**.

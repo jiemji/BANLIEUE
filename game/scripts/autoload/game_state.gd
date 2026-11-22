@@ -248,6 +248,7 @@ func _ensure_progression_entry(char_id: String, initial_xp: int = 0) -> void:
 		"traits": empty_traits
 	}
 
+## Retourne (et initialise au besoin) l'entrée de progression d'un PJ (xp, compétences, équipement, traits).
 func get_member_progression(char_id: String) -> Dictionary:
 	if not member_progression.has(char_id):
 		_ensure_progression_entry(char_id, 0)
@@ -277,6 +278,7 @@ func _sum_equipment_stat_mod(char_id: String, stat_key: String) -> int:
 			total += int((sm_var as Dictionary).get(stat_key, 0))
 	return total
 
+## Calcule la caractéristique effective (1..5) d'un PJ en cumulant base et bonus d'équipement.
 func get_effective_characteristic(char_id: String, charac_id: String) -> int:
 	var cdef: Dictionary = DataLoader.get_character(char_id)
 	var ch_var: Variant = cdef.get("characteristics", {})
@@ -285,6 +287,7 @@ func get_effective_characteristic(char_id: String, charac_id: String) -> int:
 		base = int((ch_var as Dictionary).get(charac_id, 3))
 	return clampi(base + _sum_equipment_stat_mod(char_id, charac_id), 1, 5)
 
+## Retourne la valeur de base (-3..+5) d'une compétence sur la fiche du PJ.
 func get_base_skill(char_id: String, skill_id: String) -> int:
 	var prog: Dictionary = get_member_progression(char_id)
 	var sk_var: Variant = prog.get("skills", {})
@@ -292,6 +295,7 @@ func get_base_skill(char_id: String, skill_id: String) -> int:
 		return clampi(int((sk_var as Dictionary).get(skill_id, 0)), -3, 5)
 	return 0
 
+## Somme les modificateurs de compétence apportés par les objets équipés du PJ.
 func get_equipment_skill_bonus(char_id: String, skill_id: String) -> int:
 	var bonus: int = 0
 	for iid in _get_equipped_item_ids(char_id):
@@ -301,6 +305,7 @@ func get_equipment_skill_bonus(char_id: String, skill_id: String) -> int:
 			bonus += int((mods_var as Dictionary).get(skill_id, 0))
 	return bonus
 
+## Calcule la compétence effective (-3..+5) incluant base, bonus d'équipement et déblocage minimal à +1.
 func get_effective_skill(char_id: String, skill_id: String) -> int:
 	var base: int = get_base_skill(char_id, skill_id)
 	var bonus: int = get_equipment_skill_bonus(char_id, skill_id)
@@ -318,6 +323,7 @@ func get_effective_skill(char_id: String, skill_id: String) -> int:
 		total = 1
 	return clampi(total, -3, 5)
 
+## Retourne le meilleur score effectif du sous-groupe actif pour une compétence donnée.
 func get_best_active_group_skill(skill_id: String) -> int:
 	var best: int = -3
 	var active_ids: Array[String] = get_active_group_members()
@@ -329,22 +335,27 @@ func get_best_active_group_skill(skill_id: String) -> int:
 			best = val
 	return best
 
+## Retourne l'Attitude effective d'un PJ (base + bonus d'équipement).
 func get_effective_attitude_for(char_id: String) -> int:
 	var cdef: Dictionary = DataLoader.get_character(char_id)
 	return maxi(0, int(cdef.get("attitude", 60)) + _sum_equipment_stat_mod(char_id, "attitude"))
 
+## Retourne l'Aura effective d'un PJ (base + bonus d'équipement).
 func get_effective_aura_for(char_id: String) -> int:
 	var cdef: Dictionary = DataLoader.get_character(char_id)
 	return maxi(0, int(cdef.get("aura", 2)) + _sum_equipment_stat_mod(char_id, "aura"))
 
+## Retourne le plafond de Moral effectif d'un PJ (plancher 20).
 func get_effective_moral_max(char_id: String) -> int:
 	var cdef: Dictionary = DataLoader.get_character(char_id)
 	return maxi(20, int(cdef.get("moral_max", 100)) + _sum_equipment_stat_mod(char_id, "moral_max"))
 
+## Retourne le seuil de basculement en Crise d'autonomie (borné 5..90).
 func get_effective_stress_threshold(char_id: String) -> int:
 	var cdef: Dictionary = DataLoader.get_character(char_id)
 	return clampi(int(cdef.get("stress_threshold", 35)) + _sum_equipment_stat_mod(char_id, "stress_threshold"), 5, 90)
 
+## Liste les actions spéciales débloquées par les équipements portés par un PJ (dédupliquées).
 func get_unlocked_equipment_actions(char_id: String) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var seen: Dictionary = {}
@@ -361,27 +372,33 @@ func get_unlocked_equipment_actions(char_id: String) -> Array[Dictionary]:
 						out.append(ad.duplicate(true))
 	return out
 
+## Enfile un lancer 2d6 déterministe (utilisé par les tests automatisés).
 func enqueue_forced_roll(d1: int, d2: int) -> void:
 	forced_roll_queue.append([clampi(d1, 1, 6), clampi(d2, 1, 6)])
 
+## Vide la file des lancers 2d6 forcés.
 func clear_forced_rolls() -> void:
 	forced_roll_queue.clear()
 
+## Indique si un PJ possède l'action d'équipement demandée via son matériel porté.
 func has_equipped_action(char_id: String, action_id: String) -> bool:
 	for ad in get_unlocked_equipment_actions(char_id):
 		if str(ad.get("id", "")) == action_id:
 			return true
 	return false
 
+## Retourne l'ID du premier membre du sous-groupe actif équipé pour une action donnée (sinon "").
 func get_active_group_member_with_action(action_id: String) -> String:
 	for cid in get_active_group_members():
 		if has_equipped_action(cid, action_id):
 			return cid
 	return ""
 
+## Indique si au moins un membre du sous-groupe actif débloque l'action d'équipement demandée.
 func has_action_in_active_group(action_id: String) -> bool:
 	return get_active_group_member_with_action(action_id) != ""
 
+## Retourne le nom affiché de l'objet porté par le PJ qui débloque l'action donnée.
 func get_equipped_action_item_name(char_id: String, action_id: String) -> String:
 	for iid in _get_equipped_item_ids(char_id):
 		var idef: Dictionary = DataLoader.get_equipment_def(iid)
@@ -392,10 +409,12 @@ func get_equipped_action_item_name(char_id: String, action_id: String) -> String
 					return str(idef.get("name", iid))
 	return ""
 
+## Retourne l'identifiant de caractéristique rattaché à une compétence (esprit, corps ou energie).
 func get_skill_charac_id(skill_id: String) -> String:
 	var sk_def: Dictionary = DataLoader.get_skill_def(skill_id)
 	return str(sk_def.get("charac", "esprit"))
 
+## Retourne le libellé lisible d'une caractéristique (Esprit, Corps ou Énergie).
 func get_charac_label(charac_id: String) -> String:
 	if charac_id == "corps":
 		return "Corps"
@@ -403,6 +422,7 @@ func get_charac_label(charac_id: String) -> String:
 		return "Énergie"
 	return "Esprit"
 
+## Sélectionne le meilleur lanceur du groupe actif (ou le personnage imposé) pour un test de compétence.
 func get_best_active_group_roller(skill_id: String, specific_char_id: String = "") -> Dictionary:
 	var charac_id: String = get_skill_charac_id(skill_id)
 	var charac_lbl: String = get_charac_label(charac_id)
@@ -451,6 +471,7 @@ func get_best_active_group_roller(skill_id: String, specific_char_id: String = "
 		"is_flaw": chosen_sk < 0
 	}
 
+## Calcule la probabilité exacte (3..97 %) de réussir 2d6 + mod >= dc (double 1 = échec, double 6 = succès).
 func compute_street_roll_chance(mod: int, dc: int) -> int:
 	var wins: int = 0
 	for d1 in range(1, 7):
@@ -463,6 +484,7 @@ func compute_street_roll_chance(mod: int, dc: int) -> int:
 				wins += 1
 	return clampi(int(round(float(wins) * 100.0 / 36.0)), 3, 97)
 
+## Prévisualise sans lancer les dés un Jet de rue (chance_pct, formule, modificateurs et état Faille).
 func preview_street_roll(char_id: String, skill_id: String, dc: int, bonus: int = 0, bonus_label: String = "") -> Dictionary:
 	var charac_id: String = get_skill_charac_id(skill_id)
 	var charac_lbl: String = get_charac_label(charac_id)
@@ -502,6 +524,7 @@ func preview_street_roll(char_id: String, skill_id: String, dc: int, bonus: int 
 		"formula": formula
 	}
 
+## Exécute un Jet de rue 2d6 + Carac + Comp (ou consomme forced_roll_queue) et produit le verdict complet.
 func perform_street_roll(char_id: String, skill_id: String, dc: int, bonus: int = 0, bonus_label: String = "") -> Dictionary:
 	var res: Dictionary = preview_street_roll(char_id, skill_id, dc, bonus, bonus_label)
 	var d1: int = randi_range(1, 6)
@@ -562,6 +585,7 @@ func perform_street_roll(char_id: String, skill_id: String, dc: int, bonus: int 
 	res["roll_summary"] = roll_summary
 	return res
 
+## Retourne le coût en XP du prochain rang de compétence (-1 si plafond +5 atteint).
 func get_skill_upgrade_cost(current_val: int, is_new_learn: bool = false) -> int:
 	if current_val >= 5:
 		return -1
@@ -577,6 +601,7 @@ func get_skill_upgrade_cost(current_val: int, is_new_learn: bool = false) -> int
 		return 130
 	return 180
 
+## Attribue de l'XP à un PJ ou à l'ensemble de la bande ("all").
 func add_xp(char_id: String, amount: int) -> void:
 	if amount <= 0:
 		return
@@ -591,6 +616,7 @@ func add_xp(char_id: String, amount: int) -> void:
 	add_log("XP %s : +%d XP" % [cname, amount])
 	state_changed.emit()
 
+## Dépense l'XP d'un PJ pour monter d'un cran une compétence (-3..+5) si le budget le permet.
 func upgrade_member_skill(char_id: String, skill_id: String) -> bool:
 	var prog: Dictionary = get_member_progression(char_id)
 	var sk_var: Variant = prog.get("skills", {})
@@ -616,6 +642,7 @@ func upgrade_member_skill(char_id: String, skill_id: String) -> bool:
 	state_changed.emit()
 	return true
 
+## Inscrit un Trait narratif permanent sur la fiche d'un PJ s'il ne le possède pas encore.
 func add_trait(char_id: String, trait_label: String) -> void:
 	if trait_label == "":
 		return
@@ -633,6 +660,7 @@ func add_trait(char_id: String, trait_label: String) -> void:
 		add_log("Trait acquis (%s) : %s" % [cname, trait_label])
 		state_changed.emit()
 
+## Ajoute un équipement connu au coffre partagé du Box-Garage sans doublon.
 func add_to_box_stash(item_id: String) -> void:
 	if item_id == "" or DataLoader.get_equipment_def(item_id).is_empty():
 		return
@@ -642,6 +670,7 @@ func add_to_box_stash(item_id: String) -> void:
 		add_log("Coffre Box-Garage : +%s" % iname)
 		state_changed.emit()
 
+## Vérifie si un objet est présent dans le coffre du Box-Garage ou porté dans le groupe actif.
 func has_item_in_active_group_or_stash(item_id: String) -> bool:
 	if box_stash.has(item_id):
 		return true
@@ -650,6 +679,7 @@ func has_item_in_active_group_or_stash(item_id: String) -> bool:
 			return true
 	return false
 
+## Équipe un objet depuis box_stash sur le PJ (en renvoyant l'éventuel objet remplacé au coffre).
 func equip_item(char_id: String, item_id: String) -> bool:
 	var idef: Dictionary = DataLoader.get_equipment_def(item_id)
 	if idef.is_empty() or not box_stash.has(item_id):
@@ -675,6 +705,7 @@ func equip_item(char_id: String, item_id: String) -> bool:
 	state_changed.emit()
 	return true
 
+## Retire l'objet porté sur l'emplacement donné et le replace dans le coffre du Box-Garage.
 func unequip_slot(char_id: String, slot_name: String) -> bool:
 	var prog: Dictionary = get_member_progression(char_id)
 	var eq_var: Variant = prog.get("equipment", {})

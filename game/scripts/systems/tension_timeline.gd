@@ -662,6 +662,7 @@ func preview_player_action(action_id: String) -> Dictionary:
 		return {"valid": false, "reason": "Appuie d'abord sur Espace pour résoudre le beat en attente."}
 	return _build_action_preview(action_id, str(acting.get("char_id", "leader")))
 
+## Calcule en lecture seule le résultat prévisionnel d'une action tactique ou d'équipement pour un PJ.
 func _build_action_preview(action_id: String, actor_id: String) -> Dictionary:
 	var target: Dictionary = _peek_selected_target()
 	if action_id == "act_escape_now":
@@ -1247,6 +1248,7 @@ func _advance_one_world_tick() -> void:
 		_finish("crs_rush", "Les bottes CRS claquent dans les escaliers : la bande file in extremis dans le souterrain sous les sirènes (-8 Moral, +1 Notoriété).")
 		return
 
+## Déclenche l'arrivée du Train Fantôme RER B dès que le compteur de tours atteint son seuil.
 func _maybe_trigger_train_fantome() -> void:
 	if not train_fantome_arrived and turn_count >= train_fantome_turn * 2:
 		train_fantome_arrived = true
@@ -1473,6 +1475,7 @@ func _push_log(msg: String) -> void:
 	if combat_log.size() > 12:
 		combat_log.remove_at(0)
 
+## Retourne l'ID de l'allié présent le plus proche du cran 0 (repli lorsque awaiting_step est actif).
 func _peek_next_present_ally_id() -> String:
 	var best_id: String = "leader"
 	var best_t: int = 999
@@ -1484,6 +1487,7 @@ func _peek_next_present_ally_id() -> String:
 				best_id = str(a.get("char_id", "leader"))
 	return best_id
 
+## Retourne l'ID de l'allié présent dont le Moral est actuellement le plus bas.
 func _get_lowest_moral_present_ally_id(fallback_id: String) -> String:
 	var best_id: String = fallback_id
 	var low_m: int = 999
@@ -1496,6 +1500,7 @@ func _get_lowest_moral_present_ally_id(fallback_id: String) -> String:
 				best_id = cid
 	return best_id
 
+## Retarde toutes les Crises d'autonomie en préavis de ticks_add crans.
 func _delay_crises_by(ticks_add: int) -> void:
 	for i in range(crisis_queue.size()):
 		var cr: Dictionary = crisis_queue[i]
@@ -1503,6 +1508,7 @@ func _delay_crises_by(ticks_add: int) -> void:
 		crisis_queue[i] = cr
 		_remove_pending_crisis(str(cr.get("char_id", "")))
 
+## Retarde d'un nombre de crans donné le préavis de Crise d'autonomie d'un PJ ciblé.
 func _delay_crisis_for(char_id: String, ticks_add: int) -> void:
 	for i in range(crisis_queue.size()):
 		var cr: Dictionary = crisis_queue[i]

@@ -268,6 +268,7 @@ func _toggle_journal() -> void:
 	_journal_drawer.visible = not _journal_drawer.visible
 	_btn_journal.text = "Journal ▾" if _journal_drawer.visible else "Journal ▸"
 
+## Met à jour le bandeau Bark BD et sa bordure/teinte selon la gravité de l'événement émis.
 func _on_combat_feedback(event_data: Dictionary) -> void:
 	var txt: String = str(event_data.get("text", ""))
 	if txt != "":
@@ -697,6 +698,7 @@ func _build_crs_card(ed: Dictionary) -> Control:
 
 	return card
 
+## Construit les boutons d'actions du timing courant (base, équipement ★ avec % et Filer par le Quai).
 func _rebuild_actions(is_waiting: bool) -> void:
 	for c in _actions_hbox.get_children():
 		c.queue_free()
@@ -793,6 +795,7 @@ func _clear_hover_spec() -> void:
 	_hover_spec = {}
 	_apply_preview_visuals()
 
+## Affiche au survol la formule 2d6, les % de réussite, l'alerte Faille/Contre et les étiquettes sur le rail.
 func _apply_preview_visuals() -> void:
 	for k in _rail_preview_labels.keys():
 		var lbl_r: Label = _rail_preview_labels[k] as Label
