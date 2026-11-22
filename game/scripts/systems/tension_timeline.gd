@@ -635,29 +635,63 @@ func preview_restrain(crisis_char_id: String) -> Dictionary:
 		"summary": "%s dépense sa Réaction : calme %s (+8 Moral, crise annulée)" % [r_name, cr_name]
 	}
 
-## Retourne la liste ordonnée des pions de la bande magnétique (avec portraits, ciblages et alertes).
+## Retourne la liste ordonnée des fiches unifiées de la Frise (alliés + crises intégrées, renforts, ennemis, CRS).
 func get_ordered_rail_entries() -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
 	var acting: Dictionary = get_acting_ally()
 	var acting_id: String = str(acting.get("char_id", ""))
+	var crisis_map: Dictionary = {}
+	for cr in crisis_queue:
+		crisis_map[str(cr.get("char_id", ""))] = cr
+
 	for a in allies:
 		var cid: String = str(a.get("char_id", ""))
 		var cdef: Dictionary = DataLoader.get_character(cid)
+		var st: Dictionary = GameState.get_member_state(cid)
 		var portrait_p: String = str(cdef.get("portrait", ""))
+		var att_val: int = int(cdef.get("attitude", 60))
+		var aura_val: int = int(cdef.get("aura", 3))
+		var moral_val: int = int(st.get("moral", 60))
+		var moral_max_val: int = maxi(1, int(st.get("moral_max", 100)))
+		var stress_thr: int = int(cdef.get("stress_threshold", 35))
 		if bool(a.get("present", false)):
 			var nt: int = int(a.get("next_tick", 0))
+			var r_ready: bool = bool(a.get("reaction_ready", false))
+			var sp_name: String = str(a.get("specialty_name", ""))
+			var in_crisis: bool = crisis_map.has(cid)
+			var cr_ticks: int = -1
+			var cr_label: String = ""
+			if in_crisis:
+				var cr_d: Dictionary = crisis_map[cid] as Dictionary
+				cr_ticks = int(cr_d.get("ticks_left", 1))
+				cr_label = str(cr_d.get("label", "Crise d'autonomie"))
+			var is_acting_now: bool = (cid == acting_id and not awaiting_step) or (not _pending_crisis_ids.is_empty() and _pending_crisis_ids[0] == cid)
+			var eff_tick: int = mini(nt, cr_ticks) if in_crisis else nt
+			var s_rank: int = 0 if is_acting_now else (1 if in_crisis else 2)
 			entries.append({
 				"kind": "ally",
 				"id": cid,
 				"label": str(a.get("name", "")).split(" ")[0],
-				"tick": nt,
+				"tick": eff_tick,
+				"turn_tick": nt,
 				"color": str(a.get("color_hex", "#f28c28")),
-				"sub": "Prêt" if (nt == 0 and cid == acting_id) else "Réact." if bool(a.get("reaction_ready", false)) else "",
+				"sub": "Prêt" if (nt == 0 and cid == acting_id) else "Réact." if r_ready else "",
 				"portrait": portrait_p,
-				"acting": (cid == acting_id and not awaiting_step),
-				"intent": str(a.get("specialty_name", "")),
+				"acting": is_acting_now,
+				"intent": sp_name,
 				"counter_ready": false,
-				"selected": false
+				"selected": false,
+				"attitude": att_val,
+				"aura": aura_val,
+				"moral": moral_val,
+				"moral_max": moral_max_val,
+				"stress_threshold": stress_thr,
+				"reaction_ready": r_ready,
+				"specialty_name": sp_name,
+				"in_crisis": in_crisis,
+				"crisis_ticks": cr_ticks,
+				"crisis_label": cr_label,
+				"sort_rank": s_rank
 			})
 		else:
 			entries.append({
@@ -671,40 +705,37 @@ func get_ordered_rail_entries() -> Array[Dictionary]:
 				"acting": false,
 				"intent": "En approche vers la gare",
 				"counter_ready": false,
-				"selected": false
+				"selected": false,
+				"attitude": att_val,
+				"aura": aura_val,
+				"moral": moral_val,
+				"moral_max": moral_max_val,
+				"sort_rank": 4
 			})
 	for e in enemies:
 		if not bool(e.get("defeated", false)):
 			var eid: String = str(e.get("id", ""))
+			var is_e_acting: bool = (not _pending_enemy_ids.is_empty() and _pending_enemy_ids[0] == eid)
+			var e_res: int = int(e.get("resolve", 1))
+			var e_res_max: int = int(e.get("resolve_max", 1))
 			entries.append({
 				"kind": "enemy",
 				"id": eid,
 				"label": str(e.get("name", "")),
 				"tick": int(e.get("next_tick", 1)),
 				"color": "#d92b2b",
-				"sub": "Rés.%d/%d" % [int(e.get("resolve", 1)), int(e.get("resolve_max", 1))],
+				"sub": "Rés.%d/%d" % [e_res, e_res_max],
 				"portrait": str(e.get("portrait", "res://assets/portraits/so_agent.png")),
-				"acting": (not _pending_enemy_ids.is_empty() and _pending_enemy_ids[0] == eid),
+				"acting": is_e_acting,
 				"intent": str(e.get("intent_label", "")),
 				"counter_ready": bool(e.get("counter_ready", false)),
-				"selected": (eid == selected_target_id)
+				"counter_label": str(e.get("counter_label", "")),
+				"resolve": e_res,
+				"resolve_max": e_res_max,
+				"role": str(e.get("role", "")),
+				"selected": (eid == selected_target_id),
+				"sort_rank": 0 if is_e_acting else 3
 			})
-	for cr in crisis_queue:
-		var cr_id: String = str(cr.get("char_id", ""))
-		var cr_def: Dictionary = DataLoader.get_character(cr_id)
-		entries.append({
-			"kind": "crisis",
-			"id": cr_id,
-			"label": "CRISE " + str(cr_def.get("name", cr_id)).split(" ")[0].to_upper(),
-			"tick": int(cr.get("ticks_left", 1)),
-			"color": "#ff3838",
-			"sub": "Préavis !" if int(cr.get("ticks_left", 1)) > 0 else "DÉCLENCHEMENT",
-			"portrait": str(cr_def.get("portrait", "")),
-			"acting": (not _pending_crisis_ids.is_empty() and _pending_crisis_ids[0] == cr_id),
-			"intent": str(cr.get("label", "Crise d'autonomie")),
-			"counter_ready": false,
-			"selected": false
-		})
 	entries.append({
 		"kind": "crs",
 		"id": "crs",
@@ -716,10 +747,15 @@ func get_ordered_rail_entries() -> Array[Dictionary]:
 		"acting": false,
 		"intent": "Bouclage des sorties RER",
 		"counter_ready": false,
-		"selected": false
+		"selected": false,
+		"sort_rank": 5
 	})
 	entries.sort_custom(func(x: Dictionary, y: Dictionary) -> bool:
-		return int(x.get("tick", 0)) < int(y.get("tick", 0))
+		var tx: int = int(x.get("tick", 0))
+		var ty: int = int(y.get("tick", 0))
+		if tx != ty:
+			return tx < ty
+		return int(x.get("sort_rank", 9)) < int(y.get("sort_rank", 9))
 	)
 	return entries
 

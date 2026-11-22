@@ -2,6 +2,12 @@
 
 Toutes les évolutions notables du projet Godot 4 et de ses documents de conception sont consignées ici.
 
+## [0.4.2] - 2026-11-22
+### UX Combat — « Option A : Frise-Cartes Unifiée » (`1280×720`)
+- **Suppression des doublons & libération de la scène** (`timeline_panel.gd`, `iso_district_view.gd`) : Retrait de la colonne ennemie droite et de la double rangée de portraits pour concentrer l'interface en deux espaces dédiés au bas de l'écran : la **Frise-Cartes Unifiée** (`y = 444..614`, avec barre d'état fine tout en haut `y = 8..44`) puis les **Actions dans le timing de la Frise** + prévisualisation (`y = 620..712`). Recentrage de `IsoDistrictView` en mode combat (`zoom = 0.85`, décalage `Vector2(0.0, 120.0 / cz)`).
+- **Fiches protagonistes complètes sur le rail** (`tension_timeline.gd`, `timeline_panel.gd`) : Enrichissement de `get_ordered_rail_entries()` avec fusion des crises sur les fiches alliées (`in_crisis`, `attitude`, `aura`, `moral`, `stress_threshold`, `reaction_ready`), stats de résolution segmentées/intentions sur les fiches ennemies cliquables, et boutons hors-frise (`⚡ Interruption` + `🛡 Retenir`) directement intégrés à chaque fiche alliée.
+- **Documentation & Tests** : Mise à jour de [ux_combat_frise.md](file:///e:/JDR/BANLIEUE/docs/ux_combat_frise.md), `architecture_technique.md`, `.agents/artefacts/*` et vérifications dédiées dans `smoke_test_menus.gd`.
+
 ## [0.4.1] - 2026-11-22
 ### Lexique & Refactorisation complète (`FAVE → Attitude`, `FASA → Aura`)
 - **Renommage complet dans les données JSON (`characters.json`, `player_profiles.json`, `dialogues.json`, `timeline_encounters.json`)** : Migration de toutes les propriétés (`"fave"` → `"attitude"`, `"fasa"` → `"aura"`, `"fasa_bonus"` → `"aura_bonus"`, `"min_fasa"` → `"min_aura"`) et de tous les libellés joueurs vers **Attitude** et **Aura**, tout en conservant intactes les clés et mentions des **Faveurs** (`faveurs`, `min_faveurs`, `faveurs_bonus`).

@@ -1,6 +1,6 @@
 # *Banlieue* — Architecture Technique
 
-> **Version courante : 0.4.1** — Mise à jour : 2026-11-22
+> **Version courante : 0.4.2** — Mise à jour : 2026-11-22
 
 *Spécification technique de référence et socle des Jalons 0 & 1 (Option C & D + UX Frise Combat v0.4) — Phase Technique (🛠️ Léo & 🎯 Agent Combat UX).*
 
@@ -87,7 +87,7 @@ BANLIEUE/
         └── ui/
             ├── hud_overlay.gd           # Bandeau 1982, fil d'Ariane N1-N4, bouton Menu, bande 1–6 & Tuner Radio FM
             ├── dialogue_panel.gd        # Boîte de dialogue BD/fanzine avec portraits et choix annotés
-            ├── timeline_panel.gd        # Vue « planche-contact / bande magnétique » de la Frise de Tension
+            ├── timeline_panel.gd        # Frise-Cartes Unifiée (Option A : fiches portraits/stats/hors-frise + barre timing)
             ├── title_menu_panel.gd      # Menu Principal / Pause unifié sur fond vivant du Box-Garage
             ├── new_game_panel.gd        # Écran « Nouvelle partie » (prénom, 6 portraits/pions libres, 4 archétypes)
             ├── save_load_panel.gd       # Modale 3 cassettes TDK 1982 (sauver, charger, effacer + confirmations)

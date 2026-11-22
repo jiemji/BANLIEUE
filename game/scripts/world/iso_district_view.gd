@@ -185,9 +185,9 @@ func _apply_camera_transform() -> void:
 		_camera.position = Vector2(455.0, 387.0) + Vector2(-170.0, 0.0) + _title_cam_drift
 		return
 	if _combat_stage_mode:
-		var cz: float = 0.88
+		var cz: float = 0.85
 		_camera.zoom = Vector2(cz, cz)
-		_camera.position = _focus_world + Vector2(0.0, 56.0 / cz)
+		_camera.position = _focus_world + Vector2(0.0, 120.0 / cz)
 		return
 	var z: float = clampf(_cam_zoom, _cam_min_zoom, _cam_max_zoom)
 	_camera.zoom = Vector2(z, z)

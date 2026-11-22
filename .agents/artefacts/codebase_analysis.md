@@ -1,6 +1,6 @@
 # Analyse Technique de la Codebase — *Banlieue*
 
-> **Version courante : 0.4.1** — Mise à jour : 2026-11-22
+> **Version courante : 0.4.2** — Mise à jour : 2026-11-22
 
 ---
 
@@ -58,7 +58,7 @@
 | **Monde** | `world/pawn_actor.gd` | Pion RGBA 526 px, shader contour dynamique 2 px et ombre portée 4h |
 | **UI Jeu** | `ui/hud_overlay.gd` | Bandeau 1982, fil d'Ariane N1–N4, bouton `Menu`, gestion bande, tuner FM, pistes (masqué en combat) |
 | **UI Jeu** | `ui/dialogue_panel.gd` | Boîte de dialogue BD avec portrait, choix annotés et police dynamique |
-| **UI Jeu** | `ui/timeline_panel.gd` | HUD cinémascope 1982 : rail haut, cartes ennemies cliquables, dock 6 portraits + `Retenir` & aperçu survol |
+| **UI Jeu** | `ui/timeline_panel.gd` | HUD unifié Option A : barre fine haut, Frise-Cartes Unifiée (portraits, stats, hors-frise) & barre actions timing |
 | **UI Menu** | `ui/title_menu_panel.gd` | Menu unifié Accueil (`TITLE_MENU`) / Pause (`PAUSE_MENU`) avec confirmations |
 | **UI Menu** | `ui/new_game_panel.gd` | Écran « Nouvelle partie » 2 colonnes (prénom + 6 portraits/pions + 4 archétypes) |
 | **UI Menu** | `ui/save_load_panel.gd` | Modale 3 cassettes manuelles (sauver, écraser, charger, effacer + confirmations) |
