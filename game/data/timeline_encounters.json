@@ -11,11 +11,13 @@
         {
           "id": "skin_nerveux",
           "name": "Skin du Bourg",
-          "role": "Agitateur FASA",
+          "role": "Agitateur (Aura)",
+          "portrait": "res://assets/portraits/so_agent.png",
           "resolve_max": 3,
           "initial_tick": 1,
           "speed": 2,
-          "intent_label": "Charge une Menace FASA (fait chuter le Moral)",
+          "intent_label": "Charge une Menace d'Aura (fait chuter le Moral)",
+          "bark": "« Dégagez du quai les loques, c'est notre territoire ici ! »",
           "has_counter_interrupt": false,
           "counter_label": ""
         },
@@ -23,10 +25,12 @@
           "id": "cousin_so",
           "name": "Cousin S.O.",
           "role": "Milice municipale",
+          "portrait": "res://assets/portraits/so_agent.png",
           "resolve_max": 4,
           "initial_tick": 2,
           "speed": 3,
           "intent_label": "Verrouille la grille du quai & insulte la bande",
+          "bark": "« Personne monte dans la rame. Ordre de la mairie. »",
           "has_counter_interrupt": false,
           "counter_label": ""
         },
@@ -34,10 +38,12 @@
           "id": "so_veteran",
           "name": "Chef S.O. Vétéran",
           "role": "Gros bras aguerri",
+          "portrait": "res://assets/portraits/so_agent.png",
           "resolve_max": 5,
           "initial_tick": 3,
           "speed": 3,
           "intent_label": "Coup de pression / Matraque préventive",
+          "bark": "« Approche d'un cran et je te règle ton compte à la matraque. »",
           "has_counter_interrupt": true,
           "counter_label": "Contre-interruption : Coup de pression prêt !"
         }
@@ -45,13 +51,13 @@
       "player_actions": [
         {
           "id": "act_tchatche",
-          "label": "Tchatche / Bluff FAVE (montrer l'arrêté / Faveur)",
+          "label": "Tchatche / Bluff Attitude (montrer l'arrêté / Faveur)",
           "desc": "Entame la détermination de la cible la plus proche (-2 résolution, -3 si dossier/Faveur).",
           "cost_tick": 2
         },
         {
           "id": "act_pression",
-          "label": "Coup de pression FASA",
+          "label": "Coup de pression (Aura)",
           "desc": "Intimidation sèche (-2 résolution + recule la cible de 1 cran), mais augmente la tension.",
           "cost_tick": 2
         },

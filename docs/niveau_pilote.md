@@ -10,8 +10,8 @@
 * **Émotion / Enjeu visé** : Faire ressentir en une seule virée la bascule tonale et mécanique de *Banlieue* : l'entraide gouailleuse et le *Système D* au grand jour (*Margerin / Renaud*), puis la pression sèche de la rue nocturne, l'électricité d'un compagnon qui craque (*La Haine / Zone*) et un vertige discret sur le quai désert du RER B.
 * **Systèmes éprouvés sur papier** :
   * **Bascule libre à la volée** entre sous-groupes scindés (`3` ↔ `2+1` ↔ `1+1+1`).
-  * **Économie de poche** (*Francs, Faveurs/Dettes, Bricole/Fringues* influant sur le *FASA*).
-  * **Frise chronologique de Tension** *(tour-par-tour cinématographique continu entre joute sociale FAVE/FASA et action d'urgence, avec **Interruptions hors-tour** par spécialités)*.
+  * **Économie de poche** (*Francs, Faveurs/Dettes, Bricole/Fringues* influant sur l'*Aura*).
+  * **Frise chronologique de Tension** *(tour-par-tour cinématographique continu entre joute sociale Attitude/Aura et action d'urgence, avec **Interruptions hors-tour** par spécialités)*.
   * **Moral & Crise d'autonomie** à préavis lisible, plus le phénomène ambigu des **Trains Fantômes de la Bifurcation**.
 
 ---
@@ -19,13 +19,13 @@
 ## 2. Déroulé Séquence par Séquence
 
 ### A. Entrée & Observation / Exploration *(Fin d'après-midi — Le Jour gouailleur)*
-* **Départ au Box-Garage** : Petite respiration de lancement autour du canapé éventré et des deux 103 SP. Le joueur vérifie les ressources de poche (*quelques pièces de 5 F, le mélange 2-temps, le coupe-vent ou blouson qui fixe le FASA du jour*) et part vers le Vieux Bourg.
+* **Départ au Box-Garage** : Petite respiration de lancement autour du canapé éventré et des deux 103 SP. Le joueur vérifie les ressources de poche (*quelques pièces de 5 F, le mélange 2-temps, le coupe-vent ou blouson qui fixe l'Aura du jour*) et part vers le Vieux Bourg.
 * **Le Galaxian sous tension** : Arrivés devant la salle de jeux *Le Galaxian*, la bande trouve le rideau à moitié baissé. Deux gros bras du **S.O. municipal** et un **Skin** viennent de scotcher un avis de fermeture administrative bidon pour le soir même et menacent d'interdire la MJC dans la foulée.
 * **La mèche de Ludo** : Accoudé au flipper *Space Invader*, **Ludo** glisse à voix basse que son **cousin** fait partie de la patrouille du S.O. de garde ce soir. Pour faire sauter ce coup de force avant 21 h, trois leviers s'offrent en même temps :
   1. Récupérer le double de l'arrêté ou une clé de passage dans le courrier retenu près de la loge de la **Tour B** *(territoire de la Concierge-Cerbère)*.
   2. Décrocher une **Faveur** d'un ancien syndicaliste cheminot des **Vieux de la Rouge** *Chez Bébert* pour contrer le taulier du *Relais Municipal*.
   3. Tester ou retourner la piste de **Ludo** aux abords du *Relais Municipal* (bluffer son cousin S.O. ou l'utiliser comme guetteur).
-* **Choix tactique immédiat** : Rester soudés à **3** (gros *FASA* de dissuasion mais une seule piste à la fois et visibilité maximale) ou **scinder la bande** en bascule libre (`1+1+1` ou `2+1`) pour battre le crépuscule de vitesse.
+* **Choix tactique immédiat** : Rester soudés à **3** (grosse *Aura* de dissuasion mais une seule piste à la fois et visibilité maximale) ou **scinder la bande** en bascule libre (`1+1+1` ou `2+1`) pour battre le crépuscule de vitesse.
 
 ### B. Obstacle, Énigme ou Dilemme Principal *(Crépuscule — Bascule libre & Mosaïque familiale)*
 *Le joueur active la **bascule libre à la volée** : il saute d'un sous-groupe à l'autre quand il le souhaite, tandis que les potes laissés en attente tiennent une consigne simple (guetter, bricoler, patienter au comptoir).*
@@ -46,17 +46,17 @@
 **Déroulé concret de la Frise Chronologique de Tension *(pas de rupture artificielle entre joute sociale et action d'urgence)* :**
 
 1. **Lecture anticipée de la Frise** :
-   * Tous les acteurs avancent sur une **Frise chronologique unique**. Les intentions adverses sont annoncées en avance sur les crans suivants : *« Le Skin charge une Menace FASA (dans 2 crans) »*, *« Le cousin S.O. verrouille la grille du quai (dans 3 crans) »*, *« Patrouille CRS en approche (dans 4 crans) »*.
+   * Tous les acteurs avancent sur une **Frise chronologique unique**. Les intentions adverses sont annoncées en avance sur les crans suivants : *« Le Skin charge une Menace d'Aura (dans 2 crans) »*, *« Le cousin S.O. verrouille la grille du quai (dans 3 crans) »*, *« Patrouille CRS en approche (dans 4 crans) »*.
 2. **Interruptions hors-tour par spécialités** :
    * Même hors de son tour d'action, un compagnon peut dépenser sa **Réaction de cycle** pour casser ou décaler un cran sur la frise :
-     * **Moquerie / Déconcentration *(Ludo ou Karim)*** : coupe la parole au Skin en pleine montée de pression, casse sa charge de *Menace FASA* et le fait reculer de 2 crans (ou l'humilie devant le cousin S.O.).
-     * **Menace / Interposition *(Leader ou Franck)*** : s'avance d'un pas sous le lampadaire en mettant son blouson et sa réputation en jeu (*FASA/FAVE*) pour absorber l'attention du S.O. à la place d'un pote fragile.
+     * **Moquerie / Déconcentration *(Ludo ou Karim)*** : coupe la parole au Skin en pleine montée de pression, casse sa charge de *Menace d'Aura* et le fait reculer de 2 crans (ou l'humilie devant le cousin S.O.).
+     * **Menace / Interposition *(Leader ou Franck)*** : s'avance d'un pas sous le lampadaire en mettant son blouson et sa réputation en jeu (*Aura/Attitude*) pour absorber l'attention du S.O. à la place d'un pote fragile.
      * **Réflexe de rue *(Nadia)*** : repère la trappe mal fermée du local technique ou pousse une poubelle métallique devant l'escalier, gagnant 2 crans d'air avant l'arrivée des CRS.
 3. **Irruption d'une Crise d'autonomie sur la Frise** :
    * Le cousin S.O. lâche une insulte sèche. Le **Moral de Karim** passe sous le seuil critique : son icône de **Stress (*Haine / Embrasement*)** s'insère **avec un préavis visible de 1 à 2 crans** sur la frise (*mâchoire crispée, pas en avant malgré l'ordre de recul*).
    * Dilemme immédiat pour le joueur :
      * **Retenir Karim** : sacrifier le tour ou la Réaction du Leader/de Nadia pour le plaquer contre le mur ou détourner sa colère (coûte une action, risque d'encaisser la pression S.O., mais évite l'escalade).
-     * **Laisser l'embrouille exploser** : Karim déclenche l'**action d'urgence** en premier (coup de coude ou jet de bouteille, *FAVE* brisé), forçant la bande à improviser sur la même frise : esquive, percée vers les caves ou sprint vers les escaliers du quai RER.
+     * **Laisser l'embrouille exploser** : Karim déclenche l'**action d'urgence** en premier (coup de coude ou jet de bouteille, *Attitude* brisée), forçant la bande à improviser sur la même frise : esquive, percée vers les caves ou sprint vers les escaliers du quai RER.
 4. **Climax ambigu sur le quai de la Gare « du Y »** :
    * En déboulant sur le quai désert pour semer les poursuivants, un **Train Fantôme du RER B** entre sans annonce en gare : rame presque vide aux néons qui clignotent, girouette affichant une destination absente des plans du réseau. L'air déplacé fait grésiller le walkman de Nadia et sa montre accuse 4 minutes de retard, tandis que la rame coupe nette la ligne de vue des CRS et du S.O. (soit la bande s'y jette pour décrocher vers l'autre rive du canal, soit elle profite de l'écran de ferraille pour couper par les voies et la trappe des caves). Bug de signalisation RATP/SNCF de 1982… ou Cradon-lès-Gonesse qui protège ou brouille ses enfants ?
 

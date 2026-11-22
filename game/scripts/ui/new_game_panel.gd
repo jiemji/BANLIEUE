@@ -407,9 +407,9 @@ func _select_archetype(arch_id: String, play_sfx: bool = true) -> void:
 	_lbl_arch_sub.text = str(adef.get("subtitle", ""))
 	_lbl_arch_story.text = str(adef.get("story", ""))
 	_lbl_arch_stakes.text = "Enjeu intime : " + str(adef.get("stakes", ""))
-	_lbl_arch_stats.text = "FAVE %d  |  FASA %d  |  Moral %d / %d  |  Seuil Stress %d (%s)" % [
-		int(adef.get("fave", 60)),
-		int(adef.get("fasa", 3)),
+	_lbl_arch_stats.text = "Attitude %d  |  Aura %d  |  Moral %d / %d  |  Seuil Stress %d (%s)" % [
+		int(adef.get("attitude", 60)),
+		int(adef.get("aura", 3)),
 		int(adef.get("moral_start", 70)),
 		int(adef.get("moral_max", 100)),
 		int(adef.get("stress_threshold", 30)),

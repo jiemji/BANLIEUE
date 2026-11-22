@@ -1,6 +1,6 @@
 # Synthèse du Projet — *Banlieue*
 
-> **Version courante : 0.3.0** — Dernière mise à jour : 2026-11-22
+> **Version courante : 0.4.1** — Dernière mise à jour : 2026-11-22
 
 ## 1. Identité & Stack
 * **Titre** : *Banlieue* — *Cradon-lès-Gonesse (1980–1984)*
@@ -21,16 +21,17 @@
 ## 4. Modules Clés (`game/scripts/`)
 * **Autoloads (5)** : `DataLoader`, `SettingsManager`, `GameState`, `AudioRadio`, `SaveManager`.
 * **Systèmes (`systems/`)** : `SquadManager` (`3+` / `2+1` / `1+1+1` + renforts), `TensionTimeline` (Frise à Interruptions dont `sang_froid` + préavis de Crises), `DialogueRunner`.
-* **Monde (`world/`)** : `WorldMapView` (N1–N3), `IsoDistrictView` (N4 + mode fond vivant d'accueil), `IsoPropNode`, `PawnActor`.
-* **Interface (`ui/`)** : `TitleMenuPanel` (Accueil/Pause unifié), `NewGamePanel` (4 archétypes + 6 portraits découplés), `SaveLoadPanel` (3 cassettes manuelles), `OptionsPanel`, `HudOverlay`, `DialoguePanel`, `TimelinePanel`.
-* **Orchestrateur** : `main.gd` (machine d'états `AppState`, raccourcis `Échap`/`Backspace`/`M`/`1-3`, Sas Boeing).
+* **Monde (`world/`)** : `WorldMapView` (N1–N3), `IsoDistrictView` (N4 + mode fond vivant d'accueil + `set_combat_stage_mode` cinémascope), `IsoPropNode`, `PawnActor`.
+* **Interface (`ui/`)** : `TitleMenuPanel` (Accueil/Pause unifié), `NewGamePanel` (4 archétypes + 6 portraits découplés), `SaveLoadPanel` (3 cassettes manuelles), `OptionsPanel`, `HudOverlay`, `DialoguePanel`, `TimelinePanel` (HUD cinémascope 1982 : rail haut, cartes ennemies cliquables, dock 6 portraits + actions `1–4` / `Tab` / `Espace`).
+* **Orchestrateur** : `main.gd` (machine d'états `AppState`, raccourcis `Échap`/`Backspace`/`M`/`1-6`, masquage `_hud` en combat & micro-secousse caméra, Sas Boeing).
 
-## 5. Dernières Améliorations *(v0.3.0 — 2026-11-22)*
-* **Expansion Canal de l'Ourcq & Lisière de la Poudrerie *(Option C complète)*** :
-  * **Compagnons Manu & Zoé** : portraits `1024×1024` et pions RGBA `526 px` intégrés dans `characters.json` (**9 personnages**), recrutements avec affinités `[Les Mains-Noires]` / `[L'Échappé·e des Pavillons]` et frictions croisées `Manu ↔ Zoé`.
-  * **3 nouveaux décors isométriques 2:1 (`1200×896`, `8×8` `backdrop`)** : `garage_bananes.png`, `squat_kepons.png` et `lisiere_poudrerie.png` avec `blocked_cells`, `occluders[]` calibrés, lumières nocturnes et scènes ambiguës Jour/Nuit à la Poudrerie.
-  * **Atlas Cradon N3 élargi** : 5e secteur `canal_ourcq`, tracé `water` Canal de l'Ourcq, **9 lieux cliquables** et matrice `neighbors` complète sur les 9 intérieurs.
-* **Polish Jalon 0 *(Option D)*** : `occluders[]` sur `galaxian.json` & `ruelle_relais.json`, bande fluide 1–6 (`touches 1–6`, 6 emplacements iso, libellés HUD dynamiques), contraste nocturne IGN/RER et réactivité `[Enfant de la Dalle]` / `[Grande Gueule du Bourg]`.
+## 5. Dernières Améliorations *(v0.4.1 — 2026-11-22)*
+* **Lexique & Refactorisation complète (`FAVE → Attitude`, `FASA → Aura`)** : Renommage intégral des clés JSON (`attitude`, `aura`, `aura_bonus`, `min_aura`), de l'API GDScript (`get_total_aura()`), des écrans HUD/Création/Frise et de toute la documentation vers **Attitude** et **Aura**, en préservant intégralement `faveurs`.
+* **Refonte UX Combat & Frise Chronologique *(v0.4.0)* (`1A / 2A / 3B / 4A`, [ux_combat_frise.md](file:///e:/JDR/BANLIEUE/docs/ux_combat_frise.md))** :
+  * **HUD cinémascope `1280×720`** : Masquage du HUD d'exploration et cadrage centré d'`IsoDistrictView` (`0.88`), bandeau haut bande magnétique + `Journal` repliable, cartes ennemies flottantes cliquables à droite et dock tactique bas.
+  * **Ciblage libre & Prévisualisation au survol** : Clic cible / `Tab`, Résolution segmentée, `intent_label`, badge rouge `counter_label` et aperçu non mutatif (`Cran X → Y`, dégâts, `⚠ CONTRE-INTERRUPTION`).
+  * **Pas-à-pas strict & Portraits unifiés** : `step_next_beat()` beat-par-beat (`Espace` / `Entrée`), cartes alliées (1 à 6) intégrant jauge Moral, seuil Stress, bouton d'Interruption et `🛡 Retenir` avec vibration fanzine, plus crises autonomes de `manu`, `zoe` et `ludo`.
+* **Acquis précédents *(v0.3.0)*** : Compagnons Manu & Zoé + 3 décors Canal/Poudrerie (`garage_bananes`, `squat_kepons`, `lisiere_poudrerie`), Atlas Cradon N3 à 5 secteurs / 9 lieux, formation 1–6.
 
 ## Statut du Code
 * **Validation statique & assets** : `process_banlieue_assets.py --mode validate` → **0 erreur** (**0 pending graphic assets**).

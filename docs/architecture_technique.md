@@ -1,8 +1,8 @@
 # *Banlieue* — Architecture Technique
 
-> **Version courante : 0.3.0** — Mise à jour : 2026-11-22
+> **Version courante : 0.4.1** — Mise à jour : 2026-11-22
 
-*Spécification technique de référence et socle des Jalons 0 & 1 (Option C & D) — Phase Technique (🛠️ Léo).*
+*Spécification technique de référence et socle des Jalons 0 & 1 (Option C & D + UX Frise Combat v0.4) — Phase Technique (🛠️ Léo & 🎯 Agent Combat UX).*
 
 ---
 
@@ -29,8 +29,8 @@ Le projet Godot est isolé dans le sous-dossier `game/` afin que l'éditeur n'in
 
 ```text
 BANLIEUE/
-├── .agents/                             # Capitalisation locale : agent dédié & pipeline assets 2D
-│   ├── agents/banlieue-asset-artist.md  # Agent DA/Assets 2D persistant (portraits, pions, décors)
+├── .agents/                             # Capitalisation locale : agents dédiés & pipeline assets 2D
+│   ├── agents/                          # banlieue-asset-artist.md (2D) & banlieue-combat-ux.md (UX Frise/Combat)
 │   └── skills/banlieue-asset-pipeline/  # Skill + script Python de détourage RGBA & validation Godot
 ├── docs/                                # Bible, chantiers créatifs et doc technique
 ├── Références/                          # Sources JDR Zone (hors indexation Godot)
@@ -43,7 +43,7 @@ BANLIEUE/
     │   ├── locations/                   # 9 décors iso 1200×896 (6 Jalon 0 + garage_bananes, squat_kepons, lisiere_poudrerie)
     │   └── maps/                        # Cartes IGN État-Major / RER 1982 (map_idf, map_93, map_cradon)
     ├── data/                            # Cœur Data-Driven 100 % JSON (atlas hiérarchique + systèmes)
-    │   ├── characters.json              # 9 personnages : Compagnons (dont Manu & Zoé) & PNJ (FAVE/FASA, Moral, Stress)
+    │   ├── characters.json              # 9 personnages : Compagnons (dont Manu & Zoé) & PNJ (Attitude/Aura, Moral, Stress)
     │   ├── player_profiles.json         # 4 archétypes sociaux & galerie de 6 portraits/pions libres
     │   ├── world/                       # Cartes N1–N3 style IGN / RATP 1982
     │   │   ├── idf.json                 # N1 : Île-de-France — map_idf.png (seul le 93 playable)
@@ -101,14 +101,14 @@ BANLIEUE/
 ### Autoloads *(Singletons sans `class_name`)*
 1. **`DataLoader`** : Charge la hiérarchie modulaire (`data/world/idf.json` → `departments/*.json` → `cities/*.json` → `maps/interiors/*.json`), les personnages, dialogues, rencontres, stations FM ainsi que `data/player_profiles.json` ; expose les accesseurs typés (`get_region`, `get_department`, `get_city`, `get_interior`, `get_location`, `get_character`, `get_dialogue`, `get_encounter`, `get_portrait_def`, `get_archetype_def`) et `apply_leader_profile()`.
 2. **`SettingsManager`** : Persiste les préférences utilisateur dans `user://settings.cfg` (`ConfigFile`) — mode fenêtré/plein écran, volume général, coupure du son, ambiance FM, grain 16mm, secousse d'écran et taille de police des dialogues.
-3. **`GameState`** : Source unique de vérité pour l'état de la partie (`has_active_session`, `leader_profile`, `current_zoom_level` `1..4`, `current_region_id`, `current_department_id`, `current_city_id`, `phase` `"day" | "twilight" | "night"`, `clock_minutes`, `francs`, `faveurs`, `notoriete`, `fasa_bonus`, `flags`, `clues`, `squad_members`, `member_states`, `active_group_id`, `current_station_idx`) ; expose `to_save_dict()` / `load_from_save_dict()` et émet des signaux découplés (`state_changed`, `phase_changed`, `active_group_changed`, `zoom_changed`, `log_added`).
+3. **`GameState`** : Source unique de vérité pour l'état de la partie (`has_active_session`, `leader_profile`, `current_zoom_level` `1..4`, `current_region_id`, `current_department_id`, `current_city_id`, `phase` `"day" | "twilight" | "night"`, `clock_minutes`, `francs`, `faveurs`, `notoriete`, `aura_bonus`, `flags`, `clues`, `squad_members`, `member_states`, `active_group_id`, `current_station_idx`) ; expose `to_save_dict()` / `load_from_save_dict()` et émet des signaux découplés (`state_changed`, `phase_changed`, `active_group_changed`, `zoom_changed`, `log_added`).
 4. **`AudioRadio`** : Synthétiseur procédural alimenté par `GameState` et `SettingsManager` (tonalité adaptée au changement de phase Jour/Sas/Nuit, lit FM feutré en mode accueil `title_mode` et zapping des 5 fréquences FM).
 5. **`SaveManager`** : Gère les 3 emplacements manuels (`Cassette A`, `Cassette B`, `Cassette C` → `user://saves/slot_1..3.json`, zéro auto-save) avec lecture rapide des métadonnées (`read_slot_meta`), sauvegarde, chargement et suppression.
 
 ### Systèmes Métiers (`scripts/systems/`)
 * **`SquadManager`** : Pilote la bande modulable (`3+`, `2+1`, `1+1+1`), la **bascule libre à la volée** entre sous-groupes (`switch_to_group`), les consignes d'attente (`Guetter`, `Bricoler`, `Attendre`), les déplacements inter-lieux et le calcul de proximité (`compute_reinforcement_ticks`) permettant d'insérer les potes proches comme **« Renfort dans X crans »** sur une Frise nocturne.
-* **`TensionTimeline`** : Orchestre la **Frise chronologique de Tension** en crans triés : annonces des intentions adverses à l'avance, **1 Réaction d'Interruption hors-tour** par personnage et par cycle (rechargée au tour normal), contre-interruptions des adversaires vétérans, **préavis diégétique de Crise d'autonomie** à `+2 crans` dès que le **Moral** atteint le seuil de Stress (offrant l'option `Retenir` avant explosion), compte à rebours des CRS et arrivée du **Train Fantôme RER B**.
-* **`DialogueRunner`** : Interprète les nœuds de `dialogues.json`, vérifie les prérequis (`min_francs`, `require_member`, `require_flag`, `min_fasa`) et applique leurs effets sur `GameState` puis notifie les vues via signaux.
+* **`TensionTimeline`** : Orchestre la **Frise chronologique de Tension** (`ux_combat_frise.md`) en crans triés avec ciblage libre (`select_target`, `cycle_target`), prévisualisations non destructives (`preview_player_action`, `preview_interruption`, `preview_restrain`), **résolution pas-à-pas stricte (`awaiting_step` / `step_next_beat`)**, **1 Réaction d'Interruption hors-tour** par personnage et par cycle (dont `sang_froid`), contre-interruptions des adversaires vétérans, **préavis diégétique de Crise d'autonomie** à `+2 crans` (couvrant jusqu'aux 6 alliés dont Manu, Zoé et Ludo), compte à rebours des CRS et arrivée du **Train Fantôme RER B**.
+* **`DialogueRunner`** : Interprète les nœuds de `dialogues.json`, vérifie les prérequis (`min_francs`, `require_member`, `require_flag`, `min_aura`) et applique leurs effets sur `GameState` puis notifie les vues via signaux.
 
 ### Flux de Données & Navigation
 ```text
@@ -129,7 +129,7 @@ BANLIEUE/
 ## 4. Plan du Premier Prototype Jouable (Jalon 0 — *« Couvre-Feu au Galaxian »*)
 
 ### Séquences livrées et testables dès le Jalon 0
-1. **Box-Garage de la Cité *(Jour)*** : Accueil du trio de départ (**Leader, Karim, Nadia**), briefing, choix d'équipement (blouson *FASA +1* ou bricole *103 SP*) et test du tuner **5 stations FM**.
+1. **Box-Garage de la Cité *(Jour)*** : Accueil du trio de départ (**Leader, Karim, Nadia**), briefing, choix d'équipement (blouson *Aura +1* ou bricole *103 SP*) et test du tuner **5 stations FM**.
 2. **Le Galaxian *(Jour)*** : Découverte de l'avis de fermeture du S.O., discussion avec **Ludo** et déblocage des 3 pistes de ville.
 3. **Enquête scindée en bascule libre (`1/2/3`)** : Répartition entre **Tour B** (ruse électrique de Nadia face à la loge de la Concierge), **Chez Bébert** (négociation de Faveur avec **Franck** et coup de chaud sur le Moral de Karim) et **Ruelle du Relais Municipal** (dilemme familial de **Ludo** avec son cousin S.O.).
 4. **Sas Sensoriel Crépusculaire** : Transition physique Jour → Nuit déclenchée par le crépuscule (grondement Boeing, secousse de cadre, passage au rendu N&B + 4 couleurs-signaux et basse Cold Wave).

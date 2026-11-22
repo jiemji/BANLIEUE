@@ -53,8 +53,8 @@
       "subtitle": "Débrouillard·e du Parking",
       "story": "Tu as grandi entre les cages d'escalier de la Tour B et les boxes en sous-sol, clés autour du cou dès l'école primaire pendant que chez toi on enchaînait les horaires décalés. Tu connais chaque chaufferie, chaque interphone cassé et chaque combine de palier pour tenir jusqu'à la fin du mois sans rien devoir à la Concierge.",
       "stakes": "Tenir sa place sous les tours et garder un coup d'avance sur la surveillance des halls et des boxes.",
-      "fave": 62,
-      "fasa": 3,
+      "attitude": 62,
+      "aura": 3,
       "moral_start": 72,
       "moral_max": 100,
       "stress_threshold": 28,
@@ -66,7 +66,7 @@
       "bonus_summary": "+10 F (35 F au départ), aisance dans les caves & la Dalle",
       "francs_bonus": 10,
       "faveurs_bonus": 0,
-      "fasa_bonus": 0,
+      "aura_bonus": 0,
       "start_flags": [
         "bg_dalle"
       ]
@@ -78,8 +78,8 @@
       "subtitle": "Habitué·e du Comptoir",
       "story": "Viré·e ou décrocheur·se du lycée/LEP, tu tiens tes quartiers entre le baby-foot de Chez Bébert et les flippers du Galaxian. Tout le Vieux Bourg connaît ta tchatche — et deux ou trois tauliers te doivent déjà une tournée ou un service pour un coup de main passé.",
       "stakes": "Transformer une réputation de comptoir en vrai levier quand la rue ferme ses rideaux.",
-      "fave": 70,
-      "fasa": 3,
+      "attitude": 70,
+      "aura": 3,
       "moral_start": 68,
       "moral_max": 100,
       "stress_threshold": 30,
@@ -91,7 +91,7 @@
       "bonus_summary": "+1 Faveur, portes ouvertes côté troquets & MJC",
       "francs_bonus": 0,
       "faveurs_bonus": 1,
-      "fasa_bonus": 0,
+      "aura_bonus": 0,
       "start_flags": [
         "bg_bourg"
       ]
@@ -103,8 +103,8 @@
       "subtitle": "Enfant de l'Atelier & de la Chaîne",
       "story": "Un proche gréviste à Citroën Aulnay ou cheminot sur le RER B, des dimanches entiers les mains dans le cambouis d'une 103 SP et d'un vieux poste à souder. Tu parles peu, tu ne recules pas quand ça pousse, et tu refuses que le fatalisme des licenciements décide de ton avenir.",
       "stakes": "Protéger la bande coûte que coûte sans se laisser broyer par l'usure de la chaîne ni par les combines faciles.",
-      "fave": 60,
-      "fasa": 4,
+      "attitude": 60,
+      "aura": 4,
       "moral_start": 74,
       "moral_max": 100,
       "stress_threshold": 26,
@@ -112,11 +112,11 @@
       "crisis_label": "Refus têtu de lâcher le terrain",
       "specialty_id": "interposition",
       "specialty_name": "Menace / Interposition",
-      "specialty_desc": "S'interpose devant un pote fragile pour absorber la pression FASA/FAVE et amortir le prochain coup moral.",
-      "bonus_summary": "+1 FASA (dégaine), affinité Bananes & Vieux de la Rouge",
+      "specialty_desc": "S'interpose devant un pote fragile pour absorber la pression Aura/Attitude et amortir le prochain coup moral.",
+      "bonus_summary": "+1 Aura (dégaine), affinité Bananes & Vieux de la Rouge",
       "francs_bonus": 0,
       "faveurs_bonus": 0,
-      "fasa_bonus": 1,
+      "aura_bonus": 1,
       "start_flags": [
         "bg_atelier"
       ]
@@ -128,8 +128,8 @@
       "subtitle": "La Fissure du Lotissement",
       "story": "Tu viens du lotissement calme aux volets tirés dès 21 h — un foyer rangé qui vote bien, craint les tours et ne comprend rien à tes nuits au Box-Garage ni à tes cassettes pirates. Coincé·e entre couvre-feu domestique et envie d'air, tu connais de l'intérieur les petits arrangements des notables du Relais Municipal.",
       "stakes": "Assumer ta rupture avec le pavillon sans devenir un·e étranger·ère ni chez toi, ni sous la Dalle.",
-      "fave": 66,
-      "fasa": 2,
+      "attitude": 66,
+      "aura": 2,
       "moral_start": 64,
       "moral_max": 100,
       "stress_threshold": 32,
@@ -141,7 +141,7 @@
       "bonus_summary": "+15 F (40 F au départ), flair politique Relais Municipal & MJC",
       "francs_bonus": 15,
       "faveurs_bonus": 0,
-      "fasa_bonus": 0,
+      "aura_bonus": 0,
       "start_flags": [
         "bg_pavillons"
       ]

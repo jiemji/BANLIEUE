@@ -275,8 +275,8 @@ func refresh() -> void:
 		phase_label = "NUIT"
 	_lbl_phase.text = "[%s · %s]" % [phase_label, GameState.format_clock()]
 
-	_lbl_stats.text = "%d F  |  Faveurs: %d  |  FASA: %d  |  Notoriété: %d" % [
-		GameState.francs, GameState.faveurs, GameState.get_total_fasa(), GameState.notoriete
+	_lbl_stats.text = "%d F  |  Faveurs: %d  |  Aura: %d  |  Notoriété: %d" % [
+		GameState.francs, GameState.faveurs, GameState.get_total_aura(), GameState.notoriete
 	]
 
 	# Rafraîchir groupes

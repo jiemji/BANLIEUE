@@ -44,6 +44,7 @@ var _pan_last_screen: Vector2 = Vector2.ZERO
 var _manual_pan_offset: Vector2 = Vector2.ZERO
 var _title_backdrop_mode: bool = false
 var _title_cam_drift: Vector2 = Vector2.ZERO
+var _combat_stage_mode: bool = false
 
 func _ready() -> void:
 	_camera = Camera2D.new()
@@ -79,7 +80,14 @@ func set_title_backdrop_mode(enabled: bool, drift: Vector2 = Vector2.ZERO) -> vo
 	_title_backdrop_mode = enabled
 	_title_cam_drift = drift
 	if _markers_overlay != null:
-		_markers_overlay.visible = not enabled
+		_markers_overlay.visible = not _title_backdrop_mode and not _combat_stage_mode
+	_apply_camera_transform()
+
+## Bascule le mode scène ouverte de combat : masque les marqueurs d'exploration et recentre le décor RER.
+func set_combat_stage_mode(enabled: bool) -> void:
+	_combat_stage_mode = enabled
+	if _markers_overlay != null:
+		_markers_overlay.visible = not _title_backdrop_mode and not _combat_stage_mode
 	_apply_camera_transform()
 
 func set_location(loc_id: String) -> void:
@@ -175,6 +183,11 @@ func _apply_camera_transform() -> void:
 	if _title_backdrop_mode:
 		_camera.zoom = Vector2(1.08, 1.08)
 		_camera.position = Vector2(455.0, 387.0) + Vector2(-170.0, 0.0) + _title_cam_drift
+		return
+	if _combat_stage_mode:
+		var cz: float = 0.88
+		_camera.zoom = Vector2(cz, cz)
+		_camera.position = _focus_world + Vector2(0.0, 56.0 / cz)
 		return
 	var z: float = clampf(_cam_zoom, _cam_min_zoom, _cam_max_zoom)
 	_camera.zoom = Vector2(z, z)

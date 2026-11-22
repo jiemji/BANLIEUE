@@ -280,7 +280,7 @@ func apply_leader_profile(profile: Dictionary) -> void:
 	var arch_def: Dictionary = get_archetype_def(arch_id)
 	if not arch_def.is_empty():
 		var keys_to_copy: Array[String] = [
-			"fave", "fasa", "moral_start", "moral_max", "stress_threshold",
+			"attitude", "aura", "moral_start", "moral_max", "stress_threshold",
 			"stress_name", "crisis_label", "specialty_id", "specialty_name", "specialty_desc"
 		]
 		for k in keys_to_copy:

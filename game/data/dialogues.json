@@ -16,11 +16,11 @@
         },
         {
           "label": "« Avant de bouger, on vérifie les blousons et l'argent de poche. »",
-          "tag": "Préparation FASA",
+          "tag": "Préparation Aura",
           "effects": {
             "set_flag": { "intro_done": true, "checked_gear": true },
-            "fasa_bonus": 1,
-            "unlock_clue": "Blouson réglé au Box-Garage (+1 FASA)."
+            "aura_bonus": 1,
+            "unlock_clue": "Blouson réglé au Box-Garage (+1 Aura)."
           },
           "next": "intro_box_garage_2"
         }
@@ -64,12 +64,12 @@
           "next": ""
         },
         {
-          "label": "Enfiler les badges et relever le col du blouson (+1 FASA)",
-          "tag": "Look / FASA",
+          "label": "Enfiler les badges et relever le col du blouson (+1 Aura)",
+          "tag": "Look / Aura",
           "conditions": { "require_not_flag": "checked_gear" },
           "effects": {
             "set_flag": { "checked_gear": true },
-            "fasa_bonus": 1
+            "aura_bonus": 1
           },
           "next": ""
         },
@@ -187,7 +187,7 @@
         },
         {
           "label": "Tenter un baratin frontal devant la vitre (risque familial)",
-          "tag": "FAVE • Perte de Moral",
+          "tag": "Attitude • Perte de Moral",
           "conditions": { "require_not_flag": "tour_b_done" },
           "effects": {
             "set_flag": { "tour_b_done": true, "has_caves_key": true },
@@ -420,15 +420,15 @@
       "choices": [
         {
           "label": "[Les Mains-Noires] Parler gicleurs, 2-temps et piquet d'Aulnay d'égal à égal",
-          "tag": "Mains-Noires • Recrutement +1 FASA",
+          "tag": "Mains-Noires • Recrutement +1 Aura",
           "conditions": { "require_flag": "bg_atelier", "require_not_flag": "manu_recruited" },
           "effects": {
             "recruit": "manu",
-            "fasa_bonus": 1,
+            "aura_bonus": 1,
             "notoriete": 1,
             "moral": { "zoe": -6, "manu": 6 },
             "set_flag": { "manu_recruited": true },
-            "unlock_clue": "Manu des Bananes rejoint la bande (+1 FASA, affinité atelier)."
+            "unlock_clue": "Manu des Bananes rejoint la bande (+1 Aura, affinité atelier)."
           },
           "next": "garage_bananes_manu_recruited"
         },
@@ -446,9 +446,9 @@
           "next": "garage_bananes_manu_recruited"
         },
         {
-          "label": "Tenir le bras de fer de rue (FASA 4+) et poser 10 F pour le bidon de 2-temps",
-          "tag": "FASA 4 · -10 F • Recrutement",
-          "conditions": { "min_fasa": 4, "min_francs": 10, "require_not_flag": "manu_recruited" },
+          "label": "Tenir le bras de fer de rue (Aura 4+) et poser 10 F pour le bidon de 2-temps",
+          "tag": "Aura 4 · -10 F • Recrutement",
+          "conditions": { "min_aura": 4, "min_francs": 10, "require_not_flag": "manu_recruited" },
           "effects": {
             "francs": -10,
             "recruit": "manu",
@@ -486,12 +486,12 @@
       "text": "Gicleurs de rechange, câbles de frein et jerricans de mélange alignés le long du mur en parpaings.",
       "choices": [
         {
-          "label": "Choper un kit carburation et retendre la chaîne (-5 F • +1 FASA, +Moral)",
-          "tag": "-5 F • +1 FASA / +4 Moral",
+          "label": "Choper un kit carburation et retendre la chaîne (-5 F • +1 Aura, +Moral)",
+          "tag": "-5 F • +1 Aura / +4 Moral",
           "conditions": { "min_francs": 5, "require_not_flag": "bananes_kit_bought" },
           "effects": {
             "francs": -5,
-            "fasa_bonus": 1,
+            "aura_bonus": 1,
             "moral": { "all": 4 },
             "set_flag": { "bananes_kit_bought": true }
           },

@@ -49,6 +49,7 @@ var _new_game_caller: int = AppState.TITLE_MENU
 var _sas_active: bool = false
 var _sas_timer: float = 0.0
 var _title_cycle_time: float = 0.0
+var _combat_shake_timer: float = 0.0
 
 func _ready() -> void:
 	# 1. Systèmes métiers
@@ -257,11 +258,15 @@ func _wire_signals() -> void:
 	_dialogue_runner.twilight_requested.connect(_start_twilight_sas)
 	_dialogue_runner.encounter_requested.connect(func(eid: String) -> void:
 		GameState.set_zoom_view(4, GameState.get_active_location_id())
+		_hud.visible = false
+		_iso_view.call("set_combat_stage_mode", true)
 		_timeline.call("start_encounter", eid)
+		_update_input_lock()
 	)
 	_dialogue_runner.slice_completed.connect(_show_end_summary)
 
 	_timeline.train_fantome_arrived_sig.connect(func() -> void: _iso_view.call("trigger_train_fantome"))
+	_timeline.combat_feedback_emitted.connect(_on_combat_feedback_emitted)
 	_timeline.encounter_finished.connect(_on_encounter_finished)
 
 	# Signaux des écrans Menus
@@ -303,6 +308,7 @@ func _enter_title_menu() -> void:
 	_tl_panel.visible = false
 	_dialogue_runner.call("close_dialogue")
 	_dlg_panel.visible = false
+	_combat_shake_timer = 0.0
 	_iso_view.set("train_fantome_active", false)
 
 	GameState.has_active_session = false
@@ -312,6 +318,7 @@ func _enter_title_menu() -> void:
 	_world_map_view.call("set_view_active", false)
 	_iso_view.call("set_view_active", true)
 	_iso_view.call("set_location", "box_garage")
+	_iso_view.call("set_combat_stage_mode", false)
 	_iso_view.call("set_title_backdrop_mode", true, Vector2.ZERO)
 
 	AudioRadio.title_mode = true
@@ -375,8 +382,10 @@ func _start_new_game(profile: Dictionary) -> void:
 	_timeline.set("active", false)
 	_tl_panel.visible = false
 	_dlg_panel.visible = false
+	_combat_shake_timer = 0.0
 	_iso_view.set("train_fantome_active", false)
 
+	_iso_view.call("set_combat_stage_mode", false)
 	_iso_view.call("set_title_backdrop_mode", false, Vector2.ZERO)
 	AudioRadio.title_mode = false
 
@@ -404,8 +413,10 @@ func _on_slot_loaded(slot_idx: int) -> void:
 	_tl_panel.visible = false
 	_dialogue_runner.call("close_dialogue")
 	_dlg_panel.visible = false
+	_combat_shake_timer = 0.0
 	_iso_view.set("train_fantome_active", false)
 
+	_iso_view.call("set_combat_stage_mode", false)
 	_iso_view.call("set_title_backdrop_mode", false, Vector2.ZERO)
 	AudioRadio.title_mode = false
 	_app_state = AppState.IN_GAME
@@ -451,6 +462,13 @@ func _process(delta: float) -> void:
 			GameState.set_phase("night")
 			GameState.add_log("22 h 10 — La nuit est tombée sur Cradon-lès-Gonesse. Cap sur la Gare RER « du Y » !")
 			_iso_view.queue_redraw()
+	elif _shader_mat != null:
+		if _combat_shake_timer > 0.0 and SettingsManager.screen_shake:
+			_combat_shake_timer = maxf(0.0, _combat_shake_timer - delta)
+			_shader_mat.set_shader_parameter("shake_amount", (_combat_shake_timer / 0.22) * 0.0055)
+		else:
+			_combat_shake_timer = 0.0
+			_shader_mat.set_shader_parameter("shake_amount", 0.0)
 
 	_update_input_lock()
 
@@ -573,10 +591,18 @@ func _start_twilight_sas() -> void:
 	GameState.set_phase("twilight")
 	AudioRadio.play_boeing_roar()
 
+func _on_combat_feedback_emitted(event_data: Dictionary) -> void:
+	if bool(event_data.get("shake", false)) and SettingsManager.screen_shake:
+		_combat_shake_timer = 0.22
+
 func _on_encounter_finished(_outcome_id: String, _summary: String) -> void:
+	_combat_shake_timer = 0.0
+	_iso_view.call("set_combat_stage_mode", false)
+	_hud.visible = (_app_state == AppState.IN_GAME)
 	_squad.call("regroup_all")
 	_squad.call("move_active_group", "box_garage")
 	_dialogue_runner.call("start_dialogue", "box_garage_debrief")
+	_update_input_lock()
 
 func _show_end_summary() -> void:
 	var outcome_label: String = "Victoire sociale devant le S.O."
@@ -601,11 +627,11 @@ func _show_end_summary() -> void:
 	_end_summary_lbl.text = (
 		"Issue à la Gare RER « du Y » : %s\n" +
 		"Statut de Ludo : %s\n%s\n" +
-		"Ressources finales : %d Francs  |  %d Faveurs  |  Notoriété %d  |  FASA %d\n\n" +
+		"Ressources finales : %d Francs  |  %d Faveurs  |  Notoriété %d  |  Aura %d\n\n" +
 		"État de la bande (%d membres) :\n%s\n\n" +
 		"Ce prototype Data-Driven valide la bascule libre (1–6), le Sas Boeing Jour→Nuit, " +
 		"la Frise chronologique à Interruptions hors-tour et le préavis des Crises d'autonomie."
-	) % [outcome_label, ludo_txt, allies_extra_line, GameState.francs, GameState.faveurs, GameState.notoriete, GameState.get_total_fasa(), GameState.squad_members.size(), "\n".join(moral_lines)]
+	) % [outcome_label, ludo_txt, allies_extra_line, GameState.francs, GameState.faveurs, GameState.notoriete, GameState.get_total_aura(), GameState.squad_members.size(), "\n".join(moral_lines)]
 	_end_overlay.visible = true
 
 func _restart_slice() -> void:
@@ -617,3 +643,4 @@ func _update_input_lock() -> void:
 	var blocked: bool = menu_open or _sas_active or _end_overlay.visible or _tl_panel.visible or _dlg_panel.visible
 	_iso_view.set("input_blocked", blocked)
 	_world_map_view.set("input_blocked", blocked)
+	_tl_panel.set("input_blocked", menu_open or _sas_active or _end_overlay.visible)

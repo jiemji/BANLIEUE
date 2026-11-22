@@ -7,7 +7,7 @@
 ## 1. Identité Visuelle : « BD Nerveuse 80s × Grain Argentique 16mm » *(Hybride A + B)*
 
 * **La fusion des deux pôles** : Un trait encré vivant et gouailleur hérité de **Frank Margerin**, tendu par le noir-et-rouge brut de fanzine photocopié du [ZoneScreen](file:///e:/JDR/BANLIEUE/Références/%5BScreen%5D%204%20feuilles.pdf) et filtré par un **grain argentique 1982** et des textures picturales rugueuses (béton humide, rouille du canal, affiches syndicales déchirées, visages cabossés expressifs façon *La Haine × Disco Elysium*).
-* **Silhouettes & lecture du *FASA* à vue d'œil** : Chaque membre de la bande et des 5 tribus est identifiable au premier regard par sa dégaine (banane gominée et Perfecto, crête et badges, parka ou survêtement de la Dalle, blouson de chantier de Franck, Docs). Changer de blouson ou d'accessoire au **Box-Garage** modifie visiblement la silhouette du personnage et les réactions qu'il attire dans la rue.
+* **Silhouettes & lecture de l'*Aura* à vue d'œil** : Chaque membre de la bande et des 5 tribus est identifiable au premier regard par sa dégaine (banane gominée et Perfecto, crête et badges, parka ou survêtement de la Dalle, blouson de chantier de Franck, Docs). Changer de blouson ou d'accessoire au **Box-Garage** modifie visiblement la silhouette du personnage et les réactions qu'il attire dans la rue.
 * **Signature plastique des 4 secteurs** :
   * *La Dalle & la Cité* : verticalité de béton beige-gris, cages d'escalier froides, linge aux fenêtres, contre-plongées écrasantes et chaleur bricolée du **Box-Garage** sous son néon.
   * *Le Vieux Bourg & la Gare RER* : formica jaune et chrome *Chez Bébert*, bleu et blanc RATP/SNCF de la gare « du Y », reflets électriques des bornes de *Le Galaxian*.
@@ -25,7 +25,7 @@
 * **La Nuit — Noir & Blanc argentique percuté par 4 couleurs-signaux** :
   * Le décor glisse vers un **contraste sec quasi noir et blanc argentique doublé d'aplats d'encre noire profonde**, troué chirurgicalement par **4 couleurs-signaux exclusives** :
     1. **Orange sodium** : lampadaires, paliers HLM, soupiraux des chaufferies et rideau entrouvert du Box-Garage.
-    2. **Rouge vif fanzine / *Zone*** : menaces *FASA*, crans d'alerte sur la **Frise chronologique**, préavis de **Crise d'autonomie** et néons de troquets hostiles.
+    2. **Rouge vif fanzine / *Zone*** : menaces d'*Aura*, crans d'alerte sur la **Frise chronologique**, préavis de **Crise d'autonomie** et néons de troquets hostiles.
     3. **Bleu électrique** : gyrophares CRS, écrans de *Le Galaxian*, signaux de voie et feux du RER B.
     4. **Halo bleu-pâle laiteux** : strictement réservé aux lisières de l'**Ancienne Poudrerie** et aux phénomènes étranges ambigus.
 

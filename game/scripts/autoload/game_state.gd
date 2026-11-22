@@ -11,7 +11,7 @@ var clock_minutes: int = 17 * 60 + 30
 var francs: int = 25
 var faveurs: int = 0
 var notoriete: int = 1
-var fasa_bonus: int = 0
+var aura_bonus: int = 0
 
 var flags: Dictionary = {}
 var clues: Array[String] = []
@@ -42,7 +42,7 @@ func reset_new_slice(profile: Dictionary = {}) -> void:
 	francs = 25
 	faveurs = 0
 	notoriete = 1
-	fasa_bonus = 0
+	aura_bonus = 0
 	flags.clear()
 	clues.clear()
 	activity_log.clear()
@@ -83,7 +83,7 @@ func reset_new_slice(profile: Dictionary = {}) -> void:
 	if not arch_def.is_empty():
 		francs += int(arch_def.get("francs_bonus", 0))
 		faveurs += int(arch_def.get("faveurs_bonus", 0))
-		fasa_bonus += int(arch_def.get("fasa_bonus", 0))
+		aura_bonus += int(arch_def.get("aura_bonus", 0))
 		var sf_var: Variant = arch_def.get("start_flags", [])
 		if sf_var is Array:
 			for fl_var in (sf_var as Array):
@@ -207,16 +207,16 @@ func is_member_in_active_group(char_id: String) -> bool:
 	var active_ids: Array[String] = get_active_group_members()
 	return active_ids.has(char_id)
 
-func get_total_fasa() -> int:
-	var best_fasa: int = 0
+func get_total_aura() -> int:
+	var best_aura: int = 0
 	var active_ids: Array[String] = get_active_group_members()
 	for cid in active_ids:
 		var cdef: Dictionary = DataLoader.get_character(cid)
-		var cf: int = int(cdef.get("fasa", 2))
-		if cf > best_fasa:
-			best_fasa = cf
+		var cf: int = int(cdef.get("aura", 2))
+		if cf > best_aura:
+			best_aura = cf
 	var size_bonus: int = max(0, active_ids.size() - 1)
-	return best_fasa + fasa_bonus + size_bonus
+	return best_aura + aura_bonus + size_bonus
 
 func get_lowest_moral() -> int:
 	var low: int = 100
@@ -346,7 +346,7 @@ func to_save_dict() -> Dictionary:
 		"francs": francs,
 		"faveurs": faveurs,
 		"notoriete": notoriete,
-		"fasa_bonus": fasa_bonus,
+		"aura_bonus": aura_bonus,
 		"flags": flags.duplicate(true),
 		"clues": clues_copy,
 		"activity_log": log_copy,
@@ -378,7 +378,7 @@ func load_from_save_dict(profile_data: Dictionary, state_data: Dictionary) -> vo
 	francs = int(state_data.get("francs", 25))
 	faveurs = int(state_data.get("faveurs", 0))
 	notoriete = int(state_data.get("notoriete", 1))
-	fasa_bonus = int(state_data.get("fasa_bonus", 0))
+	aura_bonus = int(state_data.get("aura_bonus", state_data.get("fasa_bonus", 0)))
 
 	flags.clear()
 	var fl_var: Variant = state_data.get("flags", {})

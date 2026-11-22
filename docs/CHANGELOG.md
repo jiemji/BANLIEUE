@@ -2,6 +2,20 @@
 
 Toutes les évolutions notables du projet Godot 4 et de ses documents de conception sont consignées ici.
 
+## [0.4.1] - 2026-11-22
+### Lexique & Refactorisation complète (`FAVE → Attitude`, `FASA → Aura`)
+- **Renommage complet dans les données JSON (`characters.json`, `player_profiles.json`, `dialogues.json`, `timeline_encounters.json`)** : Migration de toutes les propriétés (`"fave"` → `"attitude"`, `"fasa"` → `"aura"`, `"fasa_bonus"` → `"aura_bonus"`, `"min_fasa"` → `"min_aura"`) et de tous les libellés joueurs vers **Attitude** et **Aura**, tout en conservant intactes les clés et mentions des **Faveurs** (`faveurs`, `min_faveurs`, `faveurs_bonus`).
+- **Renommage complet dans le moteur GDScript (`data_loader.gd`, `game_state.gd`, `dialogue_runner.gd`, `tension_timeline.gd`, `hud_overlay.gd`, `new_game_panel.gd`, `main.gd`)** : Conversion vers `aura_bonus`, `get_total_aura()`, `min_aura` et affichages UI `Attitude` / `Aura` (avec repli rétrocompatible dans `GameState.load_from_save_dict()` sur d'éventuelles cassettes locales `fasa_bonus`).
+- **Documentation & Tests** : Mise à jour de l'ensemble de la documentation de conception (`pitch_bible.md`, `personnages_et_relations.md`, `niveau_pilote.md`, `monde_et_economie.md`, `direction_artistique_sonore.md`, `structure_menus_et_ecrans.md`, `architecture_technique.md`) et extension de `smoke_test_menus.gd` (`aura_bonus`, `attitude`, `aura`, `get_total_aura()`).
+
+## [0.4.0] - 2026-11-22
+### Refonte UX Combat & Frise Chronologique de Tension (`1A / 2A / 3B / 4A`)
+- **Spécification UX & Agent dédié** : Création de l'agent [banlieue-combat-ux.md](file:///e:/JDR/BANLIEUE/.agents/agents/banlieue-combat-ux.md) et rédaction de [ux_combat_frise.md](file:///e:/JDR/BANLIEUE/docs/ux_combat_frise.md).
+- **Scène ouverte / HUD cinémascope `1280×720` (`1A`)** (`timeline_panel.gd`, `iso_district_view.gd`, `main.gd`) : Masquage du HUD d'exploration en combat et recentrage caméra (`set_combat_stage_mode`, zoom `0.88`) ; rail bande magnétique horizontal scrollable en bandeau haut (`y = 8..116`), cartes ennemies flottantes à droite (`x = 958..1268`), tiroir `Journal` repliable, bark BD 1 ligne + barre pas-à-pas bas-centre et dock tactique bas (`y = 492..712`).
+- **Ciblage libre + prévisualisation au survol (`2A`)** (`tension_timeline.gd`, `timeline_panel.gd`, `timeline_encounters.json`) : Sélection explicite d'ennemi par clic ou `Tab` (`select_target`, `cycle_target`, `get_selected_target`), jauges de Résolution segmentées, `intent_label`, badge rouge `counter_label` et prévisualisation en lecture seule (`preview_player_action`, `preview_interruption`, `preview_restrain`) affichant `Cran X → Y`, impact Résolution et alerte `⚠ CONTRE-INTERRUPTION` sur le rail et les cartes.
+- **Résolution pas-à-pas strict (`3B`)** (`tension_timeline.gd`, `main.gd`) : Chaîne `awaiting_step` / `step_next_beat()` exécutant un seul beat non-allié à la fois (crise, action ennemie, avancée d'un cran, renforts ou Train Fantôme) sur appui `Espace` / `Entrée` ou bouton `▶`, avec micro-secousse caméra (`combat_feedback_emitted`, `SettingsManager.screen_shake`) et garde d'entrées `input_blocked` lorsque Pause/Options est ouvert.
+- **Interruptions & Crises intégrées aux portraits (`4A`)** (`tension_timeline.gd`, `timeline_panel.gd`) : Dock bas de 1 à 6 portraits alliés (jauge Moral, seuil Stress, bouton d'Interruption cliquable sous le portrait, vibration fanzine + bouton direct `🛡 Retenir` en préavis de Crise d'autonomie, et crises dédiées pour `manu`, `zoe` et `ludo`).
+
 ## [0.3.0] - 2026-11-22
 ### Expansion Canal de l'Ourcq & Lisière de la Poudrerie (Option C) + Polish Jalon 0 (Option D)
 - **3 nouveaux lieux isométriques 2:1 (`1200×896`, `8×8` `backdrop`)** :

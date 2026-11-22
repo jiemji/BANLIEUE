@@ -31,7 +31,7 @@
 ### Les 3 Ressources de Poche
 1. **Les Francs** *(pièces de 1 F, 5 F, 10 F et billets froissés)* : toujours comptés au plus juste — flipper à *Le Galaxian*, demi au comptoir, mélange 2-temps à la pompe, clopes, cassettes vierges TDK pour capter la FM, pièces à la casse auto, ticket de RER.
 2. **Les Faveurs & Dettes** *(capital social de rue)* : le vrai nerf de la guerre à Cradon-lès-Gonesse — qui vous doit un service ou à qui vous devez une tournée (tauliers de bistrots, mécanos, grands frères de la Dalle, animatrice de la MJC, délégué syndical d'Aulnay). Une faveur pèse plus lourd qu'un billet face à un barrage tribal.
-3. **La Bricole & les Fringues** *(matos Système D)* : outils de fortune, chaînes et clés de chaufferie/caves, bombes de peinture, pièces de mob, mais aussi **blousons, badges, pompes et coupes** (Perfecto, bomber, Doc Martens, survêtement/coupe-vent, parka) qui modifient directement le **FASA** (allure menaçante/respectée) et l'accueil reçu dans chaque territoire.
+3. **La Bricole & les Fringues** *(matos Système D)* : outils de fortune, chaînes et clés de chaufferie/caves, bombes de peinture, pièces de mob, mais aussi **blousons, badges, pompes et coupes** (Perfecto, bomber, Doc Martens, survêtement/coupe-vent, parka) qui modifient directement l'**Aura** (allure menaçante/respectée) et l'accueil reçu dans chaque territoire.
 
 ### Le QG Évolutif — Le Box-Garage de la Cité
 * **Le lieu de départ** : Un vieux box en béton situé dans le parking semi-enterré au pied des tours de la Dalle. Rideau métallique rouillé qui grince, établi bancal, **deux 103 SP à retaper**, un canapé en skaï éventré et un gros radiocassette mono à antenne télescopique.
@@ -44,7 +44,7 @@
   5. **Couchages & Accueil Recrues** : matelas de mousse, réchaud, casiers — augmente la capacité d'hébergement pour les potes en galère ou les nouvelles recrues en planque.
 
 ### Boucle Notoriété ↔ Ressources
-* Plus la bande grandit, équipe le Box-Garage et multiplie les coups d'éclat, plus sa **Notoriété** (*Zone*) grimpe : elle ouvre des Faveurs, débloque de nouvelles recrues et inspire le respect (*FASA*).
+* Plus la bande grandit, équipe le Box-Garage et multiplie les coups d'éclat, plus sa **Notoriété** (*Zone*) grimpe : elle ouvre des Faveurs, débloque de nouvelles recrues et inspire le respect (*Aura*).
 * Revers immédiat : la hausse de Notoriété déclenche davantage de contrôles policiers, attire la vigilance du **Service d'Ordre municipal** et pousse les bandes rivales à tester ou piéger les membres isolés.
 
 ---

@@ -93,10 +93,10 @@ func _check_conditions(cond_var: Variant) -> Dictionary:
 		var req_fv: int = int(cond.get("min_faveurs", 0))
 		if GameState.faveurs < req_fv:
 			return {"ok": false, "reason": "%d Faveur requise" % req_fv}
-	if cond.has("min_fasa"):
-		var req_fa: int = int(cond.get("min_fasa", 0))
-		if GameState.get_total_fasa() < req_fa:
-			return {"ok": false, "reason": "FASA %d requis" % req_fa}
+	if cond.has("min_aura"):
+		var req_fa: int = int(cond.get("min_aura", 0))
+		if GameState.get_total_aura() < req_fa:
+			return {"ok": false, "reason": "Aura %d requis" % req_fa}
 	if cond.has("require_member"):
 		var req_m: String = str(cond.get("require_member", ""))
 		if not GameState.is_member_in_active_group(req_m):
@@ -129,8 +129,8 @@ func _apply_effects(eff_var: Variant) -> Dictionary:
 		GameState.faveurs += int(eff.get("faveurs", 0))
 	if eff.has("notoriete"):
 		GameState.notoriete += int(eff.get("notoriete", 0))
-	if eff.has("fasa_bonus"):
-		GameState.fasa_bonus += int(eff.get("fasa_bonus", 0))
+	if eff.has("aura_bonus"):
+		GameState.aura_bonus += int(eff.get("aura_bonus", 0))
 
 	if eff.has("set_flag"):
 		var sf_var: Variant = eff.get("set_flag", {})
