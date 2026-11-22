@@ -4,7 +4,7 @@
   "zoom_level": 3,
   "type": "city",
   "name": "Cradon-lès-Gonesse",
-  "subtitle": "Plan de ville 1982 — 4 secteurs & 6 lieux clés",
+  "subtitle": "Plan de ville 1982 — 5 secteurs & 9 lieux clés",
   "map_width": 1040,
   "map_height": 760,
   "backdrop": "res://assets/maps/map_cradon.png",
@@ -34,6 +34,12 @@
       "name": "Bifurcation RER B Nord",
       "color_hex": "#4aa3df",
       "polygon": [[560, 95], [955, 95], [955, 285], [560, 265]]
+    },
+    {
+      "id": "canal_ourcq",
+      "name": "Canal de l'Ourcq & Zone Ind.",
+      "color_hex": "#6c8c78",
+      "polygon": [[805, 310], [1018, 310], [1018, 695], [805, 695]]
     }
   ],
   "roads": [
@@ -51,6 +57,11 @@
       "label": "Passerelle du Y",
       "kind": "road",
       "points": [[310, 325], [640, 275], [805, 200]]
+    },
+    {
+      "label": "Canal de l'Ourcq",
+      "kind": "water",
+      "points": [[775, 735], [895, 675], [990, 585], [1038, 520]]
     },
     {
       "label": "RER B — Tronc Nord",
@@ -74,7 +85,10 @@
     "tour_b",
     "chez_bebert",
     "ruelle_relais",
-    "gare_rer_y"
+    "gare_rer_y",
+    "garage_bananes",
+    "squat_kepons",
+    "lisiere_poudrerie"
   ],
   "children": [
     {
@@ -88,10 +102,13 @@
       "interior_file": "res://data/maps/interiors/box_garage.json",
       "neighbors": {
         "tour_b": 1,
+        "lisiere_poudrerie": 2,
         "galaxian": 2,
         "chez_bebert": 2,
         "ruelle_relais": 3,
-        "gare_rer_y": 3
+        "gare_rer_y": 3,
+        "squat_kepons": 3,
+        "garage_bananes": 4
       }
     },
     {
@@ -105,10 +122,33 @@
       "interior_file": "res://data/maps/interiors/tour_b.json",
       "neighbors": {
         "box_garage": 1,
+        "lisiere_poudrerie": 1,
         "galaxian": 2,
         "chez_bebert": 2,
         "gare_rer_y": 2,
-        "ruelle_relais": 3
+        "ruelle_relais": 3,
+        "garage_bananes": 3,
+        "squat_kepons": 4
+      }
+    },
+    {
+      "id": "lisiere_poudrerie",
+      "name": "Grilles & Bunkers Poudrerie",
+      "sector": "Lisière de la Poudrerie (Hors-Plan)",
+      "pos": [225, 168],
+      "footprint": [158, 70],
+      "color_hex": "#5f8c96",
+      "status": "playable",
+      "interior_file": "res://data/maps/interiors/lisiere_poudrerie.json",
+      "neighbors": {
+        "tour_b": 1,
+        "box_garage": 2,
+        "galaxian": 2,
+        "gare_rer_y": 2,
+        "ruelle_relais": 3,
+        "chez_bebert": 3,
+        "garage_bananes": 3,
+        "squat_kepons": 4
       }
     },
     {
@@ -121,11 +161,14 @@
       "status": "playable",
       "interior_file": "res://data/maps/interiors/galaxian.json",
       "neighbors": {
-        "box_garage": 2,
         "chez_bebert": 1,
         "ruelle_relais": 1,
+        "box_garage": 2,
         "tour_b": 2,
-        "gare_rer_y": 2
+        "lisiere_poudrerie": 2,
+        "gare_rer_y": 2,
+        "garage_bananes": 2,
+        "squat_kepons": 2
       }
     },
     {
@@ -139,10 +182,13 @@
       "interior_file": "res://data/maps/interiors/chez_bebert.json",
       "neighbors": {
         "galaxian": 1,
+        "ruelle_relais": 1,
+        "squat_kepons": 1,
         "box_garage": 2,
         "tour_b": 2,
-        "ruelle_relais": 1,
-        "gare_rer_y": 2
+        "gare_rer_y": 2,
+        "garage_bananes": 2,
+        "lisiere_poudrerie": 3
       }
     },
     {
@@ -158,8 +204,11 @@
         "galaxian": 1,
         "chez_bebert": 1,
         "gare_rer_y": 1,
+        "garage_bananes": 1,
+        "squat_kepons": 2,
         "tour_b": 3,
-        "box_garage": 3
+        "box_garage": 3,
+        "lisiere_poudrerie": 3
       }
     },
     {
@@ -173,10 +222,53 @@
       "interior_file": "res://data/maps/interiors/gare_rer_y.json",
       "neighbors": {
         "ruelle_relais": 1,
+        "garage_bananes": 1,
         "galaxian": 2,
         "chez_bebert": 2,
         "tour_b": 2,
+        "lisiere_poudrerie": 2,
+        "squat_kepons": 2,
         "box_garage": 3
+      }
+    },
+    {
+      "id": "garage_bananes",
+      "name": "Le Garage des Bananes",
+      "sector": "Canal de l'Ourcq & Zone Ind.",
+      "pos": [912, 390],
+      "footprint": [156, 70],
+      "color_hex": "#d96b27",
+      "status": "playable",
+      "interior_file": "res://data/maps/interiors/garage_bananes.json",
+      "neighbors": {
+        "squat_kepons": 1,
+        "ruelle_relais": 1,
+        "gare_rer_y": 1,
+        "galaxian": 2,
+        "chez_bebert": 2,
+        "tour_b": 3,
+        "lisiere_poudrerie": 3,
+        "box_garage": 4
+      }
+    },
+    {
+      "id": "squat_kepons",
+      "name": "Squat des Kepons (Canal)",
+      "sector": "Canal de l'Ourcq & Zone Ind.",
+      "pos": [902, 540],
+      "footprint": [158, 70],
+      "color_hex": "#d93b6a",
+      "status": "playable",
+      "interior_file": "res://data/maps/interiors/squat_kepons.json",
+      "neighbors": {
+        "garage_bananes": 1,
+        "chez_bebert": 1,
+        "galaxian": 2,
+        "ruelle_relais": 2,
+        "gare_rer_y": 2,
+        "box_garage": 3,
+        "tour_b": 4,
+        "lisiere_poudrerie": 4
       }
     }
   ]

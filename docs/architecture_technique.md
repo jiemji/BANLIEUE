@@ -1,8 +1,8 @@
 # *Banlieue* — Architecture Technique
 
-> **Version courante : 0.2.3** — Mise à jour : 2026-11-21
+> **Version courante : 0.3.0** — Mise à jour : 2026-11-22
 
-*Spécification technique de référence et socle du Jalon 0 — Phase Technique (🛠️ Léo).*
+*Spécification technique de référence et socle des Jalons 0 & 1 (Option C & D) — Phase Technique (🛠️ Léo).*
 
 ---
 
@@ -12,8 +12,8 @@
   * **Niveaux 1, 2 & 3 *(Plans papier IGN / RATP 1982 en 2D)*** : pilotés par `WorldMapView` (`scripts/world/world_map_view.gd`) + `Camera2D`, appuyés par les fonds cartographiques illustrés `assets/maps/map_idf.png`, `map_93.png` et `map_cradon.png` alignés sur les tracés JSON (zoom molette, panoramique clic droit, fil d'Ariane supérieur, `Retour arrière (Backspace)` / `M`, tandis qu'`Échap` ouvre le Menu Principal / Pause).
     * **N1 (`idf.json`)** : Île-de-France (8 départements ; seul le **93** est `playable`, les 7 autres sont `undescribed` avec `travel_hooks`).
     * **N2 (`departments/93.json`)** : Seine-Saint-Denis (axes RER B Nord en Y, RN2, Canal de l'Ourcq ; seule **Cradon-lès-Gonesse** est `playable` au départ, avec liaisons déjà modélisées vers Aulnay, La Courneuve, Drancy, Bobigny, etc.).
-    * **N3 (`cities/cradon_les_gonesse.json`)** : Plan de Cradon-lès-Gonesse (4 secteurs colorés, 6 bâtiments cliquables, affichage temps réel des sous-groupes `G1/G2/G3` et des lignes de **Renfort**).
-  * **Niveau 4 *(Intérieurs & Scènes de détail en 2D Isométrique `2:1`)*** : rendu hybride `backdrop` / `modular` (`render_mode`, les 6 intérieurs du Jalon 0 étant désormais tous illustrés en `backdrop` `8×8`), grilles rectangulaires `grid_w × grid_h` variables supportées, `zones[]`, `blocked_cells[]`, `exits[]`, tri en profondeur `y_sort_enabled` + **masquage du décor au premier plan** (`IsoPropNode` en modulaire, `occluders[]` `Polygon2D`/RGBA sur `backdrop`, marqueurs `hotspots`/`exits` sur calque supérieur dédié), `Camera2D` avec suivi optionnel de bande (`follow_squad`), panoramique ZQSD/flèches/clic droit et zoom molette.
+    * **N3 (`cities/cradon_les_gonesse.json`)** : Plan de Cradon-lès-Gonesse (5 secteurs colorés incluant `Canal de l'Ourcq & Zone Ind.`, tracé du canal `water`, **9 bâtiments cliquables**, affichage temps réel des sous-groupes `G1..G6` et des lignes de **Renfort**).
+  * **Niveau 4 *(Intérieurs & Scènes de détail en 2D Isométrique `2:1`)*** : rendu hybride `backdrop` / `modular` (`render_mode`, les **9 intérieurs actuels** étant tous illustrés en `backdrop` `8×8`), grilles rectangulaires `grid_w × grid_h` variables supportées, `zones[]`, `blocked_cells[]`, `exits[]`, tri en profondeur `y_sort_enabled` + **masquage du décor au premier plan** (`IsoPropNode` en modulaire, `occluders[]` `Polygon2D`/RGBA sur `backdrop`, marqueurs `hotspots`/`exits` sur calque supérieur dédié), `Camera2D` avec suivi optionnel de bande (`follow_squad`), panoramique ZQSD/flèches/clic droit et zoom molette.
 * **Moteur & Langage** : **Godot Engine 4** (`config_version=5`, renderer `GL Compatibility` pour compatibilité universelle 4.4–4.7 et démarrage immédiat sans dépendance lourde) + **GDScript 2.0**.
 * **Architecture Data-Driven (Option C)** : Séparation stricte entre le code moteur (`scripts/`), les scènes (`scenes/`), les shaders (`shaders/`) et l'ensemble des données narratives et cartographiques modulaires au format **JSON** (`data/world/` + `data/maps/interiors/`). Permet d'étendre le 93, d'ajouter de nouvelles communes et d'injecter le futur **Chantier D (Scénario)** sans modifier le moteur.
 * **Rendu DA & Son du Jalon 0 / Jalon 1** :
@@ -40,7 +40,7 @@ BANLIEUE/
     ├── assets/                          # Portraits BD (1024px), sprites en pied RGBA (526px), décors & cartes
     │   ├── portraits/                   # leader, player_02..06, karim, nadia, ludo, franck, manu, zoe, concierge, so_agent
     │   ├── pawns/                       # *_pawn.png (RGBA propre sans socle pour contour 2px + ombre 4h)
-    │   ├── locations/                   # Décors iso 1200×896 (6/6 : box_garage, galaxian, tour_b, chez_bebert, ruelle_relais, gare_rer_y)
+    │   ├── locations/                   # 9 décors iso 1200×896 (6 Jalon 0 + garage_bananes, squat_kepons, lisiere_poudrerie)
     │   └── maps/                        # Cartes IGN État-Major / RER 1982 (map_idf, map_93, map_cradon)
     ├── data/                            # Cœur Data-Driven 100 % JSON (atlas hiérarchique + systèmes)
     │   ├── characters.json              # 9 personnages : Compagnons (dont Manu & Zoé) & PNJ (FAVE/FASA, Moral, Stress)
@@ -48,14 +48,17 @@ BANLIEUE/
     │   ├── world/                       # Cartes N1–N3 style IGN / RATP 1982
     │   │   ├── idf.json                 # N1 : Île-de-France — map_idf.png (seul le 93 playable)
     │   │   ├── departments/93.json      # N2 : Seine-Saint-Denis — map_93.png (seule Cradon playable)
-    │   │   └── cities/cradon_les_gonesse.json # N3 : Cradon — map_cradon.png (secteurs, voiries & 6 lieux)
-    │   ├── maps/interiors/              # N4 : 1 JSON par intérieur à taille X×Y libre (6/6 backdrop)
+    │   │   └── cities/cradon_les_gonesse.json # N3 : Cradon — map_cradon.png (5 secteurs, canal, 9 lieux)
+    │   ├── maps/interiors/              # N4 : 1 JSON par intérieur à taille X×Y libre (9/9 backdrop)
     │   │   ├── box_garage.json          # 8×8 (backdrop — box_garage.png)
     │   │   ├── galaxian.json            # 8×8 (backdrop — galaxian.png)
     │   │   ├── tour_b.json              # 8×8 (backdrop — tour_b.png)
     │   │   ├── chez_bebert.json         # 8×8 (backdrop — chez_bebert.png)
     │   │   ├── ruelle_relais.json       # 8×8 (backdrop — ruelle_relais.png)
-    │   │   └── gare_rer_y.json          # 8×8 (backdrop — gare_rer_y.png)
+    │   │   ├── gare_rer_y.json          # 8×8 (backdrop — gare_rer_y.png)
+    │   │   ├── garage_bananes.json      # 8×8 (backdrop — garage_bananes.png)
+    │   │   ├── squat_kepons.json        # 8×8 (backdrop — squat_kepons.png)
+    │   │   └── lisiere_poudrerie.json   # 8×8 (backdrop — lisiere_poudrerie.png)
     │   ├── dialogues.json               # Nœuds narratifs, conditions et effets (Francs/Faveurs/Flags/Recrutement)
     │   ├── timeline_encounters.json     # Rencontre Gare RER « du Y », ennemis, CRS, Train Fantôme & interruptions
     │   └── radio_fm.json                # 5 fréquences FM (92.4, 95.8, 98.6, 101.2, 104.7 nuit)
@@ -82,7 +85,7 @@ BANLIEUE/
         │   ├── iso_prop_node.gd         # Props 3D triés en Y-sort dans _pawn_container en mode modulaire
         │   └── pawn_actor.gd            # Nœud pion : shader contour 2px, ombre silhouette 4h (+ lights), cartel
         └── ui/
-            ├── hud_overlay.gd           # Bandeau 1982, fil d'Ariane N1-N4, bouton Menu, switcher 1/2/3 & Tuner Radio FM
+            ├── hud_overlay.gd           # Bandeau 1982, fil d'Ariane N1-N4, bouton Menu, bande 1–6 & Tuner Radio FM
             ├── dialogue_panel.gd        # Boîte de dialogue BD/fanzine avec portraits et choix annotés
             ├── timeline_panel.gd        # Vue « planche-contact / bande magnétique » de la Frise de Tension
             ├── title_menu_panel.gd      # Menu Principal / Pause unifié sur fond vivant du Box-Garage

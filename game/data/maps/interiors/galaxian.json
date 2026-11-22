@@ -127,10 +127,13 @@
     }
   ],
   "neighbors": {
-    "box_garage": 2,
     "chez_bebert": 1,
     "ruelle_relais": 1,
+    "box_garage": 2,
     "tour_b": 2,
-    "gare_rer_y": 2
+    "lisiere_poudrerie": 2,
+    "gare_rer_y": 2,
+    "garage_bananes": 2,
+    "squat_kepons": 2
   }
 }

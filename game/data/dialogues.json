@@ -412,6 +412,263 @@
           "next": ""
         }
       ]
+    },
+    "garage_bananes_manu": {
+      "speaker_id": "manu",
+      "speaker_name": "Manu — Le Garage des Bananes",
+      "text": "Clé de 12 entre les doigts, banane gominée impeccable et Perfecto taché de cambouis, Manu lève le nez d'un carbu démonté : « Alors la Cité, on descend traîner chez les Rockers du Canal ? Si vous voulez la carrure des Bananes contre les gros bras du S.O., faut montrer que vous tenez la route. »",
+      "choices": [
+        {
+          "label": "[Les Mains-Noires] Parler gicleurs, 2-temps et piquet d'Aulnay d'égal à égal",
+          "tag": "Mains-Noires • Recrutement +1 FASA",
+          "conditions": { "require_flag": "bg_atelier", "require_not_flag": "manu_recruited" },
+          "effects": {
+            "recruit": "manu",
+            "fasa_bonus": 1,
+            "notoriete": 1,
+            "moral": { "zoe": -6, "manu": 6 },
+            "set_flag": { "manu_recruited": true },
+            "unlock_clue": "Manu des Bananes rejoint la bande (+1 FASA, affinité atelier)."
+          },
+          "next": "garage_bananes_manu_recruited"
+        },
+        {
+          "label": "« Nos 103 SP sont déjà affûtées au Box-Garage — passe donc écouter tourner les moteurs. »",
+          "tag": "Mobs réglées • Recrutement",
+          "conditions": { "require_flag": "mobs_tuned", "require_not_flag": "manu_recruited" },
+          "effects": {
+            "recruit": "manu",
+            "notoriete": 1,
+            "moral": { "zoe": -6 },
+            "set_flag": { "manu_recruited": true },
+            "unlock_clue": "Manu rejoint la bande après avoir vu vos 103 SP tournées."
+          },
+          "next": "garage_bananes_manu_recruited"
+        },
+        {
+          "label": "Tenir le bras de fer de rue (FASA 4+) et poser 10 F pour le bidon de 2-temps",
+          "tag": "FASA 4 · -10 F • Recrutement",
+          "conditions": { "min_fasa": 4, "min_francs": 10, "require_not_flag": "manu_recruited" },
+          "effects": {
+            "francs": -10,
+            "recruit": "manu",
+            "notoriete": 1,
+            "moral": { "zoe": -6 },
+            "set_flag": { "manu_recruited": true },
+            "unlock_clue": "Manu des Bananes rejoint la bande au Box-Garage."
+          },
+          "next": "garage_bananes_manu_recruited"
+        },
+        {
+          "label": "« On repasse plus tard quand l'établi sera dégagé. »",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "garage_bananes_manu_recruited": {
+      "speaker_id": "manu",
+      "speaker_name": "Manu — Le Mécano",
+      "text": "Manu glisse sa clé plate dans la poche de son jean, plaque deux accords secs sur le radiocassette et ricane : « Roule ma poule. Par contre si t'as les Kepons du squat dans les pattes au Box, préviens tout de suite — j'supporte pas leurs badges sur mes pneus. »",
+      "choices": [
+        {
+          "label": "« Bienvenue au Box-Garage, Manu. »",
+          "tag": "OK",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "garage_bananes_workbench": {
+      "speaker_id": "manu",
+      "speaker_name": "Établi des Bananes",
+      "text": "Gicleurs de rechange, câbles de frein et jerricans de mélange alignés le long du mur en parpaings.",
+      "choices": [
+        {
+          "label": "Choper un kit carburation et retendre la chaîne (-5 F • +1 FASA, +Moral)",
+          "tag": "-5 F • +1 FASA / +4 Moral",
+          "conditions": { "min_francs": 5, "require_not_flag": "bananes_kit_bought" },
+          "effects": {
+            "francs": -5,
+            "fasa_bonus": 1,
+            "moral": { "all": 4 },
+            "set_flag": { "bananes_kit_bought": true }
+          },
+          "next": ""
+        },
+        {
+          "label": "Laisser les outils en place",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "squat_kepons_zoe": {
+      "speaker_id": "zoe",
+      "speaker_name": "Zoé — Squat des Kepons",
+      "text": "Assise près des palettes et de l'ampli éventré, Zoé rajuste un badge sur son cuir clouté avec un sourire en coin : « Encore des ambassadeurs de la Dalle ? À moins d'avoir du lourd contre les sbires du maire ou de connaître l'envers des pavillons, on n'embauche pas de bouffons ici. »",
+      "choices": [
+        {
+          "label": "[L'Échappé·e des Pavillons] Citer deux notables du lotissement qui financent le S.O.",
+          "tag": "Échappé·e Pavillons • Recrutement +1 Faveur",
+          "conditions": { "require_flag": "bg_pavillons", "require_not_flag": "zoe_recruited" },
+          "effects": {
+            "recruit": "zoe",
+            "faveurs": 1,
+            "notoriete": 1,
+            "moral": { "manu": -6, "zoe": 6 },
+            "set_flag": { "zoe_recruited": true },
+            "unlock_clue": "Zoé des Kepons rejoint la bande (complicité anti-pavillons)."
+          },
+          "next": "squat_kepons_zoe_recruited"
+        },
+        {
+          "label": "Sortir le bout d'arrêté municipal antidaté relevé devant Le Galaxian",
+          "tag": "Preuve Galaxian • Recrutement",
+          "conditions": { "require_flag": "inspected_notice", "require_not_flag": "zoe_recruited" },
+          "effects": {
+            "recruit": "zoe",
+            "notoriete": 1,
+            "moral": { "manu": -6 },
+            "set_flag": { "zoe_recruited": true },
+            "unlock_clue": "Zoé rejoint la bande pour pilonner le S.O. à coups de tracts !"
+          },
+          "next": "squat_kepons_zoe_recruited"
+        },
+        {
+          "label": "Céder 1 Faveur de réseau pour sceller l'alliance avec le squat",
+          "tag": "-1 Faveur • Recrutement",
+          "conditions": { "min_faveurs": 1, "require_not_flag": "zoe_recruited" },
+          "effects": {
+            "faveurs": -1,
+            "recruit": "zoe",
+            "notoriete": 1,
+            "moral": { "manu": -6 },
+            "set_flag": { "zoe_recruited": true },
+            "unlock_clue": "Alliance canal scellée : Zoé rejoint la bande."
+          },
+          "next": "squat_kepons_zoe_recruited"
+        },
+        {
+          "label": "« Juste de passage au bord du canal. »",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "squat_kepons_zoe_recruited": {
+      "speaker_id": "zoe",
+      "speaker_name": "Zoé — La Keponne",
+      "text": "Zoé glisse trois tracts rouge vif sous son bras : « Va pour votre Box sous la Dalle. Dis juste aux Bananes à deux rues d'ici de garder leurs gros sabots loin de mes caisses de fanzines. »",
+      "choices": [
+        {
+          "label": "« On tâchera d'éviter les étincelles avec Manu. »",
+          "tag": "OK",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "squat_kepons_fanzine": {
+      "speaker_id": "zoe",
+      "speaker_name": "Table de Sérigraphie",
+      "text": "La photocopieuse ronronne à côté des cadres de sérigraphie encore humides d'encre rouge.",
+      "choices": [
+        {
+          "label": "Tirer une pile de tracts moquant le couvre-feu du S.O. (+1 Faveur, +1 Notoriété)",
+          "tag": "Fanzine • +1 Faveur / +1 Notoriété",
+          "conditions": { "require_not_flag": "kepons_tracts_printed" },
+          "effects": {
+            "faveurs": 1,
+            "notoriete": 1,
+            "set_flag": { "kepons_tracts_printed": true },
+            "unlock_clue": "Tracts satiriques anti-S.O. imprimés au squat du Canal."
+          },
+          "next": ""
+        },
+        {
+          "label": "Ne rien imprimer",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "poudrerie_grille": {
+      "speaker_id": "leader",
+      "speaker_name": "Brèche de l'Ancienne Poudrerie",
+      "text": "Le grillage rouillé des 140 ha fermés en 1973 bâille sous les ronces. Au pied de la clôture, deux fûts métalliques rouillés côtoient des traces fraîches dans la boue.",
+      "choices": [
+        {
+          "label": "[Jour] Examiner les traces de camionnette et fouiller la planque des ferrailleurs (+10 F)",
+          "tag": "Jour • +10 F / Piste",
+          "conditions": { "require_phase": "day", "require_not_flag": "poudrerie_grille_checked" },
+          "effects": {
+            "francs": 10,
+            "set_flag": { "poudrerie_grille_checked": true, "poudrerie_done": true },
+            "unlock_clue": "Dépôt clandestin et billes d'argent trouvés près de la brèche de la Poudrerie (+10 F)."
+          },
+          "next": ""
+        },
+        {
+          "label": "[Nuit] Suivre les lueurs de lampes-torches entre les arbres humides (+1 Faveur, -Moral)",
+          "tag": "Nuit • +1 Faveur / -4 Moral",
+          "conditions": { "require_phase": "night", "require_not_flag": "poudrerie_grille_checked" },
+          "effects": {
+            "faveurs": 1,
+            "moral": { "all": -4 },
+            "set_flag": { "poudrerie_grille_checked": true, "poudrerie_done": true },
+            "unlock_clue": "Fourgon banalisé aperçu de nuit derrière les grilles interdites de la Poudrerie."
+          },
+          "next": ""
+        },
+        {
+          "label": "Garder ses distances avec les barbelés",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "poudrerie_bunker": {
+      "speaker_id": "nadia",
+      "speaker_name": "Bunker & Flaque de la Poudrerie",
+      "text": "Un vieux blockhaus de brique cadenassé s'enfonce dans la mousse. Devant la porte en fer, une large flaque boueuse renvoie une lueur pâle bleutée — simple reflet d'hydrocarbures… à moins que l'air ne bourdonne.",
+      "choices": [
+        {
+          "label": "[Nuit · Nadia] Approcher le walkman et caler la bande sur 104.7 FM",
+          "tag": "Nadia & Nuit • +1 Faveur / Fréquence",
+          "conditions": { "require_phase": "night", "require_member": "nadia", "require_not_flag": "poudrerie_bunker_checked" },
+          "effects": {
+            "faveurs": 1,
+            "moral": { "nadia": -8, "all": -4 },
+            "set_flag": { "poudrerie_bunker_checked": true, "poudrerie_done": true },
+            "unlock_clue": "Poudrerie de nuit : la montre à quartz de Nadia dérive de 4 min devant le bunker."
+          },
+          "next": ""
+        },
+        {
+          "label": "Inspecter le cadenas et relever le vieux plan gravé sur la brique (+1 Faveur, +1 Notoriété)",
+          "tag": "Inspection • +1 Faveur",
+          "conditions": { "require_not_flag": "poudrerie_bunker_checked" },
+          "effects": {
+            "faveurs": 1,
+            "notoriete": 1,
+            "set_flag": { "poudrerie_bunker_checked": true, "poudrerie_done": true },
+            "unlock_clue": "Ancien plan des galeries de service relevé sur la porte du bunker."
+          },
+          "next": ""
+        },
+        {
+          "label": "Ne pas traîner devant la lisière",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
     }
   }
 }

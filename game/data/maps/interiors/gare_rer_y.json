@@ -80,9 +80,12 @@
   "npcs": [],
   "neighbors": {
     "ruelle_relais": 1,
+    "garage_bananes": 1,
     "galaxian": 2,
     "chez_bebert": 2,
     "tour_b": 2,
+    "lisiere_poudrerie": 2,
+    "squat_kepons": 2,
     "box_garage": 3
   }
 }

@@ -109,9 +109,12 @@
   "npcs": [],
   "neighbors": {
     "tour_b": 1,
+    "lisiere_poudrerie": 2,
     "galaxian": 2,
     "chez_bebert": 2,
     "ruelle_relais": 3,
-    "gare_rer_y": 3
+    "gare_rer_y": 3,
+    "squat_kepons": 3,
+    "garage_bananes": 4
   }
 }

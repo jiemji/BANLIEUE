@@ -2,6 +2,16 @@
 
 Toutes les évolutions notables du projet Godot 4 et de ses documents de conception sont consignées ici.
 
+## [0.3.0] - 2026-11-22
+### Expansion Canal de l'Ourcq & Lisière de la Poudrerie (Option C) + Polish Jalon 0 (Option D)
+- **3 nouveaux lieux isométriques 2:1 (`1200×896`, `8×8` `backdrop`)** :
+  - `game/assets/locations/garage_bananes.png` + `game/data/maps/interiors/garage_bananes.json` (*Le Garage des Bananes* — **Manu** recrutable, établi/mobylettes, `occluders[]` murets, volets et 103 SP rouge).
+  - `game/assets/locations/squat_kepons.png` + `game/data/maps/interiors/squat_kepons.json` (*Entrepôt-Squat des Kepons* — **Zoé** recrutable, sérigraphie & fanzines, `occluders[]` murets & double porte).
+  - `game/assets/locations/lisiere_poudrerie.png` + `game/data/maps/interiors/lisiere_poudrerie.json` (*Grilles & Bunkers de la Poudrerie* — brèche, fûts rouillés, bunker cadenassé et flaque nocturne ambiguë, `occluders[]` fûts & buisson avant).
+- **Atlas Cradon-lès-Gonesse étendu à 5 secteurs & 9 lieux (`cradon_les_gonesse.json`)** : Ajout du 5e secteur `Canal de l'Ourcq & Zone Ind.`, du tracé `water` Canal de l'Ourcq dans `world_map_view.gd`, des 3 cartes cliquables et de la matrice complète des distances `neighbors` sur les 9 JSON intérieurs.
+- **Écriture des dialogues & recrutements (`dialogues.json`)** : Rencontres/recrutements de **Manu** (affinité `[Les Mains-Noires]` `bg_atelier`, `mobs_tuned`, FASA/Francs) et **Zoé** (affinité `[L'Échappé·e des Pavillons]` `bg_pavillons`, `inspected_notice`, Faveur) avec frictions croisées `Manu ↔ Zoé`, plus scènes à double lecture Jour/Nuit à la Poudrerie (réaction `Nadia` + `104.7 FM`).
+- **Socle Option D consolidé (`0.2.3`)** : Calibrage `occluders[]` sur `galaxian.json` & `ruelle_relais.json`, bande fluide 1–6 (`touches 1–6`, formation 6 places, libellés HUD dynamiques), contraste nocturne des cartes IGN et réactivité `[Enfant de la Dalle]` & `[Grande Gueule du Bourg]`.
+
 ## [0.2.3] - 2026-11-21
 ### Polish Jalon 0 (Option D) & Recrutables Canal (Vague 1 Option C)
 - **Profondeur premier plan (`occluders[]`) & Hotspots** : Calibration au pixel des `occluders` sur `game/data/maps/interiors/galaxian.json` (murets avant, comptoir-caisse, baby-foot) et `ruelle_relais.json` (poubelles/caisses et fourgon Type H municipal) ; recalage entier des hotspots de `galaxian.json` (`hs_notice`, `hs_flipper`).

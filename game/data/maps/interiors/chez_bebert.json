@@ -97,9 +97,12 @@
   ],
   "neighbors": {
     "galaxian": 1,
+    "ruelle_relais": 1,
+    "squat_kepons": 1,
     "box_garage": 2,
     "tour_b": 2,
-    "ruelle_relais": 1,
-    "gare_rer_y": 2
+    "gare_rer_y": 2,
+    "garage_bananes": 2,
+    "lisiere_poudrerie": 3
   }
 }
