@@ -218,6 +218,22 @@ func _wire_signals() -> void:
 	_iso_view.squad_member_clicked.connect(func(gid: int, _cid: String) -> void:
 		_squad.call("switch_to_group", gid)
 	)
+	_iso_view.call("bind_combat_timeline", _timeline)
+	_iso_view.combat_actor_hovered.connect(func(k: String, eid: String) -> void:
+		_tl_panel.call("on_stage_actor_hovered", k, eid)
+	)
+	_iso_view.combat_actor_clicked.connect(func(k: String, eid: String) -> void:
+		_tl_panel.call("on_stage_actor_clicked", k, eid)
+	)
+	_iso_view.combat_cancel_requested.connect(func() -> void:
+		_tl_panel.call("cancel_targeting")
+	)
+	_tl_panel.targeting_state_changed.connect(func(tk: String, vids: Array) -> void:
+		_iso_view.call("set_combat_targeting", tk, vids)
+	)
+	_tl_panel.frise_actor_hovered.connect(func(k: String, eid: String) -> void:
+		_iso_view.call("set_combat_external_hover", k, eid)
+	)
 
 	_world_map_view.zoom_in_requested.connect(func(target_level: int, target_id: String) -> void:
 		GameState.set_zoom_view(target_level, target_id)
@@ -267,8 +283,8 @@ func _wire_signals() -> void:
 		GameState.set_zoom_view(4, GameState.get_active_location_id())
 		_char_sheet_panel.visible = false
 		_hud.visible = false
-		_iso_view.call("set_combat_stage_mode", true)
 		_timeline.call("start_encounter", eid)
+		_iso_view.call("set_combat_stage_mode", true)
 		_update_input_lock()
 	)
 	_dialogue_runner.slice_completed.connect(_show_end_summary)
@@ -508,6 +524,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				_char_sheet_panel.call("close_panel")
 				get_viewport().set_input_as_handled()
 				return
+			if _tl_panel.visible and bool(_tl_panel.call("has_pending_targeting")):
+				_tl_panel.call("cancel_targeting")
+				get_viewport().set_input_as_handled()
+				return
 			if _app_state == AppState.PAUSE_MENU:
 				if bool(_title_menu.call("has_confirm_open")):
 					_title_menu.call("close_confirm")
@@ -677,5 +697,6 @@ func _update_input_lock() -> void:
 	var menu_open: bool = (_app_state != AppState.IN_GAME) or _new_game_panel.visible or _save_load_panel.visible or _options_panel.visible
 	var blocked: bool = menu_open or _sas_active or _end_overlay.visible or _tl_panel.visible or _dlg_panel.visible or _char_sheet_panel.visible
 	_iso_view.set("input_blocked", blocked)
+	_iso_view.set("combat_input_blocked", menu_open or _sas_active or _end_overlay.visible)
 	_world_map_view.set("input_blocked", blocked)
 	_tl_panel.set("input_blocked", menu_open or _sas_active or _end_overlay.visible)

@@ -2,6 +2,13 @@
 
 Toutes les évolutions notables du projet Godot 4 et de ses documents de conception sont consignées ici.
 
+## [0.6.0] - 2026-11-22
+### Refonte IHM Combat Tactique Isométrique
+- **Frise Chronologique Haute à Cartes Verticales (`timeline_panel.gd`)** : Déplacement de la frise en bandeau haut (`y = 8..126`) avec cartes rectangulaires verticales (`82×104 px`) centrées sur l'essentiel (portrait, nom, jauge Moral/Résolution).
+- **Quadrillage Isométrique Central & Surbrillance (`iso_district_view.gd`, `pawn_actor.gd`)** : Déploiement de tous les protagonistes présents sur une grille `2:1` centrée au milieu de l'écran (`héros` alignés sur l'axe bas→gauche, `PNJ` standees BD alignés sur l'axe haut→droite), avec mise en surbrillance de l'acteur actif (anneau sol + chevron `▼` + shader contour épaissi) et détection directe survol/clic sur pion.
+- **Triptyque Bas Actif / Minutes / Survolé & Ciblage Pion (`timeline_panel.gd`, `tension_timeline.gd`, `main.gd`)** : Fiche détaillée du personnage actif (PJ ou PNJ) en bas à gauche avec options `[1–6]` et réactions hors-frise ; **Minutes du combat** déroulantes entre les deux fiches ; fiche miroir en bas à droite au survol d'un PJ/PNJ (incluant prévisualisation `🎲 %` lorsque le joueur doit cliquer un pion pour exécuter une option ciblée).
+- **Documentation & Tests (`ux_combat_frise.md`, `architecture_technique.md`, `.agents/artefacts/*`, `smoke_test_menus.gd`)** : Mise à jour des spécifications UI combat et ajout de vérifications automatisées sur le triptyque bas, les cartes verticales hautes, le déploiement 2 axes et le ciblage par clic pion.
+
 ## [0.5.1] - 2026-11-22
 ### Jets de rue (`2d6 + Carac + Comp`), Failles & Actions d'Équipement Actives
 - **Moteur de Jets de rue (`game_state.gd`)** : Implémentation centralisée de `preview_street_roll()`, `perform_street_roll()`, `compute_street_roll_chance()` (36 combinaisons exactes avec double 1 = échec critique / plafond `97 %` et double 6 = réussite critique / plancher `3 %`), sélection automatique du meilleur membre (`get_best_active_group_roller()`), file de tests déterministe (`enqueue_forced_roll` / `clear_forced_rolls`) et détection d'actions équipées (`has_equipped_action`, `has_action_in_active_group`).

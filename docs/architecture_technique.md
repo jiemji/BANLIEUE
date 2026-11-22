@@ -1,6 +1,6 @@
 # *Banlieue* — Architecture Technique
 
-> **Version courante : 0.5.1** — Mise à jour : 2026-11-22
+> **Version courante : 0.6.0** — Mise à jour : 2026-11-22
 
 *Spécification technique de référence et socle des Jalons 0 & 1 (Option C & D + UX Frise Combat v0.4) — Phase Technique (🛠️ Léo & 🎯 Agent Combat UX).*
 
@@ -88,7 +88,7 @@ BANLIEUE/
         └── ui/
             ├── hud_overlay.gd           # Bandeau 1982, fil d'Ariane N1-N4, bouton Menu, bande 1–6 & Tuner Radio FM
             ├── dialogue_panel.gd        # Boîte de dialogue BD/fanzine avec portrait, badges 🎲 % / ⚠ FAILLE et bandeau _roll_banner
-            ├── timeline_panel.gd        # Frise-Cartes Unifiée (Option A : fiches portraits/stats/hors-frise + barre timing)
+            ├── timeline_panel.gd        # IHM Combat v0.6 : Frise haute verticale, triptyque bas (Actif / Minutes / Survolé) & ciblage clic pion
             ├── character_sheet_panel.gd # Carnet de Bande [F] : fiches PJ (Esprit/Corps/Énergie, -3..+5, XP, coffre, relations)
             ├── title_menu_panel.gd      # Menu Principal / Pause unifié sur fond vivant du Box-Garage
             ├── new_game_panel.gd        # Écran « Nouvelle partie » (prénom, 6 portraits/pions libres, 4 archétypes)

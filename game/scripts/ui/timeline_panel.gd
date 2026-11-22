@@ -1,40 +1,53 @@
-## HUD unifié « Option A : Frise-Cartes Unifiée » de la Frise Chronologique de Tension (1280×720).
+## HUD Tactique Isométrique « Frise Haute + Fiche Actif / Minutes / Fiche Survolé » (1280×720).
 extends Control
+
+signal targeting_state_changed(target_kind: String, valid_ids: Array)
+signal frise_actor_hovered(kind: String, entity_id: String)
 
 var input_blocked: bool = false
 
 var _timeline: Node = null
 var _tex_cache: Dictionary = {}
 
-# Barre d'état haute ultra-fine + tiroir Journal repliable
+# Zone 1 : Frise Chronologique en haut (cartes rectangulaires verticales)
+var _top_panel: PanelContainer = null
 var _lbl_header: Label = null
-var _lbl_shield: Label = null
-var _lbl_escape: Label = null
 var _lbl_crs: Label = null
-var _btn_journal: Button = null
-var _journal_drawer: PanelContainer = null
-var _lbl_log: Label = null
+var _lbl_escape: Label = null
+var _lbl_shield: Label = null
+var _rail_hbox: HBoxContainer = null
+var _frise_cards: Array[Control] = []
 
-# Bandeau Bark BD 1 ligne + contrôle pas-à-pas strict
+# Zone 2 : Fiche Personnage Actif bas-gauche (PJ ou PNJ)
+var _active_sheet_panel: PanelContainer = null
+var _active_sheet_style: StyleBoxFlat = null
+var _active_sheet_vbox: VBoxContainer = null
+var _actions_box: GridContainer = null
+
+# Zone 3 : Minutes du Combat bas-centre
+var _minutes_panel: PanelContainer = null
+var _lbl_minutes_status: Label = null
 var _bark_panel_style: StyleBoxFlat = null
 var _lbl_bark: Label = null
+var _minutes_scroll: ScrollContainer = null
+var _lbl_log: Label = null
 var _btn_step: Button = null
+var _btn_cancel_target: Button = null
 
-# Espace dédié Timeline (Frise-Cartes Unifiée)
-var _rail_hbox: HBoxContainer = null
-var _rail_preview_labels: Dictionary = {}
+# Zone 4 : Fiche Personnage Survolé bas-droite (même format que la fiche active)
+var _hover_panel: PanelContainer = null
+var _hover_sheet_style: StyleBoxFlat = null
+var _hover_sheet_vbox: VBoxContainer = null
 
-# Espace dédié Actions dans le timing de la Frise + Prévisualisation survol
-var _lbl_target_banner: Label = null
-var _actions_hbox: HBoxContainer = null
-var _lbl_preview: Label = null
-var _lbl_preview_warn: Label = null
-
-var _crisis_cards: Array[Control] = []
+# État de ciblage sur pion & survol
+var _pending_kind: String = "" # "" | "action" | "interrupt" | "restrain"
+var _pending_id: String = ""
+var _pending_target_kind: String = ""
+var _pending_valid_targets: Array[String] = []
+var _hovered_kind: String = ""
+var _hovered_id: String = ""
 var _current_action_ids: Array[String] = []
-var _hover_spec: Dictionary = {}
 var _bark_override_text: String = ""
-var _anim_time: float = 0.0
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -50,16 +63,6 @@ func bind_timeline(tl: Node) -> void:
 	if _timeline.has_signal("combat_feedback_emitted"):
 		_timeline.combat_feedback_emitted.connect(_on_combat_feedback)
 
-func _process(delta: float) -> void:
-	if not visible:
-		return
-	_anim_time += delta
-	var allow_shake: bool = SettingsManager.screen_shake
-	for card in _crisis_cards:
-		if is_instance_valid(card):
-			card.pivot_offset = card.size * 0.5
-			card.rotation = sin(_anim_time * 22.0) * 0.022 if allow_shake else 0.0
-
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible or input_blocked or _timeline == null or not bool(_timeline.get("active")):
 		return
@@ -68,205 +71,266 @@ func _unhandled_input(event: InputEvent) -> void:
 		if kev.pressed and not kev.echo:
 			var is_waiting: bool = bool(_timeline.get("awaiting_step"))
 			if kev.keycode == KEY_SPACE or kev.keycode == KEY_ENTER or kev.keycode == KEY_KP_ENTER:
-				if is_waiting:
+				if is_waiting and _pending_kind == "":
 					_timeline.call("step_next_beat")
 					get_viewport().set_input_as_handled()
-			elif kev.keycode == KEY_TAB:
-				_timeline.call("cycle_target")
-				get_viewport().set_input_as_handled()
 			elif kev.keycode >= KEY_1 and kev.keycode <= KEY_6:
 				if not is_waiting:
 					var idx: int = int(kev.keycode - KEY_1)
 					if idx >= 0 and idx < _current_action_ids.size():
-						_timeline.call("execute_player_action", _current_action_ids[idx])
+						select_action(_current_action_ids[idx])
 						get_viewport().set_input_as_handled()
 
 func _build_ui() -> void:
-	# 1. Barre d'état haute ultra-fine (y=8..44) : libère toute la scène isométrique dessous
-	var top_bar: PanelContainer = PanelContainer.new()
-	top_bar.position = Vector2(10, 8)
-	top_bar.size = Vector2(1260, 36)
-	top_bar.add_theme_stylebox_override("panel", _make_box(Color(0.06, 0.06, 0.08, 0.90), Color(0.95, 0.55, 0.16), 1, 5))
-	add_child(top_bar)
+	# 1. FRISE CHRONOLOGIQUE EN HAUT (x=10..1270, y=8..126)
+	_top_panel = PanelContainer.new()
+	_top_panel.position = Vector2(10, 8)
+	_top_panel.size = Vector2(1260, 118)
+	_top_panel.add_theme_stylebox_override("panel", _make_box(Color(0.06, 0.06, 0.08, 0.92), Color(0.95, 0.55, 0.16), 2, 6))
+	add_child(_top_panel)
 
-	var top_head: HBoxContainer = HBoxContainer.new()
-	top_head.add_theme_constant_override("separation", 14)
-	top_bar.add_child(top_head)
+	var top_h: HBoxContainer = HBoxContainer.new()
+	top_h.add_theme_constant_override("separation", 10)
+	_top_panel.add_child(top_h)
+
+	var status_col: VBoxContainer = VBoxContainer.new()
+	status_col.custom_minimum_size = Vector2(158, 0)
+	status_col.add_theme_constant_override("separation", 3)
+	top_h.add_child(status_col)
 
 	_lbl_header = Label.new()
-	_lbl_header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_lbl_header.add_theme_font_size_override("font_size", 14)
+	_lbl_header.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_lbl_header.add_theme_font_size_override("font_size", 12)
 	_lbl_header.add_theme_color_override("font_color", Color(0.96, 0.58, 0.18))
-	top_head.add_child(_lbl_header)
-
-	_lbl_shield = Label.new()
-	_lbl_shield.add_theme_font_size_override("font_size", 12)
-	_lbl_shield.add_theme_color_override("font_color", Color(0.55, 0.88, 0.62))
-	top_head.add_child(_lbl_shield)
-
-	_lbl_escape = Label.new()
-	_lbl_escape.add_theme_font_size_override("font_size", 12)
-	_lbl_escape.add_theme_color_override("font_color", Color(0.96, 0.84, 0.34))
-	top_head.add_child(_lbl_escape)
+	status_col.add_child(_lbl_header)
 
 	_lbl_crs = Label.new()
-	_lbl_crs.add_theme_font_size_override("font_size", 13)
+	_lbl_crs.add_theme_font_size_override("font_size", 12)
 	_lbl_crs.add_theme_color_override("font_color", Color(0.38, 0.72, 0.98))
-	top_head.add_child(_lbl_crs)
+	status_col.add_child(_lbl_crs)
 
-	_btn_journal = Button.new()
-	_btn_journal.text = "Journal ▸"
-	_btn_journal.custom_minimum_size = Vector2(96, 24)
-	_btn_journal.focus_mode = Control.FOCUS_NONE
-	_btn_journal.pressed.connect(_toggle_journal)
-	top_head.add_child(_btn_journal)
+	_lbl_escape = Label.new()
+	_lbl_escape.add_theme_font_size_override("font_size", 11)
+	_lbl_escape.add_theme_color_override("font_color", Color(0.96, 0.84, 0.34))
+	status_col.add_child(_lbl_escape)
 
-	# 2. Tiroir Journal repliable (x=10..470, y=50..370)
-	_journal_drawer = PanelContainer.new()
-	_journal_drawer.position = Vector2(10, 50)
-	_journal_drawer.size = Vector2(460, 320)
-	_journal_drawer.visible = false
-	_journal_drawer.add_theme_stylebox_override("panel", _make_box(Color(0.06, 0.06, 0.08, 0.95), Color(0.45, 0.48, 0.54), 2, 10))
-	add_child(_journal_drawer)
+	_lbl_shield = Label.new()
+	_lbl_shield.add_theme_font_size_override("font_size", 11)
+	_lbl_shield.add_theme_color_override("font_color", Color(0.55, 0.88, 0.62))
+	status_col.add_child(_lbl_shield)
 
-	var j_vbox: VBoxContainer = VBoxContainer.new()
-	j_vbox.add_theme_constant_override("separation", 6)
-	_journal_drawer.add_child(j_vbox)
+	var rail_scroll: ScrollContainer = ScrollContainer.new()
+	rail_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	rail_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	rail_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	top_h.add_child(rail_scroll)
 
-	var j_head: HBoxContainer = HBoxContainer.new()
-	j_vbox.add_child(j_head)
+	_rail_hbox = HBoxContainer.new()
+	_rail_hbox.add_theme_constant_override("separation", 7)
+	rail_scroll.add_child(_rail_hbox)
 
-	var j_title: Label = Label.new()
-	j_title.text = "JOURNAL DE CONFRONTATION (Fanzine / Radio)"
-	j_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	j_title.add_theme_font_size_override("font_size", 12)
-	j_title.add_theme_color_override("font_color", Color(0.95, 0.55, 0.16))
-	j_head.add_child(j_title)
+	# 2. FICHE PERSONNAGE ACTIF BAS-GAUCHE (x=10..404, y=478..712)
+	_active_sheet_panel = PanelContainer.new()
+	_active_sheet_panel.position = Vector2(10, 478)
+	_active_sheet_panel.size = Vector2(394, 234)
+	_active_sheet_style = _make_box(Color(0.06, 0.07, 0.09, 0.96), Color(0.95, 0.55, 0.16), 2, 8)
+	_active_sheet_panel.add_theme_stylebox_override("panel", _active_sheet_style)
+	add_child(_active_sheet_panel)
 
-	var btn_j_close: Button = Button.new()
-	btn_j_close.text = "✕"
-	btn_j_close.custom_minimum_size = Vector2(28, 22)
-	btn_j_close.focus_mode = Control.FOCUS_NONE
-	btn_j_close.pressed.connect(func() -> void: _journal_drawer.visible = false)
-	j_head.add_child(btn_j_close)
+	_active_sheet_vbox = VBoxContainer.new()
+	_active_sheet_vbox.add_theme_constant_override("separation", 5)
+	_active_sheet_panel.add_child(_active_sheet_vbox)
 
-	var j_scroll: ScrollContainer = ScrollContainer.new()
-	j_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	j_vbox.add_child(j_scroll)
+	# 3. MINUTES DU COMBAT BAS-CENTRE (x=412..868, y=478..712)
+	_minutes_panel = PanelContainer.new()
+	_minutes_panel.position = Vector2(412, 478)
+	_minutes_panel.size = Vector2(456, 234)
+	_minutes_panel.add_theme_stylebox_override("panel", _make_box(Color(0.06, 0.06, 0.08, 0.95), Color(0.42, 0.44, 0.50), 2, 8))
+	add_child(_minutes_panel)
+
+	var min_v: VBoxContainer = VBoxContainer.new()
+	min_v.add_theme_constant_override("separation", 5)
+	_minutes_panel.add_child(min_v)
+
+	var min_head: HBoxContainer = HBoxContainer.new()
+	min_head.add_theme_constant_override("separation", 8)
+	min_v.add_child(min_head)
+
+	var l_min_t: Label = Label.new()
+	l_min_t.text = "MINUTES DU COMBAT"
+	l_min_t.add_theme_font_size_override("font_size", 11)
+	l_min_t.add_theme_color_override("font_color", Color(0.95, 0.55, 0.16))
+	min_head.add_child(l_min_t)
+
+	_lbl_minutes_status = Label.new()
+	_lbl_minutes_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_lbl_minutes_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_lbl_minutes_status.add_theme_font_size_override("font_size", 11)
+	_lbl_minutes_status.add_theme_color_override("font_color", Color(0.76, 0.80, 0.88))
+	min_head.add_child(_lbl_minutes_status)
+
+	var bark_panel: PanelContainer = PanelContainer.new()
+	_bark_panel_style = _make_box(Color(0.10, 0.09, 0.12, 0.96), Color(0.86, 0.22, 0.22), 1, 5)
+	bark_panel.add_theme_stylebox_override("panel", _bark_panel_style)
+	min_v.add_child(bark_panel)
+
+	_lbl_bark = Label.new()
+	_lbl_bark.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_lbl_bark.custom_minimum_size = Vector2(0, 32)
+	_lbl_bark.add_theme_font_size_override("font_size", 12)
+	_lbl_bark.add_theme_color_override("font_color", Color(0.98, 0.95, 0.88))
+	bark_panel.add_child(_lbl_bark)
+
+	_minutes_scroll = ScrollContainer.new()
+	_minutes_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_minutes_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	min_v.add_child(_minutes_scroll)
 
 	_lbl_log = Label.new()
 	_lbl_log.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_lbl_log.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_lbl_log.add_theme_font_size_override("font_size", 12)
-	_lbl_log.add_theme_color_override("font_color", Color(0.88, 0.87, 0.82))
-	j_scroll.add_child(_lbl_log)
+	_lbl_log.add_theme_font_size_override("font_size", 11)
+	_lbl_log.add_theme_color_override("font_color", Color(0.86, 0.85, 0.80))
+	_minutes_scroll.add_child(_lbl_log)
 
-	# 3. Bandeau Bark BD 1 ligne + contrôle pas-à-pas strict (y=396..438)
-	var bark_panel: PanelContainer = PanelContainer.new()
-	bark_panel.position = Vector2(10, 396)
-	bark_panel.size = Vector2(1260, 42)
-	_bark_panel_style = _make_box(Color(0.06, 0.06, 0.08, 0.91), Color(0.86, 0.22, 0.22), 2, 5)
-	bark_panel.add_theme_stylebox_override("panel", _bark_panel_style)
-	add_child(bark_panel)
-
-	var bark_hbox: HBoxContainer = HBoxContainer.new()
-	bark_hbox.add_theme_constant_override("separation", 10)
-	bark_panel.add_child(bark_hbox)
-
-	_lbl_bark = Label.new()
-	_lbl_bark.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_lbl_bark.clip_text = true
-	_lbl_bark.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_lbl_bark.add_theme_font_size_override("font_size", 13)
-	_lbl_bark.add_theme_color_override("font_color", Color(0.96, 0.94, 0.88))
-	bark_hbox.add_child(_lbl_bark)
+	var min_foot: HBoxContainer = HBoxContainer.new()
+	min_foot.add_theme_constant_override("separation", 6)
+	min_v.add_child(min_foot)
 
 	_btn_step = Button.new()
-	_btn_step.custom_minimum_size = Vector2(280, 28)
+	_btn_step.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_btn_step.custom_minimum_size = Vector2(0, 28)
 	_btn_step.focus_mode = Control.FOCUS_NONE
+	_btn_step.add_theme_font_size_override("font_size", 12)
 	_btn_step.pressed.connect(func() -> void:
-		if _timeline != null and bool(_timeline.get("awaiting_step")):
+		if _timeline != null and bool(_timeline.get("awaiting_step")) and _pending_kind == "":
 			_timeline.call("step_next_beat")
 	)
-	bark_hbox.add_child(_btn_step)
+	min_foot.add_child(_btn_step)
 
-	# 4. Espace dédié Timeline — Frise-Cartes Unifiée (y=444..614)
-	var timeline_panel: PanelContainer = PanelContainer.new()
-	timeline_panel.position = Vector2(10, 444)
-	timeline_panel.size = Vector2(1260, 170)
-	timeline_panel.add_theme_stylebox_override("panel", _make_box(Color(0.06, 0.06, 0.08, 0.94), Color(0.95, 0.55, 0.16), 2, 6))
-	add_child(timeline_panel)
+	_btn_cancel_target = Button.new()
+	_btn_cancel_target.text = "✕ Annuler cible"
+	_btn_cancel_target.custom_minimum_size = Vector2(126, 28)
+	_btn_cancel_target.focus_mode = Control.FOCUS_NONE
+	_btn_cancel_target.visible = false
+	_btn_cancel_target.add_theme_font_size_override("font_size", 11)
+	_btn_cancel_target.add_theme_stylebox_override("normal", _make_box(Color(0.32, 0.11, 0.12), Color(0.95, 0.34, 0.32), 1, 4))
+	_btn_cancel_target.pressed.connect(cancel_targeting)
+	min_foot.add_child(_btn_cancel_target)
 
-	var tl_vbox: VBoxContainer = VBoxContainer.new()
-	tl_vbox.add_theme_constant_override("separation", 4)
-	timeline_panel.add_child(tl_vbox)
+	# 4. FICHE PERSONNAGE SURVOLÉ BAS-DROITE (x=876..1270, y=478..712 — même gabarit que gauche)
+	_hover_panel = PanelContainer.new()
+	_hover_panel.position = Vector2(876, 478)
+	_hover_panel.size = Vector2(394, 234)
+	_hover_panel.visible = false
+	_hover_sheet_style = _make_box(Color(0.06, 0.07, 0.09, 0.96), Color(0.88, 0.86, 0.78), 2, 8)
+	_hover_panel.add_theme_stylebox_override("panel", _hover_sheet_style)
+	add_child(_hover_panel)
 
-	var chrono_guide: Label = Label.new()
-	chrono_guide.text = "◄ MAINTENANT (Cran 0)  ───  FRISE-CARTES UNIFIÉE (clic ennemi = cible · ⚡ / 🛡 = actions hors-frise)  ───  CRANS SUIVANTS ►"
-	chrono_guide.add_theme_font_size_override("font_size", 11)
-	chrono_guide.add_theme_color_override("font_color", Color(0.76, 0.78, 0.84))
-	tl_vbox.add_child(chrono_guide)
+	_hover_sheet_vbox = VBoxContainer.new()
+	_hover_sheet_vbox.add_theme_constant_override("separation", 5)
+	_hover_panel.add_child(_hover_sheet_vbox)
 
-	var rail_scroll: ScrollContainer = ScrollContainer.new()
-	rail_scroll.custom_minimum_size = Vector2(1244, 138)
-	rail_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	rail_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	tl_vbox.add_child(rail_scroll)
+## Indique si le joueur est en train de sélectionner une cible PJ ou PNJ sur le plateau isométrique.
+func has_pending_targeting() -> bool:
+	return _pending_kind != ""
 
-	_rail_hbox = HBoxContainer.new()
-	_rail_hbox.add_theme_constant_override("separation", 8)
-	rail_scroll.add_child(_rail_hbox)
+## Annule le mode ciblage en cours et réinitialise la surbrillance sur la grille.
+func cancel_targeting() -> void:
+	if _pending_kind == "":
+		return
+	_clear_pending_targeting()
+	targeting_state_changed.emit("", [])
+	refresh()
 
-	# 5. Espace dédié Actions dans le timing de la Frise (y=620..712)
-	var actions_panel: PanelContainer = PanelContainer.new()
-	actions_panel.position = Vector2(10, 620)
-	actions_panel.size = Vector2(1260, 92)
-	actions_panel.add_theme_stylebox_override("panel", _make_box(Color(0.06, 0.06, 0.08, 0.95), Color(0.85, 0.17, 0.17), 2, 8))
-	add_child(actions_panel)
+func _clear_pending_targeting() -> void:
+	_pending_kind = ""
+	_pending_id = ""
+	_pending_target_kind = ""
+	_pending_valid_targets.clear()
 
-	var act_row: HBoxContainer = HBoxContainer.new()
-	act_row.add_theme_constant_override("separation", 12)
-	actions_panel.add_child(act_row)
+func _start_targeting(pk: String, pid: String, tkind: String) -> void:
+	if _timeline == null:
+		return
+	if _pending_kind == pk and _pending_id == pid:
+		cancel_targeting()
+		return
+	var valid_var: Variant = _timeline.call("get_valid_target_ids", tkind)
+	var valid_arr: Array[String] = []
+	if valid_var is Array:
+		for vv in (valid_var as Array):
+			valid_arr.append(str(vv))
+	if valid_arr.is_empty():
+		return
+	_pending_kind = pk
+	_pending_id = pid
+	_pending_target_kind = tkind
+	_pending_valid_targets = valid_arr
+	targeting_state_changed.emit(tkind, valid_arr)
+	refresh()
 
-	var act_left: VBoxContainer = VBoxContainer.new()
-	act_left.custom_minimum_size = Vector2(812, 0)
-	act_left.add_theme_constant_override("separation", 5)
-	act_row.add_child(act_left)
+## Sélectionne une option du tour PJ actif (exécute si sans cible, sinon active le ciblage sur pion).
+func select_action(action_id: String) -> void:
+	if _timeline == null or not bool(_timeline.get("active")):
+		return
+	if bool(_timeline.get("awaiting_step")):
+		return
+	var tkind: String = str(_timeline.call("get_action_target_kind", action_id))
+	if tkind == "none":
+		_clear_pending_targeting()
+		targeting_state_changed.emit("", [])
+		_timeline.call("execute_player_action", action_id)
+	else:
+		_start_targeting("action", action_id, tkind)
 
-	_lbl_target_banner = Label.new()
-	_lbl_target_banner.add_theme_font_size_override("font_size", 12)
-	_lbl_target_banner.add_theme_color_override("font_color", Color(0.96, 0.62, 0.22))
-	act_left.add_child(_lbl_target_banner)
+## Déclenche ou prépare le ciblage d'une Interruption hors-tour.
+func select_interruption(char_id: String) -> void:
+	if _timeline == null or not bool(_timeline.get("active")):
+		return
+	var tkind: String = str(_timeline.call("get_interruption_target_kind", char_id))
+	if tkind == "none":
+		_clear_pending_targeting()
+		targeting_state_changed.emit("", [])
+		_timeline.call("trigger_interruption", char_id)
+	else:
+		_start_targeting("interrupt", char_id, tkind)
 
-	_actions_hbox = HBoxContainer.new()
-	_actions_hbox.add_theme_constant_override("separation", 6)
-	act_left.add_child(_actions_hbox)
+## Prépare le ciblage du pion PJ en Crise d'autonomie à retenir.
+func select_restrain() -> void:
+	if _timeline == null or not bool(_timeline.get("active")):
+		return
+	_start_targeting("restrain", "restrain", "ally_crisis")
 
-	var preview_panel: PanelContainer = PanelContainer.new()
-	preview_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	preview_panel.add_theme_stylebox_override("panel", _make_box(Color(0.10, 0.10, 0.13, 0.96), Color(0.32, 0.34, 0.40), 1, 6))
-	act_row.add_child(preview_panel)
+## Reçoit le survol d'un pion depuis le quadrillage isométrique central.
+func on_stage_actor_hovered(kind: String, entity_id: String) -> void:
+	_hovered_kind = kind
+	_hovered_id = entity_id
+	_rebuild_hover_panel()
 
-	var pv_vbox: VBoxContainer = VBoxContainer.new()
-	pv_vbox.add_theme_constant_override("separation", 2)
-	preview_panel.add_child(pv_vbox)
-
-	_lbl_preview = Label.new()
-	_lbl_preview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_lbl_preview.add_theme_font_size_override("font_size", 11)
-	_lbl_preview.add_theme_color_override("font_color", Color(0.86, 0.90, 0.96))
-	pv_vbox.add_child(_lbl_preview)
-
-	_lbl_preview_warn = Label.new()
-	_lbl_preview_warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_lbl_preview_warn.add_theme_font_size_override("font_size", 11)
-	_lbl_preview_warn.add_theme_color_override("font_color", Color(1.0, 0.34, 0.34))
-	_lbl_preview_warn.visible = false
-	pv_vbox.add_child(_lbl_preview_warn)
-
-func _toggle_journal() -> void:
-	_journal_drawer.visible = not _journal_drawer.visible
-	_btn_journal.text = "Journal ▾" if _journal_drawer.visible else "Journal ▸"
+## Reçoit un clic gauche sur un pion du quadrillage isométrique central.
+func on_stage_actor_clicked(kind: String, entity_id: String) -> void:
+	if _timeline == null or not bool(_timeline.get("active")):
+		return
+	if _pending_kind != "":
+		var kind_ok: bool = ((_pending_target_kind == "enemy" and kind == "enemy") or ((_pending_target_kind == "ally" or _pending_target_kind == "ally_crisis") and kind == "ally"))
+		if kind_ok and _pending_valid_targets.has(entity_id):
+			var pk: String = _pending_kind
+			var pid: String = _pending_id
+			_clear_pending_targeting()
+			targeting_state_changed.emit("", [])
+			if pk == "action":
+				_timeline.call("execute_player_action_on", pid, entity_id)
+			elif pk == "interrupt":
+				_timeline.call("trigger_interruption_on", pid, entity_id)
+			elif pk == "restrain":
+				_timeline.call("restrain_crisis", entity_id)
+			return
+	if kind == "enemy":
+		_timeline.call("select_target", entity_id)
+	_hovered_kind = kind
+	_hovered_id = entity_id
+	_rebuild_hover_panel()
 
 ## Met à jour le bandeau Bark BD et sa bordure/teinte selon la gravité de l'événement émis.
 func _on_combat_feedback(event_data: Dictionary) -> void:
@@ -277,34 +341,48 @@ func _on_combat_feedback(event_data: Dictionary) -> void:
 		var k: String = str(event_data.get("kind", ""))
 		if k == "ally_brilliant":
 			_bark_panel_style.border_color = Color(0.98, 0.78, 0.24)
-			_bark_panel_style.bg_color = Color(0.14, 0.11, 0.05, 0.94)
+			_bark_panel_style.bg_color = Color(0.14, 0.11, 0.05, 0.96)
 		elif k == "ally_flaw" or k == "enemy" or k == "crisis" or k == "counter":
 			_bark_panel_style.border_color = Color(0.92, 0.24, 0.24)
-			_bark_panel_style.bg_color = Color(0.14, 0.06, 0.07, 0.94)
+			_bark_panel_style.bg_color = Color(0.14, 0.06, 0.07, 0.96)
 		else:
 			_bark_panel_style.border_color = Color(0.95, 0.55, 0.16)
-			_bark_panel_style.bg_color = Color(0.06, 0.06, 0.08, 0.91)
+			_bark_panel_style.bg_color = Color(0.10, 0.09, 0.12, 0.96)
 
 func _on_encounter_finished(_outcome_id: String, _summary: String) -> void:
 	visible = false
-	_journal_drawer.visible = false
-	_hover_spec = {}
+	_clear_pending_targeting()
+	_hovered_kind = ""
+	_hovered_id = ""
 	_bark_override_text = ""
+	targeting_state_changed.emit("", [])
+	frise_actor_hovered.emit("", "")
 	if _bark_panel_style != null:
 		_bark_panel_style.border_color = Color(0.86, 0.22, 0.22)
-		_bark_panel_style.bg_color = Color(0.06, 0.06, 0.08, 0.91)
+		_bark_panel_style.bg_color = Color(0.10, 0.09, 0.12, 0.96)
 
-## Reconstruit la Frise-Cartes Unifiée et la barre d'actions selon TensionTimeline.
+## Reconstruit la Frise haute, la fiche active, les Minutes du combat et l'éventuelle fiche survolée.
 func refresh() -> void:
 	if _timeline == null:
 		return
-	_hover_spec = {}
 	var is_act: bool = bool(_timeline.get("active"))
 	visible = is_act
 	if not is_act:
 		return
 
-	var title_txt: String = str(_timeline.get("encounter_title"))
+	if _pending_kind != "":
+		var valid_now_var: Variant = _timeline.call("get_valid_target_ids", _pending_target_kind)
+		var valid_now: Array[String] = []
+		if valid_now_var is Array:
+			for vn in (valid_now_var as Array):
+				valid_now.append(str(vn))
+		if valid_now.is_empty():
+			_clear_pending_targeting()
+			targeting_state_changed.emit("", [])
+		else:
+			_pending_valid_targets = valid_now
+			targeting_state_changed.emit(_pending_target_kind, _pending_valid_targets)
+
 	var turn_c: int = int(_timeline.get("turn_count"))
 	var crs_t: int = int(_timeline.get("crs_ticks"))
 	var esc_p: int = int(_timeline.get("escape_progress"))
@@ -313,23 +391,22 @@ func refresh() -> void:
 	var is_waiting: bool = bool(_timeline.get("awaiting_step"))
 	var step_lbl: String = str(_timeline.get("pending_beat_label"))
 
-	_lbl_header.text = "FRISE DE TENSION — %s  (Tour %d)" % [title_txt, turn_c]
-	_lbl_shield.text = ("Bouclier x%d" % shield_p) if shield_p > 0 else ""
-	_lbl_escape.text = "TRAIN FANTÔME À QUAI !" if tf_arrived else ("Échappée : %d/2" % esc_p)
+	_lbl_header.text = "TOUR %d\n%s" % [turn_c, str(_timeline.get("encounter_title"))]
 	_lbl_crs.text = "CRS : %d cran(s)" % maxi(0, crs_t)
 	_lbl_crs.add_theme_color_override("font_color", Color(1.0, 0.36, 0.34) if crs_t <= 2 else Color(0.38, 0.72, 0.98))
+	_lbl_escape.text = "TRAIN FANTÔME À QUAI !" if tf_arrived else ("Échappée : %d/2" % esc_p)
+	_lbl_shield.visible = shield_p > 0
+	_lbl_shield.text = "Bouclier Interp. x%d" % shield_p
 
-	_rebuild_unified_rail()
-	_rebuild_actions(is_waiting)
-	_refresh_bark_and_step(is_waiting, step_lbl)
-	_refresh_journal()
-	_apply_preview_visuals()
+	_rebuild_top_frise()
+	_rebuild_active_sheet_panel(is_waiting)
+	_rebuild_minutes_panel(is_waiting, step_lbl)
+	_rebuild_hover_panel()
 
-func _rebuild_unified_rail() -> void:
+func _rebuild_top_frise() -> void:
 	for c in _rail_hbox.get_children():
 		c.queue_free()
-	_rail_preview_labels.clear()
-	_crisis_cards.clear()
+	_frise_cards.clear()
 
 	var entries_var: Variant = _timeline.call("get_ordered_rail_entries")
 	if not (entries_var is Array):
@@ -338,428 +415,424 @@ func _rebuild_unified_rail() -> void:
 		if not (ed_var is Dictionary):
 			continue
 		var ed: Dictionary = ed_var as Dictionary
-		var kind: String = str(ed.get("kind", ""))
-		if kind == "ally":
-			_rail_hbox.add_child(_build_ally_card(ed))
-		elif kind == "reinforcement":
-			_rail_hbox.add_child(_build_reinforcement_card(ed))
-		elif kind == "enemy":
-			_rail_hbox.add_child(_build_enemy_card(ed))
-		elif kind == "crs":
-			_rail_hbox.add_child(_build_crs_card(ed))
+		var card: Control = _build_frise_vertical_card(ed)
+		_rail_hbox.add_child(card)
+		_frise_cards.append(card)
 
-func _build_ally_card(ed: Dictionary) -> Control:
-	var cid: String = str(ed.get("id", ""))
-	var tick_v: int = int(ed.get("tick", 0))
-	var turn_t: int = int(ed.get("turn_tick", tick_v))
-	var in_crisis: bool = bool(ed.get("in_crisis", false))
-	var is_acting: bool = bool(ed.get("acting", false))
-	var r_ready: bool = bool(ed.get("reaction_ready", false))
-	var cr_ticks: int = int(ed.get("crisis_ticks", 0))
-	var col_char: Color = Color.html(str(ed.get("color", "#f28c28")))
-
-	var card: PanelContainer = PanelContainer.new()
-	card.custom_minimum_size = Vector2(204 if in_crisis else 192, 130)
-	var border_col: Color = Color(1.0, 0.24, 0.24) if in_crisis else (Color(0.98, 0.78, 0.26) if is_acting else col_char)
-	var bg_col: Color = Color(0.24, 0.08, 0.09, 0.96) if in_crisis else (Color(0.18, 0.14, 0.09, 0.96) if is_acting else Color(0.10, 0.11, 0.14, 0.94))
-	card.add_theme_stylebox_override("panel", _make_box(bg_col, border_col, 3 if (in_crisis or is_acting) else 1, 5))
-	if in_crisis:
-		_crisis_cards.append(card)
-
-	var cv: VBoxContainer = VBoxContainer.new()
-	cv.add_theme_constant_override("separation", 2)
-	card.add_child(cv)
-
-	var head_r: HBoxContainer = HBoxContainer.new()
-	cv.add_child(head_r)
-
-	var l_tick: Label = Label.new()
-	l_tick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	if in_crisis:
-		l_tick.text = "🔥 CRISE +%dc" % maxi(0, cr_ticks)
-		l_tick.add_theme_color_override("font_color", Color(1.0, 0.42, 0.42))
-	elif is_acting:
-		l_tick.text = "MAINTENANT · AGIT"
-		l_tick.add_theme_color_override("font_color", Color(1.0, 0.84, 0.30))
-	else:
-		l_tick.text = "CRAN +%d" % turn_t
-		l_tick.add_theme_color_override("font_color", col_char)
-	l_tick.add_theme_font_size_override("font_size", 10)
-	head_r.add_child(l_tick)
-
-	var l_react: Label = Label.new()
-	l_react.text = "⚡ PRÊT" if r_ready else ""
-	l_react.add_theme_font_size_override("font_size", 9)
-	l_react.add_theme_color_override("font_color", Color(0.42, 0.78, 0.98))
-	head_r.add_child(l_react)
-
-	var mid_r: HBoxContainer = HBoxContainer.new()
-	mid_r.add_theme_constant_override("separation", 6)
-	cv.add_child(mid_r)
-
-	var ptex: TextureRect = TextureRect.new()
-	ptex.custom_minimum_size = Vector2(44, 52)
-	ptex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	ptex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	ptex.texture = _load_texture_safe(str(ed.get("portrait", "")))
-	mid_r.add_child(ptex)
-
-	var info_v: VBoxContainer = VBoxContainer.new()
-	info_v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	info_v.add_theme_constant_override("separation", 1)
-	mid_r.add_child(info_v)
-
-	var l_name: Label = Label.new()
-	l_name.text = str(ed.get("label", cid))
-	l_name.clip_text = true
-	l_name.add_theme_font_size_override("font_size", 12)
-	l_name.add_theme_color_override("font_color", Color.WHITE)
-	info_v.add_child(l_name)
-
-	var moral_v: int = int(ed.get("moral", 60))
-	var moral_m: int = maxi(1, int(ed.get("moral_max", 100)))
-	var thr_v: int = int(ed.get("stress_threshold", 35))
-	var l_moral: Label = Label.new()
-	l_moral.text = "Mor %d/%d (S.%d)" % [moral_v, moral_m, thr_v]
-	l_moral.add_theme_font_size_override("font_size", 10)
-	l_moral.add_theme_color_override("font_color", Color(1.0, 0.54, 0.50) if moral_v <= thr_v + 6 else Color(0.84, 0.88, 0.86))
-	info_v.add_child(l_moral)
-
-	var bar: ProgressBar = ProgressBar.new()
-	bar.custom_minimum_size = Vector2(0, 6)
-	bar.max_value = moral_m
-	bar.value = moral_v
-	bar.show_percentage = false
-	info_v.add_child(bar)
-
-	var l_stats: Label = Label.new()
-	l_stats.text = "Att. %d · Aura %d" % [int(ed.get("attitude", 60)), int(ed.get("aura", 3))]
-	l_stats.add_theme_font_size_override("font_size", 10)
-	l_stats.add_theme_color_override("font_color", Color(0.88, 0.84, 0.74))
-	info_v.add_child(l_stats)
-
-	# Actions hors-frise directement sur la fiche
-	var foot_r: HBoxContainer = HBoxContainer.new()
-	foot_r.add_theme_constant_override("separation", 4)
-	cv.add_child(foot_r)
-
-	var btn_int: Button = Button.new()
-	btn_int.custom_minimum_size = Vector2(0, 26)
-	btn_int.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_int.clip_text = true
-	btn_int.focus_mode = Control.FOCUS_NONE
-	var sp_name: String = str(ed.get("specialty_name", "Interrupt."))
-	btn_int.text = ("⚡ " + sp_name) if r_ready else "[Utilisée]"
-	btn_int.disabled = not r_ready
-	btn_int.add_theme_font_size_override("font_size", 10)
-	var cid_cap: String = cid
-	btn_int.pressed.connect(func() -> void: _timeline.call("trigger_interruption", cid_cap))
-	btn_int.mouse_entered.connect(func() -> void: _set_hover_spec({"kind": "interrupt", "id": cid_cap}))
-	btn_int.mouse_exited.connect(func() -> void: _clear_hover_spec())
-	foot_r.add_child(btn_int)
-
-	if in_crisis:
-		var btn_ret: Button = Button.new()
-		btn_ret.custom_minimum_size = Vector2(74, 26)
-		btn_ret.focus_mode = Control.FOCUS_NONE
-		btn_ret.text = "🛡 Retenir"
-		btn_ret.add_theme_font_size_override("font_size", 10)
-		btn_ret.disabled = not bool(_timeline.call("has_restrain_reaction_for", cid_cap))
-		btn_ret.add_theme_stylebox_override("normal", _make_box(Color(0.55, 0.14, 0.14), Color(1.0, 0.52, 0.34), 2, 3))
-		btn_ret.pressed.connect(func() -> void: _timeline.call("restrain_crisis", cid_cap))
-		btn_ret.mouse_entered.connect(func() -> void: _set_hover_spec({"kind": "restrain", "id": cid_cap}))
-		btn_ret.mouse_exited.connect(func() -> void: _clear_hover_spec())
-		foot_r.add_child(btn_ret)
-
-	var l_pv: Label = Label.new()
-	l_pv.visible = false
-	l_pv.add_theme_font_size_override("font_size", 9)
-	l_pv.add_theme_color_override("font_color", Color(1.0, 0.88, 0.28))
-	cv.add_child(l_pv)
-	_rail_preview_labels[cid] = l_pv
-
-	return card
-
-func _build_reinforcement_card(ed: Dictionary) -> Control:
-	var cid: String = str(ed.get("id", ""))
-	var tick_v: int = int(ed.get("tick", 2))
-	var card: PanelContainer = PanelContainer.new()
-	card.custom_minimum_size = Vector2(158, 130)
-	card.add_theme_stylebox_override("panel", _make_box(Color(0.09, 0.11, 0.14, 0.88), Color(0.42, 0.64, 0.72), 1, 5))
-
-	var cv: VBoxContainer = VBoxContainer.new()
-	cv.add_theme_constant_override("separation", 3)
-	card.add_child(cv)
-
-	var l_tick: Label = Label.new()
-	l_tick.text = "RENFORT +%d cran(s)" % tick_v
-	l_tick.add_theme_font_size_override("font_size", 10)
-	l_tick.add_theme_color_override("font_color", Color(0.52, 0.82, 0.90))
-	cv.add_child(l_tick)
-
-	var mid_r: HBoxContainer = HBoxContainer.new()
-	mid_r.add_theme_constant_override("separation", 6)
-	cv.add_child(mid_r)
-
-	var ptex: TextureRect = TextureRect.new()
-	ptex.custom_minimum_size = Vector2(40, 48)
-	ptex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	ptex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	ptex.modulate = Color(0.68, 0.74, 0.82)
-	ptex.texture = _load_texture_safe(str(ed.get("portrait", "")))
-	mid_r.add_child(ptex)
-
-	var iv: VBoxContainer = VBoxContainer.new()
-	iv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	iv.add_theme_constant_override("separation", 1)
-	mid_r.add_child(iv)
-
-	var l_name: Label = Label.new()
-	l_name.text = str(ed.get("label", cid))
-	l_name.clip_text = true
-	l_name.add_theme_font_size_override("font_size", 11)
-	iv.add_child(l_name)
-
-	var l_st: Label = Label.new()
-	l_st.text = "Att. %d · Aura %d" % [int(ed.get("attitude", 60)), int(ed.get("aura", 3))]
-	l_st.add_theme_font_size_override("font_size", 10)
-	l_st.add_theme_color_override("font_color", Color(0.80, 0.82, 0.84))
-	iv.add_child(l_st)
-
-	var l_mor: Label = Label.new()
-	l_mor.text = "Moral %d/%d" % [int(ed.get("moral", 60)), int(ed.get("moral_max", 100))]
-	l_mor.add_theme_font_size_override("font_size", 10)
-	l_mor.add_theme_color_override("font_color", Color(0.75, 0.82, 0.84))
-	iv.add_child(l_mor)
-
-	var l_sub: Label = Label.new()
-	l_sub.text = "En approche (103 SP / pied)"
-	l_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l_sub.add_theme_font_size_override("font_size", 10)
-	l_sub.add_theme_color_override("font_color", Color(0.68, 0.76, 0.84))
-	cv.add_child(l_sub)
-
-	return card
-
-func _build_enemy_card(ed: Dictionary) -> Control:
+func _build_frise_vertical_card(ed: Dictionary) -> Control:
+	var kind: String = str(ed.get("kind", ""))
 	var eid: String = str(ed.get("id", ""))
-	var tick_v: int = int(ed.get("tick", 1))
-	var is_sel: bool = bool(ed.get("selected", false))
 	var is_acting: bool = bool(ed.get("acting", false))
-	var counter_on: bool = bool(ed.get("counter_ready", false))
-	var res: int = int(ed.get("resolve", 1))
-	var res_max: int = maxi(1, int(ed.get("resolve_max", 1)))
+	var in_crisis: bool = bool(ed.get("in_crisis", false))
 
-	var card_btn: Button = Button.new()
-	card_btn.custom_minimum_size = Vector2(216, 130)
-	card_btn.focus_mode = Control.FOCUS_NONE
-	var b_col: Color = Color(1.0, 0.78, 0.24) if is_sel else (Color(1.0, 0.30, 0.30) if is_acting else Color(0.84, 0.22, 0.22))
-	var bg_col: Color = Color(0.20, 0.12, 0.09, 0.96) if is_sel else (Color(0.24, 0.09, 0.10, 0.96) if is_acting else Color(0.11, 0.10, 0.13, 0.94))
-	card_btn.add_theme_stylebox_override("normal", _make_box(bg_col, b_col, 3 if (is_sel or is_acting) else 1, 5))
-	card_btn.add_theme_stylebox_override("hover", _make_box(bg_col.lightened(0.08), Color(1.0, 0.85, 0.35), 2, 5))
-	var eid_cap: String = eid
-	card_btn.pressed.connect(func() -> void: _timeline.call("select_target", eid_cap))
+	var card: PanelContainer = PanelContainer.new()
+	card.custom_minimum_size = Vector2(82, 104)
+	card.mouse_filter = Control.MOUSE_FILTER_STOP
+	var col_char: Color = Color.html(str(ed.get("color", "#f28c28")))
+	var b_col: Color = Color(1.0, 0.82, 0.24) if is_acting else (Color(1.0, 0.28, 0.28) if in_crisis else col_char)
+	var bg_col: Color = Color(0.20, 0.14, 0.08, 0.96) if is_acting else (Color(0.22, 0.08, 0.09, 0.96) if in_crisis else Color(0.10, 0.11, 0.14, 0.94))
+	card.add_theme_stylebox_override("panel", _make_box(bg_col, b_col, 3 if (is_acting or in_crisis) else 1, 4))
+
+	if kind == "ally" or kind == "enemy":
+		var k_cap: String = kind
+		var id_cap: String = eid
+		card.mouse_entered.connect(func() -> void:
+			frise_actor_hovered.emit(k_cap, id_cap)
+			on_stage_actor_hovered(k_cap, id_cap)
+		)
+		card.mouse_exited.connect(func() -> void:
+			frise_actor_hovered.emit("", "")
+			on_stage_actor_hovered("", "")
+		)
 
 	var cv: VBoxContainer = VBoxContainer.new()
-	cv.set_anchors_preset(Control.PRESET_FULL_RECT)
-	cv.offset_left = 7
-	cv.offset_top = 5
-	cv.offset_right = -7
-	cv.offset_bottom = -5
-	cv.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cv.add_theme_constant_override("separation", 2)
-	card_btn.add_child(cv)
-
-	var head_r: HBoxContainer = HBoxContainer.new()
-	head_r.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	cv.add_child(head_r)
-
-	var l_tk: Label = Label.new()
-	l_tk.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	l_tk.text = ("AGIT !" if is_acting else ("CRAN +%d" % tick_v)) + (" [CIBLE]" if is_sel else "")
-	l_tk.add_theme_font_size_override("font_size", 10)
-	l_tk.add_theme_color_override("font_color", Color(1.0, 0.82, 0.28) if is_sel else Color(0.98, 0.38, 0.36))
-	l_tk.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	head_r.add_child(l_tk)
-
-	var mid_r: HBoxContainer = HBoxContainer.new()
-	mid_r.add_theme_constant_override("separation", 6)
-	mid_r.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	cv.add_child(mid_r)
+	cv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(cv)
 
 	var ptex: TextureRect = TextureRect.new()
-	ptex.custom_minimum_size = Vector2(42, 48)
+	ptex.custom_minimum_size = Vector2(72, 62)
 	ptex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	ptex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	ptex.texture = _load_texture_safe(str(ed.get("portrait", "res://assets/portraits/so_agent.png")))
 	ptex.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	mid_r.add_child(ptex)
-
-	var iv: VBoxContainer = VBoxContainer.new()
-	iv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	iv.add_theme_constant_override("separation", 2)
-	iv.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	mid_r.add_child(iv)
+	var ppath: String = str(ed.get("portrait", ""))
+	if ppath != "":
+		ptex.texture = _load_texture_safe(ppath)
+	if kind == "reinforcement":
+		ptex.modulate = Color(0.68, 0.76, 0.84)
+	cv.add_child(ptex)
 
 	var l_name: Label = Label.new()
 	l_name.text = str(ed.get("label", eid))
 	l_name.clip_text = true
-	l_name.add_theme_font_size_override("font_size", 12)
-	l_name.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42) if is_sel else Color(0.95, 0.92, 0.88))
+	l_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l_name.add_theme_font_size_override("font_size", 10)
+	l_name.add_theme_color_override("font_color", Color(1.0, 0.88, 0.42) if is_acting else Color(0.95, 0.93, 0.88))
 	l_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	iv.add_child(l_name)
+	cv.add_child(l_name)
 
-	var pips: HBoxContainer = HBoxContainer.new()
-	pips.add_theme_constant_override("separation", 2)
-	pips.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	iv.add_child(pips)
-	for idx_p in range(res_max):
-		var pip: ColorRect = ColorRect.new()
-		pip.custom_minimum_size = Vector2(14, 7)
-		pip.color = Color(0.88, 0.24, 0.22) if idx_p < res else Color(0.22, 0.22, 0.26)
-		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		pips.add_child(pip)
-	var l_res: Label = Label.new()
-	l_res.text = " %d/%d" % [res, res_max]
-	l_res.add_theme_font_size_override("font_size", 10)
-	l_res.add_theme_color_override("font_color", Color(0.86, 0.86, 0.88))
-	l_res.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pips.add_child(l_res)
-
-	var l_sub: Label = Label.new()
-	if counter_on:
-		l_sub.text = "⚠ Contre prête (-6 Mor.)"
-		l_sub.add_theme_color_override("font_color", Color(1.0, 0.34, 0.34))
+	var gauge: ProgressBar = ProgressBar.new()
+	gauge.custom_minimum_size = Vector2(0, 8)
+	gauge.show_percentage = false
+	gauge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if kind == "enemy":
+		var rmax: int = maxi(1, int(ed.get("resolve_max", 1)))
+		gauge.max_value = rmax
+		gauge.value = clampi(int(ed.get("resolve", 1)), 0, rmax)
+		gauge.modulate = Color(0.95, 0.28, 0.26)
+	elif kind == "crs":
+		gauge.max_value = 6
+		gauge.value = clampi(int(ed.get("tick", 0)), 0, 6)
+		gauge.modulate = Color(0.32, 0.68, 1.0)
 	else:
-		l_sub.text = str(ed.get("role", ""))
-		l_sub.add_theme_color_override("font_color", Color(0.74, 0.76, 0.82))
-	l_sub.clip_text = true
-	l_sub.add_theme_font_size_override("font_size", 10)
-	l_sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	iv.add_child(l_sub)
-
-	var l_int: Label = Label.new()
-	l_int.text = str(ed.get("intent", ""))
-	l_int.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l_int.clip_text = true
-	l_int.custom_minimum_size = Vector2(0, 26)
-	l_int.add_theme_font_size_override("font_size", 10)
-	l_int.add_theme_color_override("font_color", Color(0.82, 0.84, 0.88))
-	l_int.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	cv.add_child(l_int)
-
-	var l_pv: Label = Label.new()
-	l_pv.visible = false
-	l_pv.add_theme_font_size_override("font_size", 10)
-	l_pv.add_theme_color_override("font_color", Color(1.0, 0.88, 0.28))
-	l_pv.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	cv.add_child(l_pv)
-	_rail_preview_labels[eid] = l_pv
-
-	return card_btn
-
-func _build_crs_card(ed: Dictionary) -> Control:
-	var tick_v: int = int(ed.get("tick", 0))
-	var urgent: bool = tick_v <= 2
-	var card: PanelContainer = PanelContainer.new()
-	card.custom_minimum_size = Vector2(140, 130)
-	var col_b: Color = Color(1.0, 0.36, 0.34) if urgent else Color(0.24, 0.52, 1.0)
-	card.add_theme_stylebox_override("panel", _make_box(Color(0.08, 0.11, 0.18, 0.94), col_b, 2 if urgent else 1, 6))
-
-	var cv: VBoxContainer = VBoxContainer.new()
-	cv.add_theme_constant_override("separation", 4)
-	card.add_child(cv)
-
-	var l_tk: Label = Label.new()
-	l_tk.text = "CRAN +%d" % tick_v
-	l_tk.add_theme_font_size_override("font_size", 11)
-	l_tk.add_theme_color_override("font_color", col_b)
-	cv.add_child(l_tk)
-
-	var l_n: Label = Label.new()
-	l_n.text = "Patrouille CRS"
-	l_n.add_theme_font_size_override("font_size", 12)
-	l_n.add_theme_color_override("font_color", Color(0.86, 0.92, 1.0))
-	cv.add_child(l_n)
-
-	var l_i: Label = Label.new()
-	l_i.text = str(ed.get("intent", "Bouclage des sorties RER"))
-	l_i.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l_i.add_theme_font_size_override("font_size", 10)
-	l_i.add_theme_color_override("font_color", Color(0.72, 0.80, 0.92))
-	cv.add_child(l_i)
-
-	var l_pv: Label = Label.new()
-	l_pv.visible = false
-	l_pv.add_theme_font_size_override("font_size", 10)
-	l_pv.add_theme_color_override("font_color", Color(1.0, 0.88, 0.28))
-	cv.add_child(l_pv)
-	_rail_preview_labels["crs"] = l_pv
+		var mmax: int = maxi(1, int(ed.get("moral_max", 100)))
+		var mval: int = clampi(int(ed.get("moral", 60)), 0, mmax)
+		gauge.max_value = mmax
+		gauge.value = mval
+		gauge.modulate = Color(0.34, 0.86, 0.48) if not in_crisis else Color(0.98, 0.30, 0.28)
+	cv.add_child(gauge)
 
 	return card
 
-## Construit les boutons d'actions du timing courant (base, équipement ★ avec % et Filer par le Quai).
-func _rebuild_actions(is_waiting: bool) -> void:
-	for c in _actions_hbox.get_children():
+func _rebuild_active_sheet_panel(is_waiting: bool) -> void:
+	for c in _active_sheet_vbox.get_children():
 		c.queue_free()
+	_actions_box = null
 	_current_action_ids.clear()
 
-	var actor_var: Variant = _timeline.call("get_acting_ally")
-	var actor: Dictionary = actor_var as Dictionary if actor_var is Dictionary else {}
-	var actor_name: String = str(actor.get("name", "Bande")).split(" ")[0]
-	var tgt_var: Variant = _timeline.call("get_selected_target")
-	var tgt_name: String = str((tgt_var as Dictionary).get("name", "Aucune")) if tgt_var is Dictionary else "Aucune"
+	var ent_var: Variant = _timeline.call("get_active_turn_entity")
+	var ent: Dictionary = ent_var as Dictionary if ent_var is Dictionary else {}
+	var kind: String = str(ent.get("kind", "ally"))
+	var eid: String = str(ent.get("id", ""))
+	if eid == "":
+		return
 
-	var avail_var: Variant = _timeline.call("get_available_actions_for_actor")
-	var avail_list: Array = avail_var as Array if avail_var is Array else []
-	var slot_num: int = 1
-	for av in avail_list:
-		if not (av is Dictionary):
-			continue
-		var ad: Dictionary = av as Dictionary
-		var aid: String = str(ad.get("id", ""))
-		var is_eq: bool = bool(ad.get("is_equipment", false))
-		var is_used: bool = bool(ad.get("used", false))
-		var pct: int = int(ad.get("chance_pct", 0))
-		var is_fl: bool = bool(ad.get("is_flaw", false))
-		var slbl: String = str(ad.get("short_label", aid))
-		_current_action_ids.append(aid)
+	var sheet_var: Variant = _timeline.call("get_entity_sheet_data", kind, eid)
+	var sheet: Dictionary = sheet_var as Dictionary if sheet_var is Dictionary else {}
+	if sheet.is_empty():
+		return
 
-		var btn: Button = Button.new()
-		btn.custom_minimum_size = Vector2(0, 42)
-		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.clip_text = true
-		btn.focus_mode = Control.FOCUS_NONE
-		btn.disabled = is_waiting or actor.is_empty() or is_used
-		btn.tooltip_text = str(ad.get("tooltip", slbl))
-		btn.add_theme_font_size_override("font_size", 11)
+	var is_crisis_turn: bool = bool(ent.get("is_crisis_turn", false))
+	var border_col: Color = Color(1.0, 0.28, 0.28) if (kind == "enemy" or is_crisis_turn) else Color(0.98, 0.78, 0.24)
+	_active_sheet_style.border_color = border_col
 
-		if aid == "act_escape_now":
-			btn.text = "[%d] %s" % [slot_num, slbl]
-			btn.add_theme_stylebox_override("normal", _make_box(Color(0.28, 0.20, 0.07), Color(0.98, 0.78, 0.26), 2, 4))
-		elif is_eq:
-			if is_used:
-				btn.text = "[%d] ★ %s [Util.]" % [slot_num, slbl]
-			else:
-				btn.text = "[%d] ★ %s · %d%%%s" % [slot_num, slbl, pct, (" ⚠" if is_fl else "")]
-				btn.add_theme_stylebox_override("normal", _make_box(Color(0.18, 0.14, 0.08), Color(0.92, 0.70, 0.24), 1, 4))
+	_populate_character_sheet_into(_active_sheet_vbox, sheet, "active", is_waiting, is_crisis_turn)
+
+func _rebuild_hover_panel() -> void:
+	for c in _hover_sheet_vbox.get_children():
+		c.queue_free()
+	if _timeline == null or not bool(_timeline.get("active")) or _hovered_id == "" or (_hovered_kind != "ally" and _hovered_kind != "enemy"):
+		_hover_panel.visible = false
+		return
+
+	var sheet_var: Variant = _timeline.call("get_entity_sheet_data", _hovered_kind, _hovered_id)
+	var sheet: Dictionary = sheet_var as Dictionary if sheet_var is Dictionary else {}
+	if sheet.is_empty():
+		_hover_panel.visible = false
+		return
+
+	_hover_panel.visible = true
+	var is_valid_tgt: bool = false
+	if _pending_kind != "":
+		var kind_ok: bool = ((_pending_target_kind == "enemy" and _hovered_kind == "enemy") or ((_pending_target_kind == "ally" or _pending_target_kind == "ally_crisis") and _hovered_kind == "ally"))
+		is_valid_tgt = kind_ok and _pending_valid_targets.has(_hovered_id)
+	if is_valid_tgt:
+		_hover_sheet_style.border_color = Color(0.98, 0.28, 0.28) if _hovered_kind == "enemy" else Color(0.32, 0.90, 0.98)
+	else:
+		_hover_sheet_style.border_color = Color.html(str(sheet.get("color_hex", "#e6e2d8")))
+
+	_populate_character_sheet_into(_hover_sheet_vbox, sheet, "hover", bool(_timeline.get("awaiting_step")), false)
+
+## Remplit indifféremment la fiche gauche (personnage actif) ou droite (personnage survolé) avec le même gabarit.
+func _populate_character_sheet_into(parent: VBoxContainer, sheet: Dictionary, mode: String, is_waiting: bool, is_crisis_turn: bool) -> void:
+	var kind: String = str(sheet.get("kind", "ally"))
+	var eid: String = str(sheet.get("id", ""))
+
+	# En-tête commun : Portrait + Identité + Stats utiles
+	var head_h: HBoxContainer = HBoxContainer.new()
+	head_h.add_theme_constant_override("separation", 8)
+	parent.add_child(head_h)
+
+	var ptex: TextureRect = TextureRect.new()
+	ptex.custom_minimum_size = Vector2(54, 62)
+	ptex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	ptex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	ptex.texture = _load_texture_safe(str(sheet.get("portrait", "")))
+	head_h.add_child(ptex)
+
+	var info_v: VBoxContainer = VBoxContainer.new()
+	info_v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info_v.add_theme_constant_override("separation", 2)
+	head_h.add_child(info_v)
+
+	var title_row: HBoxContainer = HBoxContainer.new()
+	info_v.add_child(title_row)
+
+	var l_name: Label = Label.new()
+	l_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l_name.clip_text = true
+	l_name.text = "%s — %s" % [str(sheet.get("name", eid)), str(sheet.get("role", ""))]
+	l_name.add_theme_font_size_override("font_size", 12)
+	l_name.add_theme_color_override("font_color", Color.WHITE)
+	title_row.add_child(l_name)
+
+	var l_badge: Label = Label.new()
+	if mode == "active":
+		if is_crisis_turn:
+			l_badge.text = "🔥 CRISE"
+			l_badge.add_theme_color_override("font_color", Color(1.0, 0.36, 0.36))
+		elif kind == "enemy":
+			l_badge.text = "TOUR PNJ"
+			l_badge.add_theme_color_override("font_color", Color(1.0, 0.42, 0.38))
 		else:
-			btn.text = "[%d] %s · %d%%%s" % [slot_num, slbl, pct, (" ⚠" if is_fl else "")]
-			if is_fl:
-				btn.add_theme_color_override("font_color", Color(1.0, 0.56, 0.52))
-				btn.add_theme_stylebox_override("normal", _make_box(Color(0.16, 0.09, 0.10), Color(0.88, 0.34, 0.32), 1, 4))
+			l_badge.text = "TOUR PJ"
+			l_badge.add_theme_color_override("font_color", Color(1.0, 0.84, 0.30))
+	else:
+		l_badge.text = "SURVOL"
+		l_badge.add_theme_color_override("font_color", Color(0.82, 0.90, 0.98))
+	l_badge.add_theme_font_size_override("font_size", 10)
+	title_row.add_child(l_badge)
 
-		var aid_cap: String = aid
-		btn.pressed.connect(func() -> void: _timeline.call("execute_player_action", aid_cap))
-		btn.mouse_entered.connect(func() -> void: _set_hover_spec({"kind": "action", "id": aid_cap}))
-		btn.mouse_exited.connect(func() -> void: _clear_hover_spec())
-		_actions_hbox.add_child(btn)
-		slot_num += 1
+	if kind == "ally":
+		var l_st1: Label = Label.new()
+		l_st1.text = "Moral %d/%d (Seuil %d)  ·  Att. %d  ·  Aura %d" % [
+			int(sheet.get("moral", 60)),
+			int(sheet.get("moral_max", 100)),
+			int(sheet.get("stress_threshold", 35)),
+			int(sheet.get("attitude", 60)),
+			int(sheet.get("aura", 3))
+		]
+		l_st1.add_theme_font_size_override("font_size", 11)
+		l_st1.add_theme_color_override("font_color", Color(0.86, 0.90, 0.94))
+		info_v.add_child(l_st1)
 
-	var max_k: int = maxi(1, _current_action_ids.size())
-	_lbl_target_banner.text = "Timing de %s  |  Cible : %s [Tab]  |  Actions [1–%d] (★ = Équipement) :" % [actor_name, tgt_name, max_k]
+		var sk_var: Variant = sheet.get("top_skills", [])
+		var sk_str: String = ", ".join(sk_var as Array) if sk_var is Array else ""
+		var l_st2: Label = Label.new()
+		l_st2.clip_text = true
+		l_st2.text = "Esp %d · Cor %d · Én %d  |  %s" % [
+			int(sheet.get("esprit", 3)),
+			int(sheet.get("corps", 3)),
+			int(sheet.get("energie", 3)),
+			sk_str
+		]
+		l_st2.add_theme_font_size_override("font_size", 10)
+		l_st2.add_theme_color_override("font_color", Color(0.95, 0.78, 0.42))
+		info_v.add_child(l_st2)
+	else:
+		var rmax_e: int = maxi(1, int(sheet.get("resolve_max", 1)))
+		var rcur_e: int = int(sheet.get("resolve", 1))
+		var l_es1: Label = Label.new()
+		l_es1.text = "Résolution %d/%d  ·  DD Social %d  ·  DD Pression %d" % [
+			rcur_e, rmax_e, int(sheet.get("dc_social", 11)), int(sheet.get("dc_pression", 11))
+		]
+		l_es1.add_theme_font_size_override("font_size", 11)
+		l_es1.add_theme_color_override("font_color", Color(1.0, 0.68, 0.64))
+		info_v.add_child(l_es1)
 
-func _refresh_bark_and_step(is_waiting: bool, step_lbl: String) -> void:
+		var l_es2: Label = Label.new()
+		l_es2.clip_text = true
+		l_es2.text = ("⚠ Contre prête (-6 Mor.)" if bool(sheet.get("counter_ready", false)) else "Pas de contre active") + "  ·  Cran +%d" % int(sheet.get("next_tick", 1))
+		l_es2.add_theme_font_size_override("font_size", 10)
+		l_es2.add_theme_color_override("font_color", Color(1.0, 0.40, 0.40) if bool(sheet.get("counter_ready", false)) else Color(0.76, 0.80, 0.86))
+		info_v.add_child(l_es2)
+
+	# Corps central spécifique Actif vs Survol
+	if mode == "active":
+		if kind == "ally" and not is_crisis_turn and not is_waiting:
+			var act_scroll: ScrollContainer = ScrollContainer.new()
+			act_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			act_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+			parent.add_child(act_scroll)
+
+			_actions_box = GridContainer.new()
+			_actions_box.columns = 2
+			_actions_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			_actions_box.add_theme_constant_override("h_separation", 6)
+			_actions_box.add_theme_constant_override("v_separation", 4)
+			act_scroll.add_child(_actions_box)
+
+			var avail_var: Variant = _timeline.call("get_available_actions_for_actor")
+			var avail_list: Array = avail_var as Array if avail_var is Array else []
+			var slot_num: int = 1
+			for av in avail_list:
+				if not (av is Dictionary):
+					continue
+				var ad: Dictionary = av as Dictionary
+				var aid: String = str(ad.get("id", ""))
+				var is_eq: bool = bool(ad.get("is_equipment", false))
+				var is_used: bool = bool(ad.get("used", false))
+				var pct: int = int(ad.get("chance_pct", 0))
+				var is_fl: bool = bool(ad.get("is_flaw", false))
+				var slbl: String = str(ad.get("short_label", aid))
+				var tkind: String = str(_timeline.call("get_action_target_kind", aid))
+				var tgt_mark: String = " 🎯" if tkind != "none" else ""
+				_current_action_ids.append(aid)
+
+				var btn: Button = Button.new()
+				btn.custom_minimum_size = Vector2(0, 32)
+				btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				btn.clip_text = true
+				btn.focus_mode = Control.FOCUS_NONE
+				btn.disabled = is_used
+				btn.tooltip_text = str(ad.get("tooltip", slbl))
+				btn.add_theme_font_size_override("font_size", 11)
+
+				var is_sel_pending: bool = (_pending_kind == "action" and _pending_id == aid)
+				if aid == "act_escape_now":
+					btn.text = "[%d] %s" % [slot_num, slbl]
+					btn.add_theme_stylebox_override("normal", _make_box(Color(0.28, 0.20, 0.07), Color(0.98, 0.78, 0.26), 2, 4))
+				elif is_sel_pending:
+					btn.text = "[%d] 🎯 CLIC PION…" % slot_num
+					btn.add_theme_stylebox_override("normal", _make_box(Color(0.36, 0.22, 0.06), Color(1.0, 0.90, 0.34), 2, 4))
+				elif is_eq:
+					if is_used:
+						btn.text = "[%d] ★ %s [Util.]" % [slot_num, slbl]
+					else:
+						btn.text = "[%d] ★ %s%s · %d%%%s" % [slot_num, slbl, tgt_mark, pct, (" ⚠" if is_fl else "")]
+						btn.add_theme_stylebox_override("normal", _make_box(Color(0.18, 0.14, 0.08), Color(0.92, 0.70, 0.24), 1, 4))
+				else:
+					btn.text = "[%d] %s%s · %d%%%s" % [slot_num, slbl, tgt_mark, pct, (" ⚠" if is_fl else "")]
+					if is_fl:
+						btn.add_theme_color_override("font_color", Color(1.0, 0.56, 0.52))
+						btn.add_theme_stylebox_override("normal", _make_box(Color(0.16, 0.09, 0.10), Color(0.88, 0.34, 0.32), 1, 4))
+
+				var aid_cap: String = aid
+				btn.pressed.connect(func() -> void: select_action(aid_cap))
+				_actions_box.add_child(btn)
+				slot_num += 1
+		else:
+			var desc_panel: PanelContainer = PanelContainer.new()
+			desc_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			desc_panel.add_theme_stylebox_override("panel", _make_box(Color(0.10, 0.10, 0.13, 0.95), Color(0.34, 0.34, 0.40), 1, 6))
+			parent.add_child(desc_panel)
+
+			var l_body: Label = Label.new()
+			l_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			l_body.add_theme_font_size_override("font_size", 11)
+			if is_crisis_turn:
+				l_body.text = "🔥 CRISE D'AUTONOMIE IMMINENTE : %s\nRetiens %s hors-frise ou résous avec [Espace]." % [str(sheet.get("crisis_label", "")), str(sheet.get("name", ""))]
+				l_body.add_theme_color_override("font_color", Color(1.0, 0.58, 0.54))
+			elif kind == "enemy":
+				l_body.text = "Intention : %s\n%s" % [str(sheet.get("intent_label", "")), str(sheet.get("bark", ""))]
+				l_body.add_theme_color_override("font_color", Color(0.95, 0.88, 0.82))
+			else:
+				l_body.text = "En attente du prochain cran (%s) — hors-frise utilisables ci-dessous." % str(sheet.get("specialty_name", ""))
+				l_body.add_theme_color_override("font_color", Color(0.84, 0.88, 0.92))
+			desc_panel.add_child(l_body)
+
+		# Pied de fiche active : Réactions hors-frise + Retenir crise
+		var react_h: HBoxContainer = HBoxContainer.new()
+		react_h.add_theme_constant_override("separation", 4)
+		parent.add_child(react_h)
+
+		var l_hr: Label = Label.new()
+		l_hr.text = "Hors-frise:"
+		l_hr.add_theme_font_size_override("font_size", 10)
+		l_hr.add_theme_color_override("font_color", Color(0.42, 0.78, 0.98))
+		react_h.add_child(l_hr)
+
+		var rlist_var: Variant = _timeline.call("get_ready_reactions")
+		if rlist_var is Array:
+			for rv in (rlist_var as Array):
+				if rv is Dictionary:
+					var rd: Dictionary = rv as Dictionary
+					var rcid: String = str(rd.get("char_id", ""))
+					var btn_r: Button = Button.new()
+					btn_r.custom_minimum_size = Vector2(0, 26)
+					btn_r.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+					btn_r.clip_text = true
+					btn_r.focus_mode = Control.FOCUS_NONE
+					btn_r.add_theme_font_size_override("font_size", 10)
+					var r_tk: String = str(_timeline.call("get_interruption_target_kind", rcid))
+					btn_r.text = ("🎯 " if (_pending_kind == "interrupt" and _pending_id == rcid) else "⚡ ") + str(rd.get("name", rcid))
+					btn_r.tooltip_text = str(rd.get("specialty_name", "Interruption")) + (" (clic sur pion requis)" if r_tk != "none" else "")
+					var rcid_cap: String = rcid
+					btn_r.pressed.connect(func() -> void: select_interruption(rcid_cap))
+					react_h.add_child(btn_r)
+
+		var cq_var: Variant = _timeline.get("crisis_queue")
+		if cq_var is Array and not (cq_var as Array).is_empty():
+			var btn_ret: Button = Button.new()
+			btn_ret.custom_minimum_size = Vector2(78, 26)
+			btn_ret.focus_mode = Control.FOCUS_NONE
+			btn_ret.add_theme_font_size_override("font_size", 10)
+			btn_ret.text = "🛡 Retenir"
+			btn_ret.add_theme_stylebox_override("normal", _make_box(Color(0.50, 0.14, 0.14), Color(1.0, 0.52, 0.34), 1, 3))
+			btn_ret.pressed.connect(select_restrain)
+			react_h.add_child(btn_ret)
+	else:
+		# Corps & Pied Fiche Survolée (droite) — même structure visuelle
+		var mid_box: PanelContainer = PanelContainer.new()
+		mid_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		mid_box.add_theme_stylebox_override("panel", _make_box(Color(0.10, 0.10, 0.13, 0.95), Color(0.32, 0.34, 0.40), 1, 6))
+		parent.add_child(mid_box)
+
+		var mid_v: VBoxContainer = VBoxContainer.new()
+		mid_v.add_theme_constant_override("separation", 4)
+		mid_box.add_child(mid_v)
+
+		var l_det: Label = Label.new()
+		l_det.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l_det.add_theme_font_size_override("font_size", 11)
+		if kind == "ally":
+			var eq_var: Variant = sheet.get("equipped_items", [])
+			var eq_str: String = ", ".join(eq_var as Array) if eq_var is Array and not (eq_var as Array).is_empty() else "Matériel léger"
+			var cr_line: String = ("\n🔥 Crise : %s (+%dc)" % [str(sheet.get("crisis_label", "")), int(sheet.get("crisis_ticks", 0))]) if bool(sheet.get("in_crisis", false)) else ""
+			l_det.text = "Spécialité : %s\nMatos : %s%s" % [str(sheet.get("specialty_name", "")), eq_str, cr_line]
+			l_det.add_theme_color_override("font_color", Color(0.90, 0.90, 0.86))
+		else:
+			l_det.text = "Intention : %s\n%s" % [str(sheet.get("intent_label", "")), str(sheet.get("bark", ""))]
+			l_det.add_theme_color_override("font_color", Color(0.96, 0.88, 0.82))
+		mid_v.add_child(l_det)
+
+		var l_pv_tgt: Label = Label.new()
+		l_pv_tgt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l_pv_tgt.add_theme_font_size_override("font_size", 11)
+		if _pending_kind != "":
+			var k_ok: bool = ((_pending_target_kind == "enemy" and kind == "enemy") or ((_pending_target_kind == "ally" or _pending_target_kind == "ally_crisis") and kind == "ally"))
+			if k_ok and _pending_valid_targets.has(eid):
+				var pv_res: Dictionary = {}
+				if _pending_kind == "action":
+					var pva: Variant = _timeline.call("preview_player_action_on", _pending_id, eid)
+					if pva is Dictionary:
+						pv_res = pva as Dictionary
+				elif _pending_kind == "interrupt":
+					var pvi: Variant = _timeline.call("preview_interruption_on", _pending_id, eid)
+					if pvi is Dictionary:
+						pv_res = pvi as Dictionary
+				elif _pending_kind == "restrain":
+					var pvr: Variant = _timeline.call("preview_restrain", eid)
+					if pvr is Dictionary:
+						pv_res = pvr as Dictionary
+				var pct_v: int = int(pv_res.get("chance_pct", 0))
+				var pct_s: String = ("🎲 %d%% · " % pct_v) if pct_v > 0 else ""
+				var warn_s: String = ""
+				if bool(pv_res.get("counter_warning", false)):
+					warn_s = "\n⚠ CONTRE (-6 Moral !)"
+				elif bool(pv_res.get("is_flaw", false)):
+					warn_s = "\n⚠ FAILLE (%s %+d)" % [str(pv_res.get("skill_name", "")), int(pv_res.get("skill_val", -1))]
+				l_pv_tgt.text = "🎯 CIBLE VALIDE — %s%s%s\n▸ Clic gauche sur le pion pour valider" % [pct_s, str(pv_res.get("summary", "")), warn_s]
+				l_pv_tgt.add_theme_color_override("font_color", Color(1.0, 0.88, 0.34))
+			else:
+				l_pv_tgt.text = "Non ciblable pour l'option sélectionnée."
+				l_pv_tgt.add_theme_color_override("font_color", Color(0.62, 0.64, 0.70))
+		else:
+			l_pv_tgt.text = "Statut : prochain tour dans +%d cran(s)." % int(sheet.get("next_tick", 0))
+			l_pv_tgt.add_theme_color_override("font_color", Color(0.70, 0.78, 0.88))
+		mid_v.add_child(l_pv_tgt)
+
+func _rebuild_minutes_panel(is_waiting: bool, step_lbl: String) -> void:
+	if _pending_kind != "":
+		_lbl_minutes_status.text = "🎯 Clique le pion ciblé sur la scène"
+		_lbl_minutes_status.add_theme_color_override("font_color", Color(1.0, 0.86, 0.30))
+	elif is_waiting:
+		_lbl_minutes_status.text = "BEAT PRÊT ([Espace])"
+		_lbl_minutes_status.add_theme_color_override("font_color", Color(0.98, 0.72, 0.24))
+	else:
+		_lbl_minutes_status.text = "Tour PJ — Actions à gauche"
+		_lbl_minutes_status.add_theme_color_override("font_color", Color(0.70, 0.88, 0.74))
+
 	var bark_txt: String = _bark_override_text
 	if bark_txt == "":
 		var log_var: Variant = _timeline.get("combat_log")
@@ -767,99 +840,23 @@ func _refresh_bark_and_step(is_waiting: bool, step_lbl: String) -> void:
 			bark_txt = str((log_var as Array)[(log_var as Array).size() - 1])
 	_lbl_bark.text = "▸ " + bark_txt
 
-	var max_k: int = maxi(1, _current_action_ids.size())
-	if is_waiting:
+	var log_arr_var: Variant = _timeline.get("combat_log")
+	if log_arr_var is Array:
+		var lines: Array[String] = []
+		for lv in (log_arr_var as Array):
+			lines.append("▸ " + str(lv))
+		_lbl_log.text = "\n".join(lines)
+		_minutes_scroll.set_deferred("scroll_vertical", 99999)
+
+	_btn_cancel_target.visible = (_pending_kind != "")
+	if is_waiting and _pending_kind == "":
 		_btn_step.disabled = false
 		_btn_step.text = "[Espace] %s ▶" % step_lbl
 		_btn_step.add_theme_stylebox_override("normal", _make_box(Color(0.46, 0.18, 0.10), Color(0.98, 0.72, 0.24), 2, 4))
 	else:
 		_btn_step.disabled = true
-		var act_v: Variant = _timeline.call("get_acting_ally")
-		var a_name: String = str((act_v as Dictionary).get("name", "Bande")).split(" ")[0] if act_v is Dictionary else "Bande"
-		_btn_step.text = "Tour de %s [1–%d]" % [a_name, max_k]
+		_btn_step.text = "Sélectionne un pion sur la scène…" if _pending_kind != "" else "Choisis une action [1–6] ou ⚡"
 		_btn_step.add_theme_stylebox_override("normal", _make_box(Color(0.14, 0.14, 0.18), Color(0.36, 0.38, 0.44), 1, 4))
-
-func _refresh_journal() -> void:
-	var log_var: Variant = _timeline.get("combat_log")
-	if log_var is Array:
-		var lines: Array[String] = []
-		for lv in (log_var as Array):
-			lines.append("▸ " + str(lv))
-		_lbl_log.text = "\n".join(lines)
-
-func _set_hover_spec(spec: Dictionary) -> void:
-	_hover_spec = spec
-	_apply_preview_visuals()
-
-func _clear_hover_spec() -> void:
-	_hover_spec = {}
-	_apply_preview_visuals()
-
-## Affiche au survol la formule 2d6, les % de réussite, l'alerte Faille/Contre et les étiquettes sur le rail.
-func _apply_preview_visuals() -> void:
-	for k in _rail_preview_labels.keys():
-		var lbl_r: Label = _rail_preview_labels[k] as Label
-		if is_instance_valid(lbl_r):
-			lbl_r.visible = false
-
-	_lbl_preview_warn.visible = false
-	if _hover_spec.is_empty() or _timeline == null:
-		_lbl_preview.text = "Survole une action [1–6], ⚡ Interruption ou 🛡 Retenir pour prévisualiser l'impact et le %."
-		return
-
-	var pv_var: Variant = null
-	var kind: String = str(_hover_spec.get("kind", ""))
-	var item_id: String = str(_hover_spec.get("id", ""))
-	if kind == "action":
-		pv_var = _timeline.call("preview_player_action", item_id)
-	elif kind == "interrupt":
-		pv_var = _timeline.call("preview_interruption", item_id)
-	elif kind == "restrain":
-		pv_var = _timeline.call("preview_restrain", item_id)
-
-	if not (pv_var is Dictionary):
-		return
-	var pv: Dictionary = pv_var as Dictionary
-	if not bool(pv.get("valid", false)):
-		_lbl_preview.text = "Indisponible : %s" % str(pv.get("reason", ""))
-		return
-
-	var pct: int = int(pv.get("chance_pct", 0))
-	var fml: String = str(pv.get("roll_formula", ""))
-	if pct > 0 and fml != "":
-		_lbl_preview.text = "%s — 🎲 %d%% (%s)\n%s" % [str(pv.get("title", "")), pct, fml, str(pv.get("summary", ""))]
-	else:
-		_lbl_preview.text = "%s — %s" % [str(pv.get("title", "")), str(pv.get("summary", ""))]
-
-	if bool(pv.get("counter_warning", false)):
-		_lbl_preview_warn.visible = true
-		_lbl_preview_warn.text = "⚠ CONTRE-INTERRUPTION : %s (-6 Moral !)" % str(pv.get("counter_label", ""))
-	elif bool(pv.get("is_flaw", false)):
-		_lbl_preview_warn.visible = true
-		_lbl_preview_warn.text = "⚠ FAILLE (%s %+d) — Si raté : %s" % [
-			str(pv.get("skill_name", "")),
-			int(pv.get("skill_val", -1)),
-			str(pv.get("fail_summary", "Contrecoup moral"))
-		]
-
-	var tid: String = str(pv.get("target_id", ""))
-	var from_t: int = int(pv.get("from_tick", 0))
-	var to_t: int = int(pv.get("to_tick", 0))
-	var res_d: int = int(pv.get("resolve_delta", 0))
-
-	if _rail_preview_labels.has(tid):
-		var rl: Label = _rail_preview_labels[tid] as Label
-		if is_instance_valid(rl):
-			var parts: Array[String] = []
-			if res_d < 0:
-				parts.append("%d Rés." % res_d)
-			if to_t != from_t:
-				parts.append("Cran %d→%d" % [from_t, to_t])
-			if kind == "restrain":
-				parts.append("CRISE ANNULÉE")
-			var pct_tag: String = (" (%d%%)" % pct) if pct > 0 else ""
-			rl.text = "Aperçu%s : %s" % [pct_tag, (" | ".join(parts) if not parts.is_empty() else str(pv.get("summary", "IMPACT")))]
-			rl.visible = true
 
 func _make_box(bg: Color, border: Color, bw: int, pad: int) -> StyleBoxFlat:
 	var sb: StyleBoxFlat = StyleBoxFlat.new()

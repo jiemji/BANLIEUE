@@ -1,6 +1,6 @@
 # Synthèse du Projet — *Banlieue*
 
-> **Version courante : 0.5.1** — Dernière mise à jour : 2026-11-22
+> **Version courante : 0.6.0** — Dernière mise à jour : 2026-11-22
 
 ## 1. Identité & Stack
 * **Titre** : *Banlieue* — *Cradon-lès-Gonesse (1980–1984)*
@@ -22,10 +22,11 @@
 * **Autoloads (5)** : `DataLoader`, `SettingsManager`, `GameState`, `AudioRadio`, `SaveManager`.
 * **Systèmes (`systems/`)** : `SquadManager` (`3+` / `2+1` / `1+1+1` + renforts), `TensionTimeline` (Frise à Interruptions dont `sang_froid` + préavis de Crises), `DialogueRunner`.
 * **Monde (`world/`)** : `WorldMapView` (N1–N3), `IsoDistrictView` (N4 + mode fond vivant d'accueil + `set_combat_stage_mode` cinémascope), `IsoPropNode`, `PawnActor`.
-* **Interface (`ui/`)** : `TitleMenuPanel`, `NewGamePanel`, `SaveLoadPanel`, `OptionsPanel`, `HudOverlay` (avec bouton `Fiches [F]`), `DialoguePanel`, `TimelinePanel` (**Option A Unifiée**), `CharacterSheetPanel` (**Carnet de Bande `[F]`**).
+* **Interface (`ui/`)** : `TitleMenuPanel`, `NewGamePanel`, `SaveLoadPanel`, `OptionsPanel`, `HudOverlay` (avec bouton `Fiches [F]`), `DialoguePanel`, `TimelinePanel` (**v0.6.0** : Frise haute verticale + triptyque bas Actif/Minutes/Survolé + ciblage clic pion), `CharacterSheetPanel` (**Carnet de Bande `[F]`**).
 * **Orchestrateur** : `main.gd` (machine d'états `AppState`, raccourcis `Échap`/`F`/`Backspace`/`M`/`1-6`, masquage `_hud` en combat & micro-secousse caméra, Sas Boeing).
 
-## 5. Dernières Améliorations *(v0.5.1 — 2026-11-22)*
+## 5. Dernières Améliorations *(v0.6.0 — 2026-11-22)*
+* **Refonte IHM Combat Tactique Isométrique (`v0.6.0` — [ux_combat_frise.md](file:///e:/JDR/BANLIEUE/docs/ux_combat_frise.md))** : Frise chronologique déplacée en haut (`y=8..126`) avec cartes verticales (portrait + nom + jauge), scène centrale isométrique `2:1` déployant héros bas→gauche et PNJ standees haut→droite avec surbrillance de l'actif et ciblage par clic sur pion, triptyque bas **Fiche Actif (gauche) · Minutes du combat (centre) · Fiche Survolé (droite)**.
 * **Jets de rue (`2d6 + Carac + Comp`), Failles & Équipement Actif (`v0.5.1`)** : Moteur unifié `preview_street_roll()` / `perform_street_roll()` dans `GameState` (36 combinaisons exactes `3..97%`, Coup d'éclat `+10 XP` / impact accru, Couac de faille sur `< 0`), câblé sur 10 scènes de [dialogues.json](file:///e:/JDR/BANLIEUE/game/data/dialogues.json) (`DialoguePanel` avec badges `%` et bandeau résultat) et sur `TensionTimeline` / `TimelinePanel` (actions `[1–6]` incluant `★` équipement `1×/confrontation`, Interruptions modulées par compétences).
 * **Fiches de Personnages PJ & Carnet de Bande `[F]` (`v0.5.0` — [fiches_personnages_pj.md](file:///e:/JDR/BANLIEUE/docs/fiches_personnages_pj.md))** :
   * **3 Caractéristiques & 10 Compétences bipolaires (`-3..+5`)** dans [equipment.json](file:///e:/JDR/BANLIEUE/game/data/equipment.json), `characters.json` et `player_profiles.json`, évolutives par **XP** et **24 équipements actifs** (`Look`, `Outil`, `Fétiche` + `box_stash`), sauvegardées dans `member_progression` / `box_stash`.

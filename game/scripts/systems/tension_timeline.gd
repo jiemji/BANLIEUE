@@ -32,6 +32,8 @@ var _pending_enemy_ids: Array[String] = []
 var _pending_crisis_ids: Array[String] = []
 var _used_equip_actions: Dictionary = {}
 var _interposition_absorb: int = 6
+var _explicit_ally_target_id: String = ""
+var _explicit_crisis_target_id: String = ""
 
 const _EQUIP_ACTION_META: Dictionary = {
 	"act_equip_intimidation_look": {"short": "Intimidation Look", "title": "Intimidation Look (Perfecto 1982)", "skill": "baston_pression", "bonus": 2, "bonus_label": "Perfecto", "needs_target": true},
@@ -74,6 +76,8 @@ func start_encounter(enc_id: String) -> void:
 	_pending_crisis_ids.clear()
 	_used_equip_actions.clear()
 	_interposition_absorb = 6
+	_explicit_ally_target_id = ""
+	_explicit_crisis_target_id = ""
 
 	# Ennemis depuis JSON
 	var e_list_var: Variant = enc.get("enemies", [])
@@ -392,7 +396,10 @@ func execute_player_action(action_id: String) -> void:
 				_apply_moral_hit(actor_id, -4)
 				effect_msg = "[Pass Mairie] Papier contesté (-1 résol., -4 Moral)."
 	elif action_id == "act_equip_pause_musique":
-		var low_id: String = _get_lowest_moral_present_ally_id(actor_id)
+		var low_id: String = _explicit_ally_target_id
+		_explicit_ally_target_id = ""
+		if low_id == "" or _find_ally(low_id).is_empty() or not bool(_find_ally(low_id).get("present", false)):
+			low_id = _get_lowest_moral_present_ally_id(actor_id)
 		if ok:
 			var mor_t: int = 14 if is_bril else 10
 			GameState.modify_moral(low_id, mor_t)
@@ -495,10 +502,18 @@ func trigger_interruption(char_id: String) -> void:
 	elif spec == "sang_froid":
 		# Spécialité de L'Échappé·e des Pavillons : calme prioritairement une crise imminente, sinon perce un bluff adverse.
 		var mor_sf: int = 12 if GameState.get_effective_skill(char_id, "sang_froid_nerfs") >= 3 else 10
+		var exp_cr_id: String = _explicit_crisis_target_id
+		_explicit_crisis_target_id = ""
 		if not crisis_queue.is_empty():
-			var cr: Dictionary = crisis_queue[0]
+			var cr_idx: int = 0
+			if exp_cr_id != "":
+				for ci in range(crisis_queue.size()):
+					if str((crisis_queue[ci] as Dictionary).get("char_id", "")) == exp_cr_id:
+						cr_idx = ci
+						break
+			var cr: Dictionary = crisis_queue[cr_idx]
 			var cr_cid: String = str(cr.get("char_id", ""))
-			crisis_queue.remove_at(0)
+			crisis_queue.remove_at(cr_idx)
 			_remove_pending_crisis(cr_cid)
 			GameState.modify_moral(cr_cid, mor_sf)
 			var sf_msg: String = "INTERRUPTION [Sang-froid] — %s reprend la main et calme %s à temps (+%d Moral) !" % [cname, cr_cid.capitalize(), mor_sf]
@@ -1460,6 +1475,8 @@ func _finish(outcome_id: String, summary: String) -> void:
 	pending_beat_label = ""
 	_pending_enemy_ids.clear()
 	_pending_crisis_ids.clear()
+	_explicit_ally_target_id = ""
+	_explicit_crisis_target_id = ""
 	GameState.last_encounter_outcome = outcome_id
 	GameState.set_flag("encounter_gare_done", true)
 	var xp_reward: int = 35 if outcome_id == "social_win" else (30 if outcome_id == "escaped" else 15)
@@ -1472,8 +1489,249 @@ func _finish(outcome_id: String, summary: String) -> void:
 
 func _push_log(msg: String) -> void:
 	combat_log.append(msg)
-	if combat_log.size() > 12:
+	if combat_log.size() > 36:
 		combat_log.remove_at(0)
+
+## Retourne l'entité actuellement active ou en attente immédiate d'exécution sur la Frise.
+func get_active_turn_entity() -> Dictionary:
+	if not active:
+		return {}
+	if not _pending_crisis_ids.is_empty():
+		return {"kind": "ally", "id": _pending_crisis_ids[0], "is_crisis_turn": true, "is_waiting_tick": false}
+	if not _pending_enemy_ids.is_empty():
+		return {"kind": "enemy", "id": _pending_enemy_ids[0], "is_crisis_turn": false, "is_waiting_tick": false}
+	var acting: Dictionary = get_acting_ally()
+	if not acting.is_empty():
+		return {"kind": "ally", "id": str(acting.get("char_id", "")), "is_crisis_turn": false, "is_waiting_tick": false}
+	for ed in get_ordered_rail_entries():
+		var k: String = str(ed.get("kind", ""))
+		if k == "ally" or k == "enemy":
+			return {"kind": k, "id": str(ed.get("id", "")), "is_crisis_turn": false, "is_waiting_tick": true}
+	return {}
+
+## Indique le type de cible requis par une action ("enemy", "ally" ou "none").
+func get_action_target_kind(action_id: String) -> String:
+	if action_id == "act_tchatche" or action_id == "act_pression":
+		return "enemy"
+	if _EQUIP_ACTION_META.has(action_id):
+		var meta: Dictionary = _EQUIP_ACTION_META.get(action_id, {}) as Dictionary
+		if bool(meta.get("needs_target", false)):
+			return "enemy"
+	if action_id == "act_equip_pause_musique":
+		return "ally"
+	return "none"
+
+## Indique le type de cible requis par l'Interruption d'un allié ("enemy", "ally_crisis" ou "none").
+func get_interruption_target_kind(char_id: String) -> String:
+	var ally: Dictionary = _find_ally(char_id)
+	var spec: String = str(ally.get("specialty_id", ""))
+	if spec == "moquerie":
+		return "enemy" if not get_valid_target_ids("enemy").is_empty() else "none"
+	if spec == "sang_froid":
+		if not crisis_queue.is_empty():
+			return "ally_crisis"
+		if not get_valid_target_ids("enemy").is_empty():
+			return "enemy"
+		return "none"
+	return "none"
+
+## Retourne les IDs valides pour un type de ciblage sur la grille isométrique ("enemy", "ally" ou "ally_crisis").
+func get_valid_target_ids(target_kind: String) -> Array[String]:
+	var out: Array[String] = []
+	if target_kind == "enemy":
+		for e in enemies:
+			if not bool(e.get("defeated", false)):
+				out.append(str(e.get("id", "")))
+	elif target_kind == "ally":
+		for a in allies:
+			if bool(a.get("present", false)):
+				out.append(str(a.get("char_id", "")))
+	elif target_kind == "ally_crisis":
+		for cr in crisis_queue:
+			var cid: String = str(cr.get("char_id", ""))
+			var al: Dictionary = _find_ally(cid)
+			if not al.is_empty() and bool(al.get("present", false)):
+				out.append(cid)
+	return out
+
+## Prévisualise en lecture seule une action ciblée sur un pion donné sans modifier selected_target_id.
+func preview_player_action_on(action_id: String, target_id: String) -> Dictionary:
+	if not active:
+		return {"valid": false, "reason": "Hors confrontation"}
+	var acting: Dictionary = get_acting_ally()
+	if awaiting_step or acting.is_empty():
+		return {"valid": false, "reason": "Appuie d'abord sur Espace pour résoudre le beat en attente."}
+	var saved_tid: String = selected_target_id
+	var tk: String = get_action_target_kind(action_id)
+	if tk == "enemy" and target_id != "":
+		selected_target_id = target_id
+	var pv: Dictionary = _build_action_preview(action_id, str(acting.get("char_id", "leader")))
+	selected_target_id = saved_tid
+	if action_id == "act_equip_pause_musique" and target_id != "" and bool(pv.get("valid", false)):
+		var tname: String = str(DataLoader.get_character(target_id).get("name", target_id))
+		pv["target_id"] = target_id
+		pv["target_name"] = tname
+		pv["summary"] = "+10 Moral sur %s · retarde crise +1 cran (raté : %s)" % [tname, str(pv.get("fail_summary", ""))]
+	return pv
+
+## Exécute une action tactique en visant explicitement le pion target_id cliqué sur la grille.
+func execute_player_action_on(action_id: String, target_id: String) -> void:
+	if not active:
+		return
+	var tk: String = get_action_target_kind(action_id)
+	if tk == "enemy" and target_id != "":
+		var en: Dictionary = _find_enemy(target_id)
+		if en.is_empty() or bool(en.get("defeated", false)):
+			return
+		selected_target_id = target_id
+	elif action_id == "act_equip_pause_musique" and target_id != "":
+		_explicit_ally_target_id = target_id
+	execute_player_action(action_id)
+
+## Prévisualise en lecture seule une Interruption ciblée sur un pion précis sans muter la file.
+func preview_interruption_on(char_id: String, target_id: String) -> Dictionary:
+	var saved_tid: String = selected_target_id
+	var tk: String = get_interruption_target_kind(char_id)
+	if tk == "enemy" and target_id != "":
+		selected_target_id = target_id
+	var pv: Dictionary = preview_interruption(char_id)
+	selected_target_id = saved_tid
+	if tk == "ally_crisis" and target_id != "" and bool(pv.get("valid", false)):
+		var cname: String = str(DataLoader.get_character(char_id).get("name", char_id))
+		var tname: String = str(DataLoader.get_character(target_id).get("name", target_id))
+		var mor_sf: int = 12 if GameState.get_effective_skill(char_id, "sang_froid_nerfs") >= 3 else 10
+		pv["target_id"] = target_id
+		pv["target_name"] = tname
+		pv["summary"] = "%s calme la crise de %s · +%d Moral" % [cname, tname, mor_sf]
+	return pv
+
+## Exécute une Interruption hors-tour en visant explicitement target_id (ennemi ou PJ en crise).
+func trigger_interruption_on(char_id: String, target_id: String) -> void:
+	if not active:
+		return
+	var tk: String = get_interruption_target_kind(char_id)
+	if tk == "enemy" and target_id != "":
+		selected_target_id = target_id
+	elif tk == "ally_crisis" and target_id != "":
+		_explicit_crisis_target_id = target_id
+	trigger_interruption(char_id)
+
+## Retourne toutes les données de fiche (PJ ou PNJ) nécessaires à l'affichage bas-gauche/bas-droite.
+func get_entity_sheet_data(kind: String, entity_id: String) -> Dictionary:
+	if kind == "ally":
+		var ally: Dictionary = _find_ally(entity_id)
+		var cdef: Dictionary = DataLoader.get_character(entity_id)
+		var st: Dictionary = GameState.get_member_state(entity_id)
+		var prog: Dictionary = GameState.get_member_progression(entity_id)
+		if cdef.is_empty():
+			return {}
+		var cr_ticks: int = -1
+		var cr_label: String = ""
+		var in_crisis: bool = false
+		for cr in crisis_queue:
+			if str(cr.get("char_id", "")) == entity_id:
+				in_crisis = true
+				cr_ticks = int(cr.get("ticks_left", 1))
+				cr_label = str(cr.get("label", "Crise d'autonomie"))
+				break
+
+		var sk_entries: Array[Dictionary] = []
+		for sk_var in DataLoader.skills_catalog:
+			if sk_var is Dictionary:
+				var skd: Dictionary = sk_var as Dictionary
+				var skid: String = str(skd.get("id", ""))
+				var sval: int = GameState.get_effective_skill(entity_id, skid)
+				if sval != 0:
+					sk_entries.append({
+						"name": str(skd.get("name", skid)).split(" ")[0],
+						"val": sval,
+						"score": abs(sval) * 10 + (1 if sval > 0 else 0)
+					})
+		sk_entries.sort_custom(func(x: Dictionary, y: Dictionary) -> bool:
+			return int(x.get("score", 0)) > int(y.get("score", 0))
+		)
+		var top_skills: Array[String] = []
+		for si in range(mini(4, sk_entries.size())):
+			var se: Dictionary = sk_entries[si]
+			top_skills.append("%s %+d" % [str(se.get("name", "")), int(se.get("val", 0))])
+
+		var eq_names: Array[String] = []
+		var eq_var: Variant = prog.get("equipment", {})
+		if eq_var is Dictionary:
+			var eq_d: Dictionary = eq_var as Dictionary
+			for sl in ["look", "tool", "fetish"]:
+				var iid: String = str(eq_d.get(sl, ""))
+				if iid != "":
+					var idef: Dictionary = DataLoader.get_equipment_def(iid)
+					eq_names.append(str(idef.get("name", iid)))
+
+		return {
+			"kind": "ally",
+			"id": entity_id,
+			"name": str(cdef.get("name", entity_id)),
+			"role": str(cdef.get("role", "")),
+			"tribe": str(cdef.get("tribe", "")),
+			"portrait": str(cdef.get("portrait", "")),
+			"color_hex": str(cdef.get("color_hex", "#f28c28")),
+			"moral": int(st.get("moral", 60)),
+			"moral_max": GameState.get_effective_moral_max(entity_id),
+			"stress_threshold": GameState.get_effective_stress_threshold(entity_id),
+			"attitude": GameState.get_effective_attitude_for(entity_id),
+			"aura": GameState.get_effective_aura_for(entity_id),
+			"esprit": GameState.get_effective_characteristic(entity_id, "esprit"),
+			"corps": GameState.get_effective_characteristic(entity_id, "corps"),
+			"energie": GameState.get_effective_characteristic(entity_id, "energie"),
+			"top_skills": top_skills,
+			"equipped_items": eq_names,
+			"specialty_id": str(ally.get("specialty_id", cdef.get("specialty_id", ""))),
+			"specialty_name": str(ally.get("specialty_name", cdef.get("specialty_name", ""))),
+			"specialty_desc": str(cdef.get("specialty_desc", "")),
+			"reaction_ready": bool(ally.get("reaction_ready", false)),
+			"in_crisis": in_crisis,
+			"crisis_ticks": cr_ticks,
+			"crisis_label": cr_label,
+			"next_tick": int(ally.get("next_tick", 0)),
+			"present": bool(ally.get("present", false)),
+			"reinforce_in_ticks": int(ally.get("reinforce_in_ticks", 0))
+		}
+
+	if kind == "enemy":
+		var ed: Dictionary = _find_enemy(entity_id)
+		if ed.is_empty():
+			return {}
+		return {
+			"kind": "enemy",
+			"id": entity_id,
+			"name": str(ed.get("name", entity_id)),
+			"role": str(ed.get("role", "")),
+			"portrait": str(ed.get("portrait", "res://assets/portraits/so_agent.png")),
+			"color_hex": "#d92b2b",
+			"resolve": int(ed.get("resolve", 1)),
+			"resolve_max": int(ed.get("resolve_max", 1)),
+			"dc_social": int(ed.get("dc_social", 11)),
+			"dc_pression": int(ed.get("dc_pression", 11)),
+			"intent_label": str(ed.get("intent_label", "")),
+			"bark": str(ed.get("bark", "")),
+			"counter_ready": bool(ed.get("counter_ready", false)),
+			"counter_label": str(ed.get("counter_label", "")),
+			"next_tick": int(ed.get("next_tick", 1)),
+			"defeated": bool(ed.get("defeated", false))
+		}
+	return {}
+
+## Retourne les réactions hors-frise prêtes et les crises pouvant être retenues immédiatement.
+func get_ready_reactions() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for a in allies:
+		if bool(a.get("present", false)) and bool(a.get("reaction_ready", false)):
+			var cid: String = str(a.get("char_id", ""))
+			out.append({
+				"kind": "interrupt",
+				"char_id": cid,
+				"name": str(a.get("name", cid)).split(" ")[0],
+				"specialty_name": str(a.get("specialty_name", "Interrupt."))
+			})
+	return out
 
 ## Retourne l'ID de l'allié présent le plus proche du cran 0 (repli lorsque awaiting_step est actif).
 func _peek_next_present_ally_id() -> String:
