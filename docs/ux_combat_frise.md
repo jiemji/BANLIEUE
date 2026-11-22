@@ -1,10 +1,10 @@
-# UX Combat & Frise Chronologique de Tension — Spécification `v0.4.2`
+# UX Combat & Frise Chronologique de Tension — Spécification `v0.4.2` / `v0.5.1`
 
-> Référence technique et ergonomique pour l'interface de confrontation tactique de *Banlieue* (Cradon-lès-Gonesse, 1980–1984), validée avec le Collège du Studio et `banlieue-combat-ux` (**Option A : Frise-Cartes Unifiée**).
+> Référence technique et ergonomique pour l'interface de confrontation tactique de *Banlieue* (Cradon-lès-Gonesse, 1980–1984), validée avec le Collège du Studio et `banlieue-combat-ux` (**Option A : Frise-Cartes Unifiée**, enrichie `v0.5.1` par les Jets de rue `%` et actions d'équipement `★`).
 
 ---
 
-## 1. Piliers validés (`v0.4.2`)
+## 1. Piliers validés (`v0.4.2` + `v0.5.1`)
 
 | Axe | Choix | Principe UX |
 |---|---|---|
@@ -34,8 +34,8 @@
 |   [Fiche Ennemi cliquable: Portrait, Pips Résol, Intent, ⚠ Contre]      |
 +-------------------------------------------------------------------------+
 | [y=620..712] ESPACE ACTIONS DANS LE TIMING DE LA FRISE                  |
-|   [1] Tchatche   [2] Pression (Aura)   [3] Échappée   [4] Filer !       |
-|   + Encart Prévisualisation au survol (dégâts, crans, Contre-interrupt) |
+|   [1] Tchatche · %  [2] Pression · %  [3] Échappée · %  [4] ★ Equip · % |
+|   + Encart Prévisualisation (% + formule 2d6, Faille ⚠, Contre-interrupt)|
 +-------------------------------------------------------------------------+
 ```
 
@@ -60,8 +60,10 @@
 * `selected_target_id` pointe toujours vers un ennemi actif (`resolve > 0`) et se réaligne automatiquement s'il tombe à 0.
 * **`act_tchatche`**, **`act_pression`**, **`moquerie`** et **`sang_froid`** visent `get_selected_target()`.
 
-### Prévisualisation en lecture seule
-`preview_player_action(action_id)`, `preview_interruption(char_id)` et `preview_restrain(crisis_char_id)` retournent un `Dictionary` sans muter `TensionTimeline` (`valid`, `reason`, `target_id`, `target_name`, `from_tick`, `to_tick`, `resolve_delta`, `crs_delta`, `shield_delta`, `escape_delta`, `moral_delta`, `counter_warning`, `counter_label`, `summary`), affiché à la fois dans l'encart de prévisualisation bas-droite et directement sur la fiche ciblée de la Frise.
+### Prévisualisation en lecture seule (`v0.5.1` Jets de rue `%` & Failles)
+`preview_player_action(action_id)`, `preview_interruption(char_id)` et `preview_restrain(crisis_char_id)` retournent un `Dictionary` sans muter `TensionTimeline` (`valid`, `reason`, `target_id`, `target_name`, `from_tick`, `to_tick`, `resolve_delta`, `crs_delta`, `shield_delta`, `escape_delta`, `moral_delta`, `counter_warning`, `counter_label`, `chance_pct`, `roll_formula`, `is_flaw`, `fail_summary`, `is_equipment`, `used`, `summary`), affiché à la fois dans l'encart de prévisualisation bas-droite (avec alerte rouge `⚠ FAILLE` si la compétence effective est `< 0`) et directement sur la fiche ciblée de la Frise.
+* **Actions d'équipement `★` (`[1–6]`)** : chaque équipement équipé ouvrant une action tactique (`get_available_actions_for_actor()`) apparaît en bouton doré `★ ... · XX%`, jouable `1×` par confrontation et par porteur.
+* **Interruptions hors-tour fiables modulées par compétences** : sans hasard (`Moquerie` `-2` si `tchatche ≥ 3`, `Interposition` `-8` si `baston_pression ≥ 3` ou `Corps ≥ 4`, `Réflexe de rue` `+3` CRS si `caves_esquive ≥ 3`, `Sang-froid` `+12` Moral si `sang_froid_nerfs ≥ 3`).
 
 ---
 
@@ -74,5 +76,5 @@
 |---|---|---|
 | `Espace` / `Entrée` | `step_next_beat()` (beat suivant) | `visible` et `not input_blocked` et `awaiting_step` |
 | `Tab` | `cycle_target()` (ennemi suivant) | `visible` et `not input_blocked` |
-| `1` – `4` | Actions tactiques du timing actif (index 0..3) | `visible` et `not input_blocked` et `not awaiting_step` |
+| `1` – `6` | Actions tactiques du timing actif (base + `★` équipement + `Filer`) | `visible` et `not input_blocked` et `not awaiting_step` |
 | `Échap` | Menu Pause (`main.gd`) | Verrouille `TimelinePanel.input_blocked = true` |

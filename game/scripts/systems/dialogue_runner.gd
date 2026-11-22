@@ -6,14 +6,20 @@ signal move_requested(location_id: String)
 signal twilight_requested
 signal encounter_requested(encounter_id: String)
 signal slice_completed
+signal skill_roll_resolved(roll_result: Dictionary)
 
 var current_dialogue_id: String = ""
+var last_roll_result: Dictionary = {}
 
 func start_dialogue(dialogue_id: String) -> void:
 	var node: Dictionary = DataLoader.get_dialogue(dialogue_id)
 	if node.is_empty():
 		return
 	current_dialogue_id = dialogue_id
+	var node_out: Dictionary = node.duplicate(true)
+	if not last_roll_result.is_empty():
+		node_out["_last_roll"] = last_roll_result.duplicate(true)
+		last_roll_result = {}
 	var evaluated: Array[Dictionary] = []
 	var raw_choices: Variant = node.get("choices", [])
 	if raw_choices is Array:
@@ -21,10 +27,20 @@ func start_dialogue(dialogue_id: String) -> void:
 			if c_item is Dictionary:
 				var cd: Dictionary = (c_item as Dictionary).duplicate(true)
 				var check: Dictionary = _check_conditions(cd.get("conditions", {}))
-				cd["_enabled"] = bool(check.get("ok", true))
-				cd["_lock_reason"] = str(check.get("reason", ""))
+				var enabled: bool = bool(check.get("ok", true))
+				var lock_r: String = str(check.get("reason", ""))
+				if cd.has("skill_check") and cd.get("skill_check") is Dictionary:
+					var sc: Dictionary = cd.get("skill_check") as Dictionary
+					var ff: String = str(sc.get("fail_flag", ""))
+					var retryable: bool = bool(sc.get("retryable", false))
+					if enabled and ff != "" and (not retryable) and GameState.has_flag(ff):
+						enabled = false
+						lock_r = "Déjà tenté"
+					cd["_roll_preview"] = _evaluate_choice_roll(cd)
+				cd["_enabled"] = enabled
+				cd["_lock_reason"] = lock_r
 				evaluated.append(cd)
-	node_updated.emit(dialogue_id, node, evaluated)
+	node_updated.emit(dialogue_id, node_out, evaluated)
 
 func pick_choice(choice_index: int) -> void:
 	if current_dialogue_id == "":
@@ -47,9 +63,51 @@ func pick_choice(choice_index: int) -> void:
 	if not bool(check.get("ok", true)):
 		return
 
-	AudioRadio.play_cassette_click()
-	var eff: Variant = choice.get("effects", {})
-	var triggers: Dictionary = _apply_effects(eff)
+	var triggers: Dictionary = {}
+	var next_id: String = str(choice.get("next", ""))
+	if choice.has("skill_check") and choice.get("skill_check") is Dictionary:
+		var sc: Dictionary = choice.get("skill_check") as Dictionary
+		var ff: String = str(sc.get("fail_flag", ""))
+		var retryable: bool = bool(sc.get("retryable", false))
+		if ff != "" and (not retryable) and GameState.has_flag(ff):
+			return
+		var rp: Dictionary = _get_choice_roll_params(choice)
+		var roll_res: Dictionary = GameState.perform_street_roll(
+			str(rp.get("char_id", "leader")),
+			str(rp.get("skill_id", "")),
+			int(rp.get("dc", 10)),
+			int(rp.get("bonus", 0)),
+			str(rp.get("bonus_label", ""))
+		)
+		last_roll_result = roll_res.duplicate(true)
+		GameState.add_log(str(roll_res.get("roll_summary", "")))
+		skill_roll_resolved.emit(roll_res)
+		if bool(roll_res.get("success", false)):
+			AudioRadio.play_cassette_click()
+			if bool(roll_res.get("is_brilliant", false)):
+				GameState.add_xp(str(roll_res.get("char_id", "leader")), 10)
+				last_roll_result["brilliant_xp"] = 10
+			triggers = _apply_effects(choice.get("effects", {}))
+		else:
+			AudioRadio.play_crisis_buzz()
+			if ff != "":
+				GameState.set_flag(ff, true)
+			triggers = _apply_effects(choice.get("fail_effects", {}))
+			if bool(roll_res.get("is_flaw_blunder", false)):
+				var fex_var: Variant = choice.get("flaw_extra_effects", {})
+				if fex_var is Dictionary and not (fex_var as Dictionary).is_empty():
+					var ex_tr: Dictionary = _apply_effects(fex_var)
+					for tk in ex_tr.keys():
+						triggers[tk] = ex_tr.get(tk)
+				else:
+					GameState.modify_moral(str(roll_res.get("char_id", "leader")), -4)
+			var fnext: String = str(choice.get("fail_next", ""))
+			if fnext != "":
+				next_id = fnext
+	else:
+		AudioRadio.play_cassette_click()
+		var eff: Variant = choice.get("effects", {})
+		triggers = _apply_effects(eff)
 
 	if bool(triggers.get("finish_slice", false)):
 		close_dialogue()
@@ -68,7 +126,6 @@ func pick_choice(choice_index: int) -> void:
 	if move_loc != "":
 		move_requested.emit(move_loc)
 
-	var next_id: String = str(choice.get("next", ""))
 	if next_id != "":
 		start_dialogue(next_id)
 	else:
@@ -76,7 +133,64 @@ func pick_choice(choice_index: int) -> void:
 
 func close_dialogue() -> void:
 	current_dialogue_id = ""
+	last_roll_result = {}
 	dialogue_finished.emit()
+
+func _get_choice_roll_params(choice: Dictionary) -> Dictionary:
+	var sc_var: Variant = choice.get("skill_check", {})
+	if not (sc_var is Dictionary):
+		return {}
+	var sc: Dictionary = sc_var as Dictionary
+	var sk_id: String = str(sc.get("skill", ""))
+	var dc: int = int(sc.get("dc", 10))
+	var spec_char: String = str(sc.get("char_id", ""))
+	var bonus: int = 0
+	var bonus_parts: Array[String] = []
+	var bval: int = int(sc.get("bonus_val", 2))
+
+	var bf: String = str(sc.get("bonus_if_flag", ""))
+	if bf != "" and GameState.has_flag(bf):
+		bonus += bval
+		bonus_parts.append("Piste")
+	var ba: String = str(sc.get("bonus_if_action", ""))
+	if ba != "" and GameState.has_action_in_active_group(ba):
+		bonus += bval
+		bonus_parts.append("Équip.")
+	var bi: String = str(sc.get("bonus_if_item", ""))
+	if bi != "" and GameState.has_item_in_active_group_or_stash(bi):
+		bonus += bval
+		var b_iname: String = str(DataLoader.get_equipment_def(bi).get("name", "Objet"))
+		bonus_parts.append(b_iname.split(" ")[0])
+
+	var roller: Dictionary = GameState.get_best_active_group_roller(sk_id, spec_char)
+	var roller_id: String = str(roller.get("char_id", "leader"))
+	if ba != "":
+		var carrier_id: String = GameState.get_active_group_member_with_action(ba)
+		if carrier_id != "":
+			var carrier_preview: Dictionary = GameState.preview_street_roll(carrier_id, sk_id, dc, bonus, " + ".join(bonus_parts))
+			var best_preview: Dictionary = GameState.preview_street_roll(roller_id, sk_id, dc, bonus, " + ".join(bonus_parts))
+			if int(carrier_preview.get("chance_pct", 0)) >= int(best_preview.get("chance_pct", 0)):
+				roller_id = carrier_id
+
+	return {
+		"char_id": roller_id,
+		"skill_id": sk_id,
+		"dc": dc,
+		"bonus": bonus,
+		"bonus_label": " + ".join(bonus_parts)
+	}
+
+func _evaluate_choice_roll(choice: Dictionary) -> Dictionary:
+	var rp: Dictionary = _get_choice_roll_params(choice)
+	if rp.is_empty():
+		return {}
+	return GameState.preview_street_roll(
+		str(rp.get("char_id", "leader")),
+		str(rp.get("skill_id", "")),
+		int(rp.get("dc", 10)),
+		int(rp.get("bonus", 0)),
+		str(rp.get("bonus_label", ""))
+	)
 
 func _check_conditions(cond_var: Variant) -> Dictionary:
 	if not (cond_var is Dictionary):
@@ -111,6 +225,10 @@ func _check_conditions(cond_var: Variant) -> Dictionary:
 		if req_item != "" and not GameState.has_item_in_active_group_or_stash(req_item):
 			var iname: String = str(DataLoader.get_equipment_def(req_item).get("name", req_item))
 			return {"ok": false, "reason": "Objet requis : %s" % iname}
+	if cond.has("require_action"):
+		var req_act: String = str(cond.get("require_action", ""))
+		if req_act != "" and not GameState.has_action_in_active_group(req_act):
+			return {"ok": false, "reason": "Équiper : %s" % _find_item_name_for_action(req_act)}
 	if cond.has("require_member"):
 		var req_m: String = str(cond.get("require_member", ""))
 		if not GameState.is_member_in_active_group(req_m):
@@ -189,3 +307,13 @@ func _apply_effects(eff_var: Variant) -> Dictionary:
 
 	GameState.state_changed.emit()
 	return triggers
+
+func _find_item_name_for_action(action_id: String) -> String:
+	for iid_var in DataLoader.equipment_catalog.keys():
+		var idef: Dictionary = DataLoader.get_equipment_def(str(iid_var))
+		var acts_var: Variant = idef.get("unlocks_actions", [])
+		if acts_var is Array:
+			for av in (acts_var as Array):
+				if av is Dictionary and str((av as Dictionary).get("id", "")) == action_id:
+					return str(idef.get("name", action_id))
+	return action_id

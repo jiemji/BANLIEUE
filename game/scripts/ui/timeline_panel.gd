@@ -16,6 +16,7 @@ var _journal_drawer: PanelContainer = null
 var _lbl_log: Label = null
 
 # Bandeau Bark BD 1 ligne + contrôle pas-à-pas strict
+var _bark_panel_style: StyleBoxFlat = null
 var _lbl_bark: Label = null
 var _btn_step: Button = null
 
@@ -73,7 +74,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			elif kev.keycode == KEY_TAB:
 				_timeline.call("cycle_target")
 				get_viewport().set_input_as_handled()
-			elif kev.keycode >= KEY_1 and kev.keycode <= KEY_4:
+			elif kev.keycode >= KEY_1 and kev.keycode <= KEY_6:
 				if not is_waiting:
 					var idx: int = int(kev.keycode - KEY_1)
 					if idx >= 0 and idx < _current_action_ids.size():
@@ -164,7 +165,8 @@ func _build_ui() -> void:
 	var bark_panel: PanelContainer = PanelContainer.new()
 	bark_panel.position = Vector2(10, 396)
 	bark_panel.size = Vector2(1260, 42)
-	bark_panel.add_theme_stylebox_override("panel", _make_box(Color(0.06, 0.06, 0.08, 0.91), Color(0.86, 0.22, 0.22), 2, 5))
+	_bark_panel_style = _make_box(Color(0.06, 0.06, 0.08, 0.91), Color(0.86, 0.22, 0.22), 2, 5)
+	bark_panel.add_theme_stylebox_override("panel", _bark_panel_style)
 	add_child(bark_panel)
 
 	var bark_hbox: HBoxContainer = HBoxContainer.new()
@@ -227,7 +229,7 @@ func _build_ui() -> void:
 	actions_panel.add_child(act_row)
 
 	var act_left: VBoxContainer = VBoxContainer.new()
-	act_left.custom_minimum_size = Vector2(780, 0)
+	act_left.custom_minimum_size = Vector2(812, 0)
 	act_left.add_theme_constant_override("separation", 5)
 	act_row.add_child(act_left)
 
@@ -237,7 +239,7 @@ func _build_ui() -> void:
 	act_left.add_child(_lbl_target_banner)
 
 	_actions_hbox = HBoxContainer.new()
-	_actions_hbox.add_theme_constant_override("separation", 8)
+	_actions_hbox.add_theme_constant_override("separation", 6)
 	act_left.add_child(_actions_hbox)
 
 	var preview_panel: PanelContainer = PanelContainer.new()
@@ -270,12 +272,26 @@ func _on_combat_feedback(event_data: Dictionary) -> void:
 	var txt: String = str(event_data.get("text", ""))
 	if txt != "":
 		_bark_override_text = txt
+	if _bark_panel_style != null:
+		var k: String = str(event_data.get("kind", ""))
+		if k == "ally_brilliant":
+			_bark_panel_style.border_color = Color(0.98, 0.78, 0.24)
+			_bark_panel_style.bg_color = Color(0.14, 0.11, 0.05, 0.94)
+		elif k == "ally_flaw" or k == "enemy" or k == "crisis" or k == "counter":
+			_bark_panel_style.border_color = Color(0.92, 0.24, 0.24)
+			_bark_panel_style.bg_color = Color(0.14, 0.06, 0.07, 0.94)
+		else:
+			_bark_panel_style.border_color = Color(0.95, 0.55, 0.16)
+			_bark_panel_style.bg_color = Color(0.06, 0.06, 0.08, 0.91)
 
 func _on_encounter_finished(_outcome_id: String, _summary: String) -> void:
 	visible = false
 	_journal_drawer.visible = false
 	_hover_spec = {}
 	_bark_override_text = ""
+	if _bark_panel_style != null:
+		_bark_panel_style.border_color = Color(0.86, 0.22, 0.22)
+		_bark_panel_style.bg_color = Color(0.06, 0.06, 0.08, 0.91)
 
 ## Reconstruit la Frise-Cartes Unifiée et la barre d'actions selon TensionTimeline.
 func refresh() -> void:
@@ -692,46 +708,54 @@ func _rebuild_actions(is_waiting: bool) -> void:
 	var tgt_var: Variant = _timeline.call("get_selected_target")
 	var tgt_name: String = str((tgt_var as Dictionary).get("name", "Aucune")) if tgt_var is Dictionary else "Aucune"
 
-	_lbl_target_banner.text = "Timing de %s  |  Cible : %s [Tab]  |  Actions de frise [1–4] :" % [actor_name, tgt_name]
-
-	var enc: Dictionary = DataLoader.get_encounter(str(_timeline.get("encounter_id")))
-	var act_list_var: Variant = enc.get("player_actions", [])
+	var avail_var: Variant = _timeline.call("get_available_actions_for_actor")
+	var avail_list: Array = avail_var as Array if avail_var is Array else []
 	var slot_num: int = 1
-	if act_list_var is Array:
-		for av in (act_list_var as Array):
-			if not (av is Dictionary):
-				continue
-			var ad: Dictionary = av as Dictionary
-			var aid: String = str(ad.get("id", ""))
-			_current_action_ids.append(aid)
-			var btn: Button = Button.new()
-			btn.custom_minimum_size = Vector2(0, 42)
-			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			btn.clip_text = true
-			btn.focus_mode = Control.FOCUS_NONE
-			btn.disabled = is_waiting or actor.is_empty()
-			btn.text = "[%d] %s" % [slot_num, str(ad.get("label", aid))]
-			var aid_cap: String = aid
-			btn.pressed.connect(func() -> void: _timeline.call("execute_player_action", aid_cap))
-			btn.mouse_entered.connect(func() -> void: _set_hover_spec({"kind": "action", "id": aid_cap}))
-			btn.mouse_exited.connect(func() -> void: _clear_hover_spec())
-			_actions_hbox.add_child(btn)
-			slot_num += 1
+	for av in avail_list:
+		if not (av is Dictionary):
+			continue
+		var ad: Dictionary = av as Dictionary
+		var aid: String = str(ad.get("id", ""))
+		var is_eq: bool = bool(ad.get("is_equipment", false))
+		var is_used: bool = bool(ad.get("used", false))
+		var pct: int = int(ad.get("chance_pct", 0))
+		var is_fl: bool = bool(ad.get("is_flaw", false))
+		var slbl: String = str(ad.get("short_label", aid))
+		_current_action_ids.append(aid)
 
-	if bool(_timeline.call("can_escape_now")):
-		_current_action_ids.append("act_escape_now")
-		var btn_esc: Button = Button.new()
-		btn_esc.custom_minimum_size = Vector2(0, 42)
-		btn_esc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn_esc.clip_text = true
-		btn_esc.focus_mode = Control.FOCUS_NONE
-		btn_esc.disabled = is_waiting or actor.is_empty()
-		btn_esc.text = "[%d] Filer par le Quai !" % slot_num
-		btn_esc.add_theme_stylebox_override("normal", _make_box(Color(0.28, 0.20, 0.07), Color(0.98, 0.78, 0.26), 2, 4))
-		btn_esc.pressed.connect(func() -> void: _timeline.call("execute_player_action", "act_escape_now"))
-		btn_esc.mouse_entered.connect(func() -> void: _set_hover_spec({"kind": "action", "id": "act_escape_now"}))
-		btn_esc.mouse_exited.connect(func() -> void: _clear_hover_spec())
-		_actions_hbox.add_child(btn_esc)
+		var btn: Button = Button.new()
+		btn.custom_minimum_size = Vector2(0, 42)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.clip_text = true
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.disabled = is_waiting or actor.is_empty() or is_used
+		btn.tooltip_text = str(ad.get("tooltip", slbl))
+		btn.add_theme_font_size_override("font_size", 11)
+
+		if aid == "act_escape_now":
+			btn.text = "[%d] %s" % [slot_num, slbl]
+			btn.add_theme_stylebox_override("normal", _make_box(Color(0.28, 0.20, 0.07), Color(0.98, 0.78, 0.26), 2, 4))
+		elif is_eq:
+			if is_used:
+				btn.text = "[%d] ★ %s [Util.]" % [slot_num, slbl]
+			else:
+				btn.text = "[%d] ★ %s · %d%%%s" % [slot_num, slbl, pct, (" ⚠" if is_fl else "")]
+				btn.add_theme_stylebox_override("normal", _make_box(Color(0.18, 0.14, 0.08), Color(0.92, 0.70, 0.24), 1, 4))
+		else:
+			btn.text = "[%d] %s · %d%%%s" % [slot_num, slbl, pct, (" ⚠" if is_fl else "")]
+			if is_fl:
+				btn.add_theme_color_override("font_color", Color(1.0, 0.56, 0.52))
+				btn.add_theme_stylebox_override("normal", _make_box(Color(0.16, 0.09, 0.10), Color(0.88, 0.34, 0.32), 1, 4))
+
+		var aid_cap: String = aid
+		btn.pressed.connect(func() -> void: _timeline.call("execute_player_action", aid_cap))
+		btn.mouse_entered.connect(func() -> void: _set_hover_spec({"kind": "action", "id": aid_cap}))
+		btn.mouse_exited.connect(func() -> void: _clear_hover_spec())
+		_actions_hbox.add_child(btn)
+		slot_num += 1
+
+	var max_k: int = maxi(1, _current_action_ids.size())
+	_lbl_target_banner.text = "Timing de %s  |  Cible : %s [Tab]  |  Actions [1–%d] (★ = Équipement) :" % [actor_name, tgt_name, max_k]
 
 func _refresh_bark_and_step(is_waiting: bool, step_lbl: String) -> void:
 	var bark_txt: String = _bark_override_text
@@ -741,6 +765,7 @@ func _refresh_bark_and_step(is_waiting: bool, step_lbl: String) -> void:
 			bark_txt = str((log_var as Array)[(log_var as Array).size() - 1])
 	_lbl_bark.text = "▸ " + bark_txt
 
+	var max_k: int = maxi(1, _current_action_ids.size())
 	if is_waiting:
 		_btn_step.disabled = false
 		_btn_step.text = "[Espace] %s ▶" % step_lbl
@@ -749,7 +774,7 @@ func _refresh_bark_and_step(is_waiting: bool, step_lbl: String) -> void:
 		_btn_step.disabled = true
 		var act_v: Variant = _timeline.call("get_acting_ally")
 		var a_name: String = str((act_v as Dictionary).get("name", "Bande")).split(" ")[0] if act_v is Dictionary else "Bande"
-		_btn_step.text = "Tour de %s [1–4]" % a_name
+		_btn_step.text = "Tour de %s [1–%d]" % [a_name, max_k]
 		_btn_step.add_theme_stylebox_override("normal", _make_box(Color(0.14, 0.14, 0.18), Color(0.36, 0.38, 0.44), 1, 4))
 
 func _refresh_journal() -> void:
@@ -776,7 +801,7 @@ func _apply_preview_visuals() -> void:
 
 	_lbl_preview_warn.visible = false
 	if _hover_spec.is_empty() or _timeline == null:
-		_lbl_preview.text = "Survole une action [1–4], ⚡ Interruption ou 🛡 Retenir pour prévisualiser l'impact sur la frise."
+		_lbl_preview.text = "Survole une action [1–6], ⚡ Interruption ou 🛡 Retenir pour prévisualiser l'impact et le %."
 		return
 
 	var pv_var: Variant = null
@@ -796,10 +821,23 @@ func _apply_preview_visuals() -> void:
 		_lbl_preview.text = "Indisponible : %s" % str(pv.get("reason", ""))
 		return
 
-	_lbl_preview.text = "%s — %s" % [str(pv.get("title", "")), str(pv.get("summary", ""))]
+	var pct: int = int(pv.get("chance_pct", 0))
+	var fml: String = str(pv.get("roll_formula", ""))
+	if pct > 0 and fml != "":
+		_lbl_preview.text = "%s — 🎲 %d%% (%s)\n%s" % [str(pv.get("title", "")), pct, fml, str(pv.get("summary", ""))]
+	else:
+		_lbl_preview.text = "%s — %s" % [str(pv.get("title", "")), str(pv.get("summary", ""))]
+
 	if bool(pv.get("counter_warning", false)):
 		_lbl_preview_warn.visible = true
 		_lbl_preview_warn.text = "⚠ CONTRE-INTERRUPTION : %s (-6 Moral !)" % str(pv.get("counter_label", ""))
+	elif bool(pv.get("is_flaw", false)):
+		_lbl_preview_warn.visible = true
+		_lbl_preview_warn.text = "⚠ FAILLE (%s %+d) — Si raté : %s" % [
+			str(pv.get("skill_name", "")),
+			int(pv.get("skill_val", -1)),
+			str(pv.get("fail_summary", "Contrecoup moral"))
+		]
 
 	var tid: String = str(pv.get("target_id", ""))
 	var from_t: int = int(pv.get("from_tick", 0))
@@ -816,7 +854,8 @@ func _apply_preview_visuals() -> void:
 				parts.append("Cran %d→%d" % [from_t, to_t])
 			if kind == "restrain":
 				parts.append("CRISE ANNULÉE")
-			rl.text = "Aperçu : " + (" | ".join(parts) if not parts.is_empty() else str(pv.get("summary", "IMPACT")))
+			var pct_tag: String = (" (%d%%)" % pct) if pct > 0 else ""
+			rl.text = "Aperçu%s : %s" % [pct_tag, (" | ".join(parts) if not parts.is_empty() else str(pv.get("summary", "IMPACT")))]
 			rl.visible = true
 
 func _make_box(bg: Color, border: Color, bw: int, pad: int) -> StyleBoxFlat:

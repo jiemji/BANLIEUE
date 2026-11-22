@@ -4,6 +4,9 @@ signal choice_selected(choice_index: int)
 
 var _panel: PanelContainer = null
 var _lbl_speaker: Label = null
+var _roll_banner: PanelContainer = null
+var _roll_banner_style: StyleBoxFlat = null
+var _lbl_roll_result: Label = null
 var _lbl_text: Label = null
 var _choices_box: VBoxContainer = null
 var _portrait_frame: PanelContainer = null
@@ -26,11 +29,13 @@ func _apply_text_size() -> void:
 		_lbl_text.add_theme_font_size_override("font_size", SettingsManager.get_dialogue_font_size())
 	if _lbl_speaker != null:
 		_lbl_speaker.add_theme_font_size_override("font_size", SettingsManager.get_dialogue_font_size() + 2)
+	if _lbl_roll_result != null:
+		_lbl_roll_result.add_theme_font_size_override("font_size", maxi(12, SettingsManager.get_dialogue_font_size() - 1))
 
 func _build_ui() -> void:
 	_panel = PanelContainer.new()
-	_panel.position = Vector2(18, 434)
-	_panel.size = Vector2(886, 274)
+	_panel.position = Vector2(18, 404)
+	_panel.size = Vector2(886, 304)
 	_panel.clip_contents = true
 	var sb: StyleBoxFlat = StyleBoxFlat.new()
 	sb.bg_color = Color(0.08, 0.08, 0.10, 0.96)
@@ -73,13 +78,29 @@ func _build_ui() -> void:
 
 	var right_col: VBoxContainer = VBoxContainer.new()
 	right_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right_col.add_theme_constant_override("separation", 8)
+	right_col.add_theme_constant_override("separation", 6)
 	main_hbox.add_child(right_col)
 
 	_lbl_speaker = Label.new()
 	_lbl_speaker.add_theme_font_size_override("font_size", 16)
 	_lbl_speaker.add_theme_color_override("font_color", Color(0.95, 0.55, 0.16))
 	right_col.add_child(_lbl_speaker)
+
+	_roll_banner = PanelContainer.new()
+	_roll_banner.visible = false
+	_roll_banner_style = StyleBoxFlat.new()
+	_roll_banner_style.bg_color = Color(0.11, 0.14, 0.11, 0.96)
+	_roll_banner_style.border_color = Color(0.45, 0.85, 0.45)
+	_roll_banner_style.set_border_width_all(1)
+	_roll_banner_style.set_content_margin_all(5)
+	_roll_banner.add_theme_stylebox_override("panel", _roll_banner_style)
+	right_col.add_child(_roll_banner)
+
+	_lbl_roll_result = Label.new()
+	_lbl_roll_result.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_lbl_roll_result.add_theme_font_size_override("font_size", 12)
+	_lbl_roll_result.add_theme_color_override("font_color", Color(0.94, 0.94, 0.88))
+	_roll_banner.add_child(_lbl_roll_result)
 
 	_lbl_text = Label.new()
 	_lbl_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -88,9 +109,16 @@ func _build_ui() -> void:
 	_lbl_text.add_theme_color_override("font_color", Color(0.95, 0.93, 0.88))
 	right_col.add_child(_lbl_text)
 
+	var choices_scroll: ScrollContainer = ScrollContainer.new()
+	choices_scroll.custom_minimum_size = Vector2(0, 128)
+	choices_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	choices_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	right_col.add_child(choices_scroll)
+
 	_choices_box = VBoxContainer.new()
-	_choices_box.add_theme_constant_override("separation", 5)
-	right_col.add_child(_choices_box)
+	_choices_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_choices_box.add_theme_constant_override("separation", 4)
+	choices_scroll.add_child(_choices_box)
 
 func show_node(node_data: Dictionary, choices: Array) -> void:
 	visible = true
@@ -115,6 +143,36 @@ func show_node(node_data: Dictionary, choices: Array) -> void:
 	if spk_id == "leader" and (spk_display == "" or spk_display == "Leader" or spk_display == "Toi (Leader)" or spk_display == "leader"):
 		spk_display = str(cdef.get("name", "Leader"))
 	_lbl_speaker.text = spk_display
+
+	var last_roll_var: Variant = node_data.get("_last_roll", {})
+	if last_roll_var is Dictionary and not (last_roll_var as Dictionary).is_empty():
+		var rr: Dictionary = last_roll_var as Dictionary
+		var ok_r: bool = bool(rr.get("success", false))
+		var br_r: bool = bool(rr.get("is_brilliant", false))
+		var fl_r: bool = bool(rr.get("is_flaw_blunder", false))
+		var xp_r: int = int(rr.get("brilliant_xp", 0))
+		var banner_txt: String = str(rr.get("roll_summary", ""))
+		if xp_r > 0:
+			banner_txt += "  (+%d XP Coup d'éclat !)" % xp_r
+		elif fl_r:
+			banner_txt += "  (⚠ Faille : contrecoup moral)"
+		_lbl_roll_result.text = banner_txt
+		if br_r:
+			_roll_banner_style.bg_color = Color(0.18, 0.14, 0.06, 0.96)
+			_roll_banner_style.border_color = Color(0.98, 0.78, 0.24)
+			_lbl_roll_result.add_theme_color_override("font_color", Color(1.0, 0.88, 0.36))
+		elif ok_r:
+			_roll_banner_style.bg_color = Color(0.08, 0.16, 0.10, 0.96)
+			_roll_banner_style.border_color = Color(0.42, 0.86, 0.50)
+			_lbl_roll_result.add_theme_color_override("font_color", Color(0.70, 0.96, 0.72))
+		else:
+			_roll_banner_style.bg_color = Color(0.20, 0.08, 0.09, 0.96)
+			_roll_banner_style.border_color = Color(0.95, 0.28, 0.28)
+			_lbl_roll_result.add_theme_color_override("font_color", Color(1.0, 0.62, 0.58))
+		_roll_banner.visible = true
+	else:
+		_roll_banner.visible = false
+
 	_lbl_text.text = str(node_data.get("text", ""))
 
 	for child in _choices_box.get_children():
@@ -129,12 +187,29 @@ func show_node(node_data: Dictionary, choices: Array) -> void:
 			var tag: String = str(cd.get("tag", ""))
 			var lock_r: String = str(cd.get("_lock_reason", ""))
 			var label_txt: String = str(cd.get("label", "Continuer"))
+			var rp_var: Variant = cd.get("_roll_preview", {})
+			var tip_txt: String = label_txt
+			if rp_var is Dictionary and not (rp_var as Dictionary).is_empty():
+				var rp: Dictionary = rp_var as Dictionary
+				var pct: int = int(rp.get("chance_pct", 50))
+				var r_name: String = str(rp.get("char_name", "")).split(" ")[0]
+				var sk_val: int = int(rp.get("skill_val", 0))
+				var flaw_s: String = " ⚠ FAILLE" if bool(rp.get("is_flaw", false)) else ""
+				var badge: String = "[🎲 %d%% · %s %+d%s] " % [pct, r_name, sk_val, flaw_s]
+				label_txt = badge + label_txt
+				tip_txt = "%s\nJet : %s (%d%%)" % [str(cd.get("label", "")), str(rp.get("formula", "")), pct]
+				if pct >= 75 and not bool(rp.get("is_flaw", false)):
+					btn.add_theme_color_override("font_color", Color(0.68, 0.94, 0.72))
+				elif pct >= 45 and not bool(rp.get("is_flaw", false)):
+					btn.add_theme_color_override("font_color", Color(0.98, 0.80, 0.34))
+				else:
+					btn.add_theme_color_override("font_color", Color(0.98, 0.50, 0.46))
 			if tag != "":
 				label_txt += "   [%s]" % tag
 			if not enabled and lock_r != "":
 				label_txt += "  —  (%s)" % lock_r
 			btn.text = label_txt
-			btn.tooltip_text = label_txt
+			btn.tooltip_text = tip_txt
 			btn.clip_text = true
 			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 			btn.disabled = not enabled

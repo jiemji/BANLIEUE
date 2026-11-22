@@ -142,11 +142,38 @@ Sur la page gauche de la fiche, chaque PJ expose :
 
 ---
 
-## 6. Contrat de Données Cible pour l'Implémentation (`v0.5.0`)
+## 6. Résolution « Jet de rue » (`2d6 + Carac + Comp`) & Équipement Actif (`v0.5.1`)
+
+Les fiches PJ pilotent directement les actions incertaines en dialogue et sur la Frise Chronologique de Tension (`GameState.preview_street_roll` / `perform_street_roll`) :
+
+* **Formule universelle** : **`2d6 + Caractéristique associée (1..5) + Compétence effective (-3..+5) + Bonus contextuels vs Degré de Difficulté (DD)`**.
+  * **Double 6 (`6+6`)** : réussite critique automatique (plancher **3 %** de chance).
+  * **Double 1 (`1+1`)** : échec critique automatique (plafond **97 %** de chance).
+  * **Coup d'éclat (`marge ≥ +3` ou `6+6`)** : en dialogue, accorde **`+10 XP`** bonus à l'auteur du jet ; sur la Frise, augmente l'impact (`-3/-4` Résolution, `+3` crans CRS ou `+12/+14` Moral).
+  * **Couac de faille (`Compétence < 0` + jet raté, ou `1+1`)** : la faille sociale craque en direct (`0` dégât infligé en confrontation et contrecoup sur le **Moral**, ou gaffe *Margerin / Zone* en dialogue).
+* **Lanceur choisi** : sur la Frise, le personnage au cran `0` lance son propre jet ; en dialogue (`DialogueRunner`), le membre du groupe actif ayant le meilleur `Carac + Comp` porte le jet (affiché sur le bouton `[🎲 XX% · Prénom +Y]`).
+
+| Action d'équipement actif | Objet source (`equipment.json`) | Effet sur la Frise (`1×/confrontation` par porteur) / Dialogue |
+|---|---|---|
+| `act_equip_intimidation_look` | *Perfecto clouté 1982* | `Caisse & Pression +2` : `-3` Résolution, recul `+2` crans, coupe Contre (`+bonus` vs Manu) |
+| `act_equip_infiltration` | *Parka anonyme à capuche* | `Caves & Esquive +2` : `+2` CRS, `+1` Échappée, `+1` Bouclier Interposition |
+| `act_equip_boombox` | *Ghetto-blaster K7* | `Entraide & Moral +1` : `+8` Moral à toute la bande & crises retardées `+1` cran |
+| `act_equip_pochoir` | *Bombe de peinture & pochoir* | `Système D +1` : `-2` Résol cible & `-1` aux autres (`+1` Notoriété) + dialogue Canal |
+| `act_equip_record_fm` | *Walkman Sony bricolé FM* | `Ondes & Électro +1` : `+2` CRS, `+1` Échappée, rapproche le Train Fantôme (+bonus Poudrerie) |
+| `act_equip_pass_mjc` | *Badge MJC / Pass Mairie* | `Flair & Milieu +2` : `-2` Résol, coupe Contre, `+1` CRS (+bonus Tour B & Relais) |
+| `act_equip_pause_musique` | *Cassettes Radio Lucien / TDK* | `Nerfs nocturnes +1` : `+10` Moral à l'allié le plus bas (+dialogue Box-Garage `+10` Moral) |
+| `act_equip_pass_tour` | *Trousseau des caves* | `Système D +1` : `+2` CRS, `+1` Échappée (+option gaine Tour B en dialogue) |
+| `act_equip_caves` | *Clé des chaufferies* | Passif : `+1` Échappée dès le début d'une confrontation en ville |
+
+---
+
+## 7. Contrat de Données Cible pour l'Implémentation (`v0.5.0` → `v0.5.1`)
 
 1. **`game/data/characters.json` & `player_profiles.json`** *(rétrocompatible)* :
-   * Ajouter `"age"`, `"home_location"`, `"bio"`, `"characteristics": {"esprit": 3, "corps": 3, "energie": 4}`, `"skills": {...}`, `"default_equipment": {"look": "", "tool": "", "fetish": ""}` et `"relationships": {...}`.
-2. **`game/data/equipment.json`** *(nouveau fichier)* :
-   * Catalogue Data-Driven des objets (`id`, `slot` `"look"|"tool"|"fetish"`, `name`, `desc`, `stat_mods`, `skill_mods`, `unlocks_actions`).
-3. **`GameState` & `SaveManager`** :
-   * Stocker par membre dans `member_states[cid]` (ou `member_progression[cid]`) : `xp`, `skills` modifiés, `equipment` équipé, `traits` et `box_stash` (coffre partagé du Box-Garage), sérialisés dans `slot_1..3.json`.
+   * `"age"`, `"home_location"`, `"bio"`, `"characteristics": {"esprit": 3, "corps": 3, "energie": 4}`, `"skills": {...}`, `"default_equipment": {"look": "", "tool": "", "fetish": ""}` et `"relations": {...}`.
+2. **`game/data/equipment.json`** :
+   * Catalogue Data-Driven des objets (`id`, `slot` `"look"|"tool"|"fetish"`, `name`, `desc`, `stat_mods`, `skill_mods`, `unlocks_skills`, `unlocks_actions`).
+3. **`game/data/dialogues.json` & `timeline_encounters.json`** (`v0.5.1`) :
+   * Choix `skill_check` (`skill`, `dc`, `bonus_if_flag/item/action`, `fail_next`, `fail_effects`, `flaw_extra_effects`), condition `require_action`, et difficultés `dc_social` / `dc_pression` sur chaque adversaire.
+4. **`GameState` & `SaveManager`** :
+   * Stocker par membre dans `member_progression[cid]` : `xp`, `skills` modifiés, `equipment` équipé, `traits` et `box_stash` (coffre partagé du Box-Garage), sérialisés dans `slot_1..3.json`.

@@ -30,6 +30,19 @@ var combat_log: Array[String] = []
 var _squad_manager: Node = null
 var _pending_enemy_ids: Array[String] = []
 var _pending_crisis_ids: Array[String] = []
+var _used_equip_actions: Dictionary = {}
+var _interposition_absorb: int = 6
+
+const _EQUIP_ACTION_META: Dictionary = {
+	"act_equip_intimidation_look": {"short": "Intimidation Look", "title": "Intimidation Look (Perfecto 1982)", "skill": "baston_pression", "bonus": 2, "bonus_label": "Perfecto", "needs_target": true},
+	"act_equip_infiltration": {"short": "Infiltration", "title": "Infiltration discrète (Parka)", "skill": "caves_esquive", "bonus": 2, "bonus_label": "Parka", "needs_target": false},
+	"act_equip_boombox": {"short": "Son de Dalle", "title": "Son de Dalle (Ghetto-blaster K7)", "skill": "solidarite_bande", "bonus": 1, "bonus_label": "Boombox", "needs_target": false},
+	"act_equip_pochoir": {"short": "Pochoir", "title": "Bomber un mot d'ordre (Pochoir)", "skill": "systeme_d", "bonus": 1, "bonus_label": "Pochoir", "needs_target": true},
+	"act_equip_record_fm": {"short": "Capter FM", "title": "Enregistrer la Fréquence (Walkman FM)", "skill": "ondes_radio", "bonus": 1, "bonus_label": "Walkman FM", "needs_target": false},
+	"act_equip_pass_mjc": {"short": "Pass Mairie", "title": "Pass Mairie / Carte MJC", "skill": "lecture_rue", "bonus": 2, "bonus_label": "Pass Mairie", "needs_target": true},
+	"act_equip_pause_musique": {"short": "Pause TDK", "title": "Pause musique (Cassettes TDK)", "skill": "sang_froid_nerfs", "bonus": 1, "bonus_label": "TDK", "needs_target": false},
+	"act_equip_pass_tour": {"short": "Gaine Tour B", "title": "Gaine Tour B (Trousseau)", "skill": "systeme_d", "bonus": 1, "bonus_label": "Trousseau", "needs_target": false}
+}
 
 func set_squad_manager(sm: Node) -> void:
 	_squad_manager = sm
@@ -59,6 +72,8 @@ func start_encounter(enc_id: String) -> void:
 	combat_log.clear()
 	_pending_enemy_ids.clear()
 	_pending_crisis_ids.clear()
+	_used_equip_actions.clear()
+	_interposition_absorb = 6
 
 	# Ennemis depuis JSON
 	var e_list_var: Variant = enc.get("enemies", [])
@@ -66,13 +81,17 @@ func start_encounter(enc_id: String) -> void:
 		for item in (e_list_var as Array):
 			if item is Dictionary:
 				var ed: Dictionary = (item as Dictionary).duplicate(true)
+				var eid: String = str(ed.get("id", ""))
 				var res_max: int = int(ed.get("resolve_max", 3))
-				if str(ed.get("id", "")) == "cousin_so" and GameState.has_flag("ludo_bluffed_cousin"):
+				if eid == "cousin_so" and GameState.has_flag("ludo_bluffed_cousin"):
 					res_max = maxi(2, res_max - 1)
 				ed["resolve"] = res_max
 				ed["resolve_max"] = res_max
 				ed["next_tick"] = int(ed.get("initial_tick", 2))
-				ed["counter_ready"] = bool(ed.get("has_counter_interrupt", false))
+				var c_ready: bool = bool(ed.get("has_counter_interrupt", false))
+				if eid == "so_veteran" and GameState.has_flag("so_veteran_spotted"):
+					c_ready = false
+				ed["counter_ready"] = c_ready
 				ed["defeated"] = false
 				enemies.append(ed)
 
@@ -114,6 +133,8 @@ func start_encounter(enc_id: String) -> void:
 		_push_log("Ludo fait le guet sur l'avenue : les CRS gagnent +1 cran de retard.")
 	if GameState.has_flag("ludo_bluffed_cousin"):
 		_push_log("Le baratin de Ludo a déjà semé le doute chez son cousin S.O. (-1 Résolution).")
+	if GameState.has_flag("so_veteran_spotted"):
+		_push_log("Repérage ruelle : la contre-interruption initiale du Chef S.O. Vétéran est neutralisée !")
 	for a_item in allies:
 		if bool(a_item.get("present", false)):
 			var acid: String = str(a_item.get("char_id", ""))
@@ -176,7 +197,7 @@ func cycle_target() -> void:
 func get_selected_target() -> Dictionary:
 	return _ensure_valid_target()
 
-## Exécute une action tactique du tour actif puis prépare le pas-à-pas suivant.
+## Exécute une action tactique du tour actif (Jet de rue 2d6 + Carac + Comp) puis prépare le pas-à-pas suivant.
 func execute_player_action(action_id: String) -> void:
 	if not active:
 		return
@@ -191,36 +212,219 @@ func execute_player_action(action_id: String) -> void:
 
 	var actor_id: String = str(actor.get("char_id", "leader"))
 	var actor_name: String = str(actor.get("name", "Leader"))
+	if action_id == "act_escape_now":
+		if can_escape_now():
+			_finish("escaped", "Échappée nocturne réussie ! Profitant de la rame du Train Fantôme et de l'ombre du quai, la bande sème le S.O. et les CRS avant de filer sous la Dalle.")
+		return
+
+	var pv: Dictionary = _build_action_preview(action_id, actor_id)
+	if not bool(pv.get("valid", false)):
+		return
+
 	var target: Dictionary = _ensure_valid_target()
+	var skill_id: String = str(pv.get("skill_id", "tchatche"))
+	var dc: int = int(pv.get("dc", 10))
+	var bonus: int = int(pv.get("bonus", 0))
+	var bonus_lbl: String = str(pv.get("bonus_label", ""))
+	var roll_res: Dictionary = GameState.perform_street_roll(actor_id, skill_id, dc, bonus, bonus_lbl)
+	var ok: bool = bool(roll_res.get("success", false))
+	var is_bril: bool = bool(roll_res.get("is_brilliant", false))
+	var is_crit_s: bool = bool(roll_res.get("is_crit_success", false))
+	var is_flaw_b: bool = bool(roll_res.get("is_flaw_blunder", false))
+	var roll_hdr: String = str(roll_res.get("roll_summary", ""))
+	var fb_kind: String = "ally_brilliant" if is_bril else ("ally_action" if ok else ("ally_flaw" if is_flaw_b else "ally_action"))
+	var shake_flag: bool = false
+	var effect_msg: String = ""
+
+	if _EQUIP_ACTION_META.has(action_id):
+		var u_key: String = "%s:%s" % [actor_id, action_id]
+		_used_equip_actions[u_key] = true
 
 	if action_id == "act_tchatche":
 		if not target.is_empty():
-			var dmg: int = 2
-			if GameState.faveurs > 0 or GameState.has_flag("tour_b_done"):
-				dmg = 3
-			_damage_enemy(target, dmg)
-			var msg_t: String = "%s balance les preuves et l'arrêté bidon ! %s perd %d de résolution." % [actor_name, str(target.get("name", "")), dmg]
-			_push_log(msg_t)
-			_emit_feedback("ally_action", actor_id, actor_name, msg_t, false)
+			var base_dmg: int = 3 if (GameState.faveurs > 0 or GameState.has_flag("tour_b_done")) else 2
+			if ok:
+				var dmg_t: int = (base_dmg + 1) if is_crit_s else (maxi(3, base_dmg) if is_bril else base_dmg)
+				_damage_enemy(target, dmg_t)
+				effect_msg = "%s balance les preuves ! %s perd %d de résolution." % [actor_name, str(target.get("name", "")), dmg_t]
+				shake_flag = is_bril
+			elif is_flaw_b:
+				_apply_moral_hit(actor_id, -4)
+				effect_msg = "Couac de tchatche (%s) : bafouillage devant le quai (0 dégât, -4 Moral) !" % actor_name
+				AudioRadio.play_crisis_buzz()
+				shake_flag = true
+			else:
+				_damage_enemy(target, 1)
+				effect_msg = "Tchatche tiède de %s : %s encaisse seulement -1 de résolution." % [actor_name, str(target.get("name", ""))]
 	elif action_id == "act_pression":
 		if not target.is_empty():
-			var dmg_p: int = 2 + (1 if GameState.get_total_aura() >= 5 else 0)
-			_damage_enemy(target, dmg_p)
-			target["next_tick"] = int(target.get("next_tick", 1)) + 1
-			_remove_pending_enemy(str(target.get("id", "")))
-			var msg_p: String = "%s impose son Aura sur la table : %s recule (-%d résolution, +1 cran)." % [actor_name, str(target.get("name", "")), dmg_p]
-			_push_log(msg_p)
-			_emit_feedback("ally_action", actor_id, actor_name, msg_p, true)
+			if ok:
+				var dmg_p: int = 3 if is_bril else 2
+				var push_c: int = 2 if is_crit_s else 1
+				_damage_enemy(target, dmg_p)
+				target["next_tick"] = int(target.get("next_tick", 1)) + push_c
+				_remove_pending_enemy(str(target.get("id", "")))
+				effect_msg = "%s impose son Aura : %s recule (-%d résol., +%d cran) !" % [actor_name, str(target.get("name", "")), dmg_p, push_c]
+				shake_flag = true
+			elif is_flaw_b:
+				_apply_moral_hit(actor_id, -5)
+				effect_msg = "Couac de pression (%s) : le S.O. rigole sous ton nez (0 dégât, -5 Moral) !" % actor_name
+				AudioRadio.play_crisis_buzz()
+				shake_flag = true
+			else:
+				_damage_enemy(target, 1)
+				effect_msg = "Pression hésitante (%s) : -1 résolution sur %s sans le faire reculer." % [actor_name, str(target.get("name", ""))]
 	elif action_id == "act_repli":
-		crs_ticks += 2
-		escape_progress += 1
-		var msg_r: String = "%s repère l'issue vers le quai / les chaufferies (+2 crans CRS, échappée %d/2)." % [actor_name, escape_progress]
-		_push_log(msg_r)
-		_emit_feedback("ally_action", actor_id, actor_name, msg_r, false)
-	elif action_id == "act_escape_now":
-		if can_escape_now():
-			_finish("escaped", "Échappée nocturne réussie ! Profitant de la rame du Train Fantôme et de l'ombre du quai, la bande sème le S.O. et les CRS avant de filer sous la Dalle.")
-			return
+		if ok:
+			var crs_g: int = 3 if is_bril else 2
+			crs_ticks += crs_g
+			escape_progress += 1
+			effect_msg = "%s ouvre la voie vers le quai / les caves (+%d crans CRS, échappée %d/2)." % [actor_name, crs_g, escape_progress]
+		elif is_flaw_b:
+			_apply_moral_hit(actor_id, -4)
+			effect_msg = "Couac d'esquive (%s) : grille bloquée, zéro cran gagné (-4 Moral) !" % actor_name
+			AudioRadio.play_crisis_buzz()
+			shake_flag = true
+		else:
+			crs_ticks += 1
+			effect_msg = "%s contourne à demi (+1 cran CRS seulement, échappée %d/2)." % [actor_name, escape_progress]
+	elif action_id == "act_equip_intimidation_look":
+		if not target.is_empty():
+			if ok:
+				var dmg_il: int = 4 if is_bril else 3
+				_damage_enemy(target, dmg_il)
+				target["next_tick"] = int(target.get("next_tick", 1)) + 2
+				target["counter_ready"] = false
+				_remove_pending_enemy(str(target.get("id", "")))
+				effect_msg = "[Perfecto] %s glace %s (-%d résol., +2 crans, contre coupé) !" % [actor_name, str(target.get("name", "")), dmg_il]
+				shake_flag = true
+			elif is_flaw_b:
+				_apply_moral_hit(actor_id, -4)
+				effect_msg = "[Perfecto] Couac de dégaine (%s) : 0 dégât, -4 Moral !" % actor_name
+				AudioRadio.play_crisis_buzz()
+				shake_flag = true
+			else:
+				_damage_enemy(target, 1)
+				target["next_tick"] = int(target.get("next_tick", 1)) + 1
+				_remove_pending_enemy(str(target.get("id", "")))
+				effect_msg = "[Perfecto] Pression partielle sur %s (-1 résol., +1 cran)." % str(target.get("name", ""))
+	elif action_id == "act_equip_infiltration":
+		if ok:
+			var crs_inf: int = 3 if is_bril else 2
+			crs_ticks += crs_inf
+			escape_progress += 1
+			interposition_shield += 1
+			effect_msg = "[Parka anonyme] %s se fond dans l'ombre (+%d crans CRS, +1 échappée, +1 bouclier) !" % [actor_name, crs_inf]
+		elif is_flaw_b:
+			_apply_moral_hit(actor_id, -6)
+			effect_msg = "[Parka anonyme] Lampadaire en pleine poire ! (-6 Moral, +0 CRS)"
+			AudioRadio.play_crisis_buzz()
+			shake_flag = true
+		else:
+			crs_ticks += 1
+			escape_progress += 1
+			_apply_moral_hit(actor_id, -3)
+			effect_msg = "[Parka anonyme] Passage serré (+1 CRS, +1 échappée, -3 Moral)."
+	elif action_id == "act_equip_boombox":
+		if ok:
+			var mor_b: int = 12 if is_bril else 8
+			GameState.modify_moral("all", mor_b)
+			_delay_crises_by(1)
+			effect_msg = "[Ghetto-blaster] Le son retourne la dalle ! (+%d Moral à tous, crises retardées +1 cran)" % mor_b
+		else:
+			GameState.modify_moral("all", 4)
+			crs_ticks = maxi(1, crs_ticks - 1)
+			effect_msg = "[Ghetto-blaster] Vacarme sur le quai (+4 Moral à tous, mais -1 cran CRS !)."
+			if is_flaw_b:
+				AudioRadio.play_crisis_buzz()
+				shake_flag = true
+	elif action_id == "act_equip_pochoir":
+		if not target.is_empty():
+			if ok:
+				var dmg_p1: int = 3 if is_bril else 2
+				_damage_enemy(target, dmg_p1)
+				for oe in enemies:
+					if str(oe.get("id", "")) != str(target.get("id", "")) and not bool(oe.get("defeated", false)):
+						_damage_enemy(oe, 1)
+				GameState.notoriete += 1
+				effect_msg = "[Pochoir] Mot d'ordre claqué sous leur nez (-%d résol. cible, -1 aux autres, +1 Notoriété) !" % dmg_p1
+				shake_flag = true
+			elif is_flaw_b:
+				_apply_moral_hit(actor_id, -6)
+				effect_msg = "[Pochoir] Buse bouchée en pleine rue ! (-6 Moral)"
+				AudioRadio.play_crisis_buzz()
+				shake_flag = true
+			else:
+				_damage_enemy(target, 1)
+				_apply_moral_hit(actor_id, -3)
+				effect_msg = "[Pochoir] Slogan baveux sur %s (-1 résol., -3 Moral)." % str(target.get("name", ""))
+	elif action_id == "act_equip_record_fm":
+		if ok:
+			crs_ticks += 2
+			escape_progress += 1
+			turn_count += 2
+			effect_msg = "[Walkman FM] Onde calée sur le quai (+2 CRS, +1 échappée, signal Train Fantôme rapproché) !"
+			_maybe_trigger_train_fantome()
+		elif is_flaw_b:
+			_apply_moral_hit(actor_id, -8)
+			effect_msg = "[Walkman FM] Larsen glaçant sur 104.7 FM ! (-8 Moral)"
+			AudioRadio.play_crisis_buzz()
+			shake_flag = true
+		else:
+			crs_ticks += 1
+			_apply_moral_hit(actor_id, -5)
+			effect_msg = "[Walkman FM] Friture parasite (+1 CRS, -5 Moral)."
+	elif action_id == "act_equip_pass_mjc":
+		if not target.is_empty():
+			if ok:
+				var dmg_mjc: int = 3 if is_bril else 2
+				_damage_enemy(target, dmg_mjc)
+				target["counter_ready"] = false
+				crs_ticks += 1
+				effect_msg = "[Pass Mairie] %s sort la carte officielle : %s se fige (-%d résol., contre coupé, +1 CRS) !" % [actor_name, str(target.get("name", "")), dmg_mjc]
+			elif is_flaw_b:
+				_apply_moral_hit(actor_id, -7)
+				effect_msg = "[Pass Mairie] Le tampon sonne faux ! (-7 Moral)"
+				AudioRadio.play_crisis_buzz()
+				shake_flag = true
+			else:
+				_damage_enemy(target, 1)
+				_apply_moral_hit(actor_id, -4)
+				effect_msg = "[Pass Mairie] Papier contesté (-1 résol., -4 Moral)."
+	elif action_id == "act_equip_pause_musique":
+		var low_id: String = _get_lowest_moral_present_ally_id(actor_id)
+		if ok:
+			var mor_t: int = 14 if is_bril else 10
+			GameState.modify_moral(low_id, mor_t)
+			_delay_crisis_for(low_id, 1)
+			var lname: String = str(DataLoader.get_character(low_id).get("name", low_id))
+			effect_msg = "[Cassettes TDK] Quelques mesures apaisent %s (+%d Moral, crise retardée +1 cran) !" % [lname, mor_t]
+		elif is_flaw_b:
+			effect_msg = "[Cassettes TDK] Bande emmêlée dans le boîtier (0 Moral récupéré) !"
+			AudioRadio.play_crisis_buzz()
+		else:
+			GameState.modify_moral(actor_id, 5)
+			effect_msg = "[Cassettes TDK] Souffle court retrouvé (+5 Moral pour %s)." % actor_name
+	elif action_id == "act_equip_pass_tour":
+		if ok:
+			var crs_pt: int = 3 if is_bril else 2
+			crs_ticks += crs_pt
+			escape_progress += 1
+			effect_msg = "[Trousseau caves] Trappe technique ouverte (+%d crans CRS, échappée %d/2) !" % [crs_pt, escape_progress]
+		elif is_flaw_b:
+			_apply_moral_hit(actor_id, -6)
+			effect_msg = "[Trousseau caves] Clé tordue dans la serrure (-6 Moral, +0 CRS) !"
+			AudioRadio.play_crisis_buzz()
+			shake_flag = true
+		else:
+			crs_ticks += 1
+			_apply_moral_hit(actor_id, -3)
+			effect_msg = "[Trousseau caves] Trappe grinçante (+1 CRS, -3 Moral)."
+
+	_push_log(roll_hdr)
+	if effect_msg != "":
+		_push_log(effect_msg)
+	_emit_feedback(fb_kind, actor_id, actor_name, "%s | %s" % [roll_hdr, effect_msg], shake_flag)
 
 	# Recharge réaction de l'allié qui vient de jouer son tour et le replace à +2 crans
 	actor["reaction_ready"] = true
@@ -232,6 +436,7 @@ func execute_player_action(action_id: String) -> void:
 		return
 
 	_ensure_valid_target()
+	_check_crisis_triggers()
 	_sync_step_state()
 	timeline_updated.emit()
 
@@ -262,36 +467,41 @@ func trigger_interruption(char_id: String) -> void:
 	if spec == "moquerie":
 		var target: Dictionary = _ensure_valid_target()
 		if not target.is_empty():
+			var dmg_mq: int = 2 if GameState.get_effective_skill(char_id, "tchatche") >= 3 else 1
 			target["next_tick"] = int(target.get("next_tick", 1)) + 2
-			_damage_enemy(target, 1)
+			_damage_enemy(target, dmg_mq)
 			_remove_pending_enemy(str(target.get("id", "")))
-			var m_msg: String = "INTERRUPTION [Moquerie] — %s casse la charge de %s (-1 résol, +2 crans) !" % [cname, str(target.get("name", ""))]
+			var m_msg: String = "INTERRUPTION [Moquerie] — %s casse la charge de %s (-%d résol, +2 crans) !" % [cname, str(target.get("name", "")), dmg_mq]
 			_push_log(m_msg)
 			if not counter_triggered:
 				_emit_feedback("interrupt", char_id, cname, m_msg, true)
 	elif spec == "interposition":
+		var abs_pow: int = 8 if (GameState.get_effective_skill(char_id, "baston_pression") >= 3 or GameState.get_effective_characteristic(char_id, "corps") >= 4) else 6
+		_interposition_absorb = maxi(_interposition_absorb, abs_pow)
 		interposition_shield += 1
 		GameState.modify_moral(char_id, 4)
-		var i_msg: String = "INTERRUPTION [Interposition] — %s fait bloc sous le réverbère (+4 Moral, prochain coup amorti) !" % cname
+		var i_msg: String = "INTERRUPTION [Interposition] — %s fait bloc sous le réverbère (+4 Moral, prochain coup -%d) !" % [cname, abs_pow]
 		_push_log(i_msg)
 		if not counter_triggered:
 			_emit_feedback("interrupt", char_id, cname, i_msg, false)
 	elif spec == "reflexe_rue":
-		crs_ticks += 2
+		var crs_g_r: int = 3 if GameState.get_effective_skill(char_id, "caves_esquive") >= 3 else 2
+		crs_ticks += crs_g_r
 		escape_progress += 1
-		var rx_msg: String = "INTERRUPTION [Réflexe de rue] — %s pousse une grille métallique (+2 crans CRS, accès quai ouvert) !" % cname
+		var rx_msg: String = "INTERRUPTION [Réflexe de rue] — %s pousse une grille métallique (+%d crans CRS, accès quai ouvert) !" % [cname, crs_g_r]
 		_push_log(rx_msg)
 		if not counter_triggered:
 			_emit_feedback("interrupt", char_id, cname, rx_msg, false)
 	elif spec == "sang_froid":
 		# Spécialité de L'Échappé·e des Pavillons : calme prioritairement une crise imminente, sinon perce un bluff adverse.
+		var mor_sf: int = 12 if GameState.get_effective_skill(char_id, "sang_froid_nerfs") >= 3 else 10
 		if not crisis_queue.is_empty():
 			var cr: Dictionary = crisis_queue[0]
 			var cr_cid: String = str(cr.get("char_id", ""))
 			crisis_queue.remove_at(0)
 			_remove_pending_crisis(cr_cid)
-			GameState.modify_moral(cr_cid, 10)
-			var sf_msg: String = "INTERRUPTION [Sang-froid] — %s reprend la main et calme %s à temps (+10 Moral) !" % [cname, cr_cid.capitalize()]
+			GameState.modify_moral(cr_cid, mor_sf)
+			var sf_msg: String = "INTERRUPTION [Sang-froid] — %s reprend la main et calme %s à temps (+%d Moral) !" % [cname, cr_cid.capitalize(), mor_sf]
 			_push_log(sf_msg)
 			if not counter_triggered:
 				_emit_feedback("interrupt", char_id, cname, sf_msg, false)
@@ -386,77 +596,75 @@ func step_next_beat() -> void:
 	_sync_step_state()
 	timeline_updated.emit()
 
+## Retourne la liste ordonnée des actions disponibles pour le membre au cran 0 (base + équipement + échappée).
+func get_available_actions_for_actor() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if not active:
+		return out
+	var actor: Dictionary = get_acting_ally()
+	var actor_id: String = str(actor.get("char_id", ""))
+	if actor_id == "":
+		actor_id = _peek_next_present_ally_id()
+
+	var enc: Dictionary = DataLoader.get_encounter(encounter_id)
+	var act_list_var: Variant = enc.get("player_actions", [])
+	if act_list_var is Array:
+		for av in (act_list_var as Array):
+			if av is Dictionary:
+				var ad: Dictionary = av as Dictionary
+				var aid: String = str(ad.get("id", ""))
+				var pv: Dictionary = _build_action_preview(aid, actor_id)
+				out.append({
+					"id": aid,
+					"short_label": str(ad.get("label", aid)),
+					"chance_pct": int(pv.get("chance_pct", 0)),
+					"is_flaw": bool(pv.get("is_flaw", false)),
+					"is_equipment": false,
+					"used": false,
+					"tooltip": "%s\n%s" % [str(ad.get("desc", "")), str(pv.get("roll_formula", ""))]
+				})
+
+	for eq_act in GameState.get_unlocked_equipment_actions(actor_id):
+		var eq_id: String = str(eq_act.get("id", ""))
+		if _EQUIP_ACTION_META.has(eq_id):
+			var meta: Dictionary = _EQUIP_ACTION_META.get(eq_id, {}) as Dictionary
+			var pv_eq: Dictionary = _build_action_preview(eq_id, actor_id)
+			var u_key: String = "%s:%s" % [actor_id, eq_id]
+			var is_used: bool = bool(_used_equip_actions.get(u_key, false))
+			out.append({
+				"id": eq_id,
+				"short_label": str(meta.get("short", eq_act.get("label", eq_id))),
+				"chance_pct": int(pv_eq.get("chance_pct", 0)),
+				"is_flaw": bool(pv_eq.get("is_flaw", false)),
+				"is_equipment": true,
+				"used": is_used,
+				"tooltip": "%s\n%s" % [str(eq_act.get("desc", "")), str(pv_eq.get("roll_formula", ""))]
+			})
+
+	if can_escape_now():
+		out.append({
+			"id": "act_escape_now",
+			"short_label": "Filer par le Quai !",
+			"chance_pct": 0,
+			"is_flaw": false,
+			"is_equipment": false,
+			"used": false,
+			"tooltip": "Repli immédiat de toute la bande vers le souterrain."
+		})
+	return out
+
 ## Prévisualisation en lecture seule d'une action tactique sur la cible active et le rail.
 func preview_player_action(action_id: String) -> Dictionary:
 	if not active:
 		return {"valid": false, "reason": "Hors confrontation"}
-	if awaiting_step or get_acting_ally().is_empty():
+	var acting: Dictionary = get_acting_ally()
+	if awaiting_step or acting.is_empty():
 		return {"valid": false, "reason": "Appuie d'abord sur Espace pour résoudre le beat en attente."}
+	return _build_action_preview(action_id, str(acting.get("char_id", "leader")))
 
+func _build_action_preview(action_id: String, actor_id: String) -> Dictionary:
 	var target: Dictionary = _peek_selected_target()
-	if action_id == "act_tchatche":
-		if target.is_empty():
-			return {"valid": false, "reason": "Aucune cible active."}
-		var dmg: int = 3 if (GameState.faveurs > 0 or GameState.has_flag("tour_b_done")) else 2
-		var ft: int = int(target.get("next_tick", 0))
-		return {
-			"valid": true,
-			"kind": "action",
-			"title": "Tchatche / Bluff Attitude",
-			"target_id": str(target.get("id", "")),
-			"target_name": str(target.get("name", "")),
-			"from_tick": ft,
-			"to_tick": ft,
-			"resolve_delta": -dmg,
-			"crs_delta": 0,
-			"escape_delta": 0,
-			"shield_delta": 0,
-			"moral_delta": 0,
-			"counter_warning": false,
-			"counter_label": "",
-			"summary": "%s : -%d Résolution (reste Cran %d)" % [str(target.get("name", "")), dmg, ft]
-		}
-	elif action_id == "act_pression":
-		if target.is_empty():
-			return {"valid": false, "reason": "Aucune cible active."}
-		var dmg_p: int = 2 + (1 if GameState.get_total_aura() >= 5 else 0)
-		var ftp: int = int(target.get("next_tick", 0))
-		return {
-			"valid": true,
-			"kind": "action",
-			"title": "Coup de pression (Aura)",
-			"target_id": str(target.get("id", "")),
-			"target_name": str(target.get("name", "")),
-			"from_tick": ftp,
-			"to_tick": ftp + 1,
-			"resolve_delta": -dmg_p,
-			"crs_delta": 0,
-			"escape_delta": 0,
-			"shield_delta": 0,
-			"moral_delta": 0,
-			"counter_warning": false,
-			"counter_label": "",
-			"summary": "%s : -%d Résolution · recule Cran %d → %d" % [str(target.get("name", "")), dmg_p, ftp, ftp + 1]
-		}
-	elif action_id == "act_repli":
-		return {
-			"valid": true,
-			"kind": "action",
-			"title": "Préparer l'échappée",
-			"target_id": "crs",
-			"target_name": "Patrouille CRS / Quai",
-			"from_tick": crs_ticks,
-			"to_tick": crs_ticks + 2,
-			"resolve_delta": 0,
-			"crs_delta": 2,
-			"escape_delta": 1,
-			"shield_delta": 0,
-			"moral_delta": 0,
-			"counter_warning": false,
-			"counter_label": "",
-			"summary": "CRS Cran %d → %d · Échappée %d → %d/2" % [crs_ticks, crs_ticks + 2, escape_progress, mini(2, escape_progress + 1)]
-		}
-	elif action_id == "act_escape_now":
+	if action_id == "act_escape_now":
 		var can_esc: bool = can_escape_now()
 		return {
 			"valid": can_esc,
@@ -473,9 +681,227 @@ func preview_player_action(action_id: String) -> Dictionary:
 			"moral_delta": 0,
 			"counter_warning": false,
 			"counter_label": "",
+			"chance_pct": 0,
+			"skill_id": "",
+			"skill_name": "",
+			"skill_val": 0,
+			"dc": 0,
+			"bonus": 0,
+			"bonus_label": "",
+			"is_flaw": false,
+			"roll_formula": "",
+			"fail_summary": "",
+			"is_equipment": false,
+			"used": false,
 			"reason": "Échappée non ouverte (2/2 ou Train Fantôme requis)" if not can_esc else "",
 			"summary": "Repli immédiat de toute la bande vers le souterrain"
 		}
+
+	if action_id == "act_tchatche":
+		if target.is_empty():
+			return {"valid": false, "reason": "Aucune cible active."}
+		var dc_t: int = int(target.get("dc_social", 11))
+		if str(target.get("id", "")) == "cousin_so" and GameState.has_flag("ludo_bluffed_cousin"):
+			dc_t -= 1
+		var bonus_t: int = 1 if (GameState.faveurs > 0 or GameState.has_flag("tour_b_done")) else 0
+		var bl_t: String = "Faveur/Dossier" if bonus_t > 0 else ""
+		var rp_t: Dictionary = GameState.preview_street_roll(actor_id, "tchatche", dc_t, bonus_t, bl_t)
+		var dmg_t: int = 3 if bonus_t > 0 else 2
+		var ft_t: int = int(target.get("next_tick", 0))
+		var is_fl_t: bool = bool(rp_t.get("is_flaw", false))
+		var fs_t: String = "0 dégât & -4 Moral" if is_fl_t else "-1 Résol."
+		return {
+			"valid": true,
+			"kind": "action",
+			"title": "Tchatche / Bluff Attitude",
+			"target_id": str(target.get("id", "")),
+			"target_name": str(target.get("name", "")),
+			"from_tick": ft_t,
+			"to_tick": ft_t,
+			"resolve_delta": -dmg_t,
+			"crs_delta": 0,
+			"escape_delta": 0,
+			"shield_delta": 0,
+			"moral_delta": 0,
+			"counter_warning": false,
+			"counter_label": "",
+			"chance_pct": int(rp_t.get("chance_pct", 50)),
+			"skill_id": "tchatche",
+			"skill_name": str(rp_t.get("skill_name", "Tchatche")),
+			"skill_val": int(rp_t.get("skill_val", 0)),
+			"dc": dc_t,
+			"bonus": bonus_t,
+			"bonus_label": bl_t,
+			"is_flaw": is_fl_t,
+			"roll_formula": str(rp_t.get("formula", "")),
+			"fail_summary": fs_t,
+			"is_equipment": false,
+			"used": false,
+			"summary": "%s : -%d Résol. si réussi (raté : %s)" % [str(target.get("name", "")), dmg_t, fs_t]
+		}
+
+	if action_id == "act_pression":
+		if target.is_empty():
+			return {"valid": false, "reason": "Aucune cible active."}
+		var dc_p: int = int(target.get("dc_pression", 11))
+		var aura_tot: int = GameState.get_total_aura()
+		var bonus_p: int = 2 if aura_tot >= 7 else (1 if aura_tot >= 5 else 0)
+		var bl_p: String = ("Aura %d" % aura_tot) if bonus_p > 0 else ""
+		var rp_p: Dictionary = GameState.preview_street_roll(actor_id, "baston_pression", dc_p, bonus_p, bl_p)
+		var ft_p: int = int(target.get("next_tick", 0))
+		var is_fl_p: bool = bool(rp_p.get("is_flaw", false))
+		var fs_p: String = "0 dégât & -5 Moral" if is_fl_p else "-1 Résol. (0 recul)"
+		return {
+			"valid": true,
+			"kind": "action",
+			"title": "Coup de pression (Aura)",
+			"target_id": str(target.get("id", "")),
+			"target_name": str(target.get("name", "")),
+			"from_tick": ft_p,
+			"to_tick": ft_p + 1,
+			"resolve_delta": -2,
+			"crs_delta": 0,
+			"escape_delta": 0,
+			"shield_delta": 0,
+			"moral_delta": 0,
+			"counter_warning": false,
+			"counter_label": "",
+			"chance_pct": int(rp_p.get("chance_pct", 50)),
+			"skill_id": "baston_pression",
+			"skill_name": str(rp_p.get("skill_name", "Caisse")),
+			"skill_val": int(rp_p.get("skill_val", 0)),
+			"dc": dc_p,
+			"bonus": bonus_p,
+			"bonus_label": bl_p,
+			"is_flaw": is_fl_p,
+			"roll_formula": str(rp_p.get("formula", "")),
+			"fail_summary": fs_p,
+			"is_equipment": false,
+			"used": false,
+			"summary": "%s : -2 Résol. · Cran %d → %d (raté : %s)" % [str(target.get("name", "")), ft_p, ft_p + 1, fs_p]
+		}
+
+	if action_id == "act_repli":
+		var dc_r: int = 10 + (1 if crs_ticks <= 2 else 0)
+		var rp_r: Dictionary = GameState.preview_street_roll(actor_id, "caves_esquive", dc_r, 0, "")
+		var is_fl_r: bool = bool(rp_r.get("is_flaw", false))
+		var fs_r: String = "+0 CRS & -4 Moral" if is_fl_r else "+1 CRS (0 Échappée)"
+		return {
+			"valid": true,
+			"kind": "action",
+			"title": "Préparer l'échappée",
+			"target_id": "crs",
+			"target_name": "Patrouille CRS / Quai",
+			"from_tick": crs_ticks,
+			"to_tick": crs_ticks + 2,
+			"resolve_delta": 0,
+			"crs_delta": 2,
+			"escape_delta": 1,
+			"shield_delta": 0,
+			"moral_delta": 0,
+			"counter_warning": false,
+			"counter_label": "",
+			"chance_pct": int(rp_r.get("chance_pct", 50)),
+			"skill_id": "caves_esquive",
+			"skill_name": str(rp_r.get("skill_name", "Caves & Esquive")),
+			"skill_val": int(rp_r.get("skill_val", 0)),
+			"dc": dc_r,
+			"bonus": 0,
+			"bonus_label": "",
+			"is_flaw": is_fl_r,
+			"roll_formula": str(rp_r.get("formula", "")),
+			"fail_summary": fs_r,
+			"is_equipment": false,
+			"used": false,
+			"summary": "CRS Cran %d → %d · Échappée %d → %d/2 (raté : %s)" % [crs_ticks, crs_ticks + 2, escape_progress, mini(2, escape_progress + 1), fs_r]
+		}
+
+	if _EQUIP_ACTION_META.has(action_id):
+		if not GameState.has_equipped_action(actor_id, action_id):
+			return {"valid": false, "reason": "Équipement non porté par le membre actif"}
+		var u_key: String = "%s:%s" % [actor_id, action_id]
+		if bool(_used_equip_actions.get(u_key, false)):
+			return {"valid": false, "reason": "Action d'équipement déjà utilisée dans cette confrontation", "used": true, "is_equipment": true}
+		var meta: Dictionary = _EQUIP_ACTION_META.get(action_id, {}) as Dictionary
+		var needs_tgt: bool = bool(meta.get("needs_target", false))
+		if needs_tgt and target.is_empty():
+			return {"valid": false, "reason": "Aucune cible active."}
+		var sk_e: String = str(meta.get("skill", "systeme_d"))
+		var b_e: int = int(meta.get("bonus", 1))
+		var bl_e: String = str(meta.get("bonus_label", "Objet"))
+		var dc_e: int = 10
+		if action_id == "act_equip_intimidation_look":
+			dc_e = int(target.get("dc_pression", 11))
+		elif action_id == "act_equip_pochoir" or action_id == "act_equip_pass_mjc":
+			dc_e = int(target.get("dc_social", 11))
+		elif action_id == "act_equip_pause_musique":
+			dc_e = 9
+		var rp_e: Dictionary = GameState.preview_street_roll(actor_id, sk_e, dc_e, b_e, bl_e)
+		var is_fl_e: bool = bool(rp_e.get("is_flaw", false))
+		var tid_e: String = str(target.get("id", "")) if needs_tgt else ("crs" if (action_id == "act_equip_infiltration" or action_id == "act_equip_record_fm" or action_id == "act_equip_pass_tour") else actor_id)
+		var tname_e: String = str(target.get("name", "")) if needs_tgt else ("Patrouille CRS / Quai" if tid_e == "crs" else actor_id.capitalize())
+		var ft_e: int = int(target.get("next_tick", 0)) if needs_tgt else (crs_ticks if tid_e == "crs" else 0)
+		var tt_e: int = (ft_e + 2) if action_id == "act_equip_intimidation_look" else (crs_ticks + 2 if (action_id == "act_equip_infiltration" or action_id == "act_equip_record_fm" or action_id == "act_equip_pass_tour") else (crs_ticks + 1 if action_id == "act_equip_pass_mjc" else ft_e))
+		var rd_e: int = -3 if action_id == "act_equip_intimidation_look" else ((-2 if (action_id == "act_equip_pochoir" or action_id == "act_equip_pass_mjc") else 0))
+		var cd_e: int = 2 if (action_id == "act_equip_infiltration" or action_id == "act_equip_record_fm" or action_id == "act_equip_pass_tour") else (1 if action_id == "act_equip_pass_mjc" else 0)
+		var ed_e: int = 1 if (action_id == "act_equip_infiltration" or action_id == "act_equip_record_fm" or action_id == "act_equip_pass_tour") else 0
+		var md_e: int = 8 if action_id == "act_equip_boombox" else (10 if action_id == "act_equip_pause_musique" else 0)
+		var sum_e: String = "Effet équipement spécial"
+		var fail_e: String = "Effet réduit (-Moral)"
+		if action_id == "act_equip_intimidation_look":
+			sum_e = "%s : -3 Résol · Cran %d→%d · coupe Contre" % [tname_e, ft_e, tt_e]
+			fail_e = "0 dégât & -4 Moral" if is_fl_e else "-1 Résol · +1 cran"
+		elif action_id == "act_equip_infiltration":
+			sum_e = "CRS %d→%d · Échappée +1 · Bouclier +1" % [crs_ticks, crs_ticks + 2]
+			fail_e = "+0 CRS & -6 Moral" if is_fl_e else "+1 CRS, +1 Échappée, -3 Moral"
+		elif action_id == "act_equip_boombox":
+			sum_e = "+8 Moral à tous · Crises +1 cran"
+			fail_e = "+4 Moral mais -1 cran CRS"
+		elif action_id == "act_equip_pochoir":
+			sum_e = "%s -2 Résol · -1 aux autres · +1 Notoriété" % tname_e
+			fail_e = "-6 Moral" if is_fl_e else "-1 Résol cible, -3 Moral"
+		elif action_id == "act_equip_record_fm":
+			sum_e = "CRS +2 · Échappée +1 · Rapproche Train Fantôme"
+			fail_e = "-8 Moral" if is_fl_e else "+1 CRS, -5 Moral"
+		elif action_id == "act_equip_pass_mjc":
+			sum_e = "%s -2 Résol · coupe Contre · +1 CRS" % tname_e
+			fail_e = "-7 Moral" if is_fl_e else "-1 Résol, -4 Moral"
+		elif action_id == "act_equip_pause_musique":
+			sum_e = "+10 Moral allié fragile · retarde crise +1 cran"
+			fail_e = "Bande emmêlée (0 Moral)" if is_fl_e else "+5 Moral à l'acteur"
+		elif action_id == "act_equip_pass_tour":
+			sum_e = "CRS %d→%d · Échappée +1" % [crs_ticks, crs_ticks + 2]
+			fail_e = "-6 Moral" if is_fl_e else "+1 CRS, -3 Moral"
+		return {
+			"valid": true,
+			"kind": "action",
+			"title": str(meta.get("title", action_id)),
+			"target_id": tid_e,
+			"target_name": tname_e,
+			"from_tick": ft_e,
+			"to_tick": tt_e,
+			"resolve_delta": rd_e,
+			"crs_delta": cd_e,
+			"escape_delta": ed_e,
+			"shield_delta": 1 if action_id == "act_equip_infiltration" else 0,
+			"moral_delta": md_e,
+			"counter_warning": false,
+			"counter_label": "",
+			"chance_pct": int(rp_e.get("chance_pct", 50)),
+			"skill_id": sk_e,
+			"skill_name": str(rp_e.get("skill_name", sk_e)),
+			"skill_val": int(rp_e.get("skill_val", 0)),
+			"dc": dc_e,
+			"bonus": b_e,
+			"bonus_label": bl_e,
+			"is_flaw": is_fl_e,
+			"roll_formula": str(rp_e.get("formula", "")),
+			"fail_summary": fail_e,
+			"is_equipment": true,
+			"used": false,
+			"summary": "%s (raté : %s)" % [sum_e, fail_e]
+		}
+
 	return {"valid": false, "reason": "Action inconnue"}
 
 ## Prévisualisation en lecture seule d'une Interruption hors-tour (incluant alerte Contre-interruption).
@@ -503,6 +929,7 @@ func preview_interruption(char_id: String) -> Dictionary:
 	if spec == "moquerie":
 		if target.is_empty():
 			return {"valid": false, "reason": "Aucune cible active"}
+		var dmg_mq: int = 2 if GameState.get_effective_skill(char_id, "tchatche") >= 3 else 1
 		var ft: int = int(target.get("next_tick", 1))
 		return {
 			"valid": true,
@@ -512,16 +939,17 @@ func preview_interruption(char_id: String) -> Dictionary:
 			"target_name": str(target.get("name", "")),
 			"from_tick": ft,
 			"to_tick": ft + 2,
-			"resolve_delta": -1,
+			"resolve_delta": -dmg_mq,
 			"crs_delta": 0,
 			"escape_delta": 0,
 			"shield_delta": 0,
 			"moral_delta": 0,
 			"counter_warning": counter_warn,
 			"counter_label": counter_lbl,
-			"summary": "%s : -1 Résol · recule Cran %d → %d" % [str(target.get("name", "")), ft, ft + 2]
+			"summary": "%s : -%d Résol · recule Cran %d → %d" % [str(target.get("name", "")), dmg_mq, ft, ft + 2]
 		}
 	elif spec == "interposition":
+		var abs_pow: int = 8 if (GameState.get_effective_skill(char_id, "baston_pression") >= 3 or GameState.get_effective_characteristic(char_id, "corps") >= 4) else 6
 		return {
 			"valid": true,
 			"kind": "interruption",
@@ -537,9 +965,10 @@ func preview_interruption(char_id: String) -> Dictionary:
 			"moral_delta": 4,
 			"counter_warning": counter_warn,
 			"counter_label": counter_lbl,
-			"summary": "Bouclier Interposition +1 (-6 dégâts au prochain coup) · +4 Moral"
+			"summary": "Bouclier Interposition +1 (-%d dégâts au prochain coup) · +4 Moral" % abs_pow
 		}
 	elif spec == "reflexe_rue":
+		var crs_g_r: int = 3 if GameState.get_effective_skill(char_id, "caves_esquive") >= 3 else 2
 		return {
 			"valid": true,
 			"kind": "interruption",
@@ -547,17 +976,18 @@ func preview_interruption(char_id: String) -> Dictionary:
 			"target_id": "crs",
 			"target_name": "Patrouille CRS / Quai",
 			"from_tick": crs_ticks,
-			"to_tick": crs_ticks + 2,
+			"to_tick": crs_ticks + crs_g_r,
 			"resolve_delta": 0,
-			"crs_delta": 2,
+			"crs_delta": crs_g_r,
 			"escape_delta": 1,
 			"shield_delta": 0,
 			"moral_delta": 0,
 			"counter_warning": counter_warn,
 			"counter_label": counter_lbl,
-			"summary": "CRS Cran %d → %d · Échappée +1" % [crs_ticks, crs_ticks + 2]
+			"summary": "CRS Cran %d → %d · Échappée +1" % [crs_ticks, crs_ticks + crs_g_r]
 		}
 	elif spec == "sang_froid":
+		var mor_sf: int = 12 if GameState.get_effective_skill(char_id, "sang_froid_nerfs") >= 3 else 10
 		if not crisis_queue.is_empty():
 			var cr: Dictionary = crisis_queue[0]
 			var cr_cid: String = str(cr.get("char_id", ""))
@@ -574,10 +1004,10 @@ func preview_interruption(char_id: String) -> Dictionary:
 				"crs_delta": 0,
 				"escape_delta": 0,
 				"shield_delta": 0,
-				"moral_delta": 10,
+				"moral_delta": mor_sf,
 				"counter_warning": counter_warn,
 				"counter_label": counter_lbl,
-				"summary": "Annule la crise de %s · +10 Moral" % cr_name
+				"summary": "Annule la crise de %s · +%d Moral" % [cr_name, mor_sf]
 			}
 		elif not target.is_empty():
 			var fts: int = int(target.get("next_tick", 1))
@@ -809,18 +1239,21 @@ func _advance_one_world_tick() -> void:
 				_pending_enemy_ids.append(eid)
 
 	# Apparition ambiguë du Train Fantôme au quai de la gare du Y
-	if not train_fantome_arrived and turn_count >= train_fantome_turn * 2:
-		train_fantome_arrived = true
-		var tf_msg: String = "PHÉNOMÈNE AMBIGU : Un RER B sans annonce entre en gare — sa ferraille coupe la ligne de vue du S.O. !"
-		_push_log(tf_msg)
-		_emit_feedback("train_fantome", "train_fantome", "RER B — Train Fantôme", tf_msg, true)
-		train_fantome_arrived_sig.emit()
+	_maybe_trigger_train_fantome()
 
 	if crs_ticks <= 0:
 		GameState.modify_moral("all", -8)
 		GameState.notoriete += 1
 		_finish("crs_rush", "Les bottes CRS claquent dans les escaliers : la bande file in extremis dans le souterrain sous les sirènes (-8 Moral, +1 Notoriété).")
 		return
+
+func _maybe_trigger_train_fantome() -> void:
+	if not train_fantome_arrived and turn_count >= train_fantome_turn * 2:
+		train_fantome_arrived = true
+		var tf_msg: String = "PHÉNOMÈNE AMBIGU : Un RER B sans annonce entre en gare — sa ferraille coupe la ligne de vue du S.O. !"
+		_push_log(tf_msg)
+		_emit_feedback("train_fantome", "train_fantome", "RER B — Train Fantôme", tf_msg, true)
+		train_fantome_arrived_sig.emit()
 
 func _execute_enemy_turn(enemy: Dictionary) -> void:
 	var eid: String = str(enemy.get("id", ""))
@@ -843,8 +1276,10 @@ func _execute_enemy_turn(enemy: Dictionary) -> void:
 func _apply_moral_hit(char_id: String, delta: int) -> void:
 	var final_delta: int = delta
 	if interposition_shield > 0 and final_delta < 0:
-		final_delta = mini(0, final_delta + 6)
+		final_delta = mini(0, final_delta + _interposition_absorb)
 		interposition_shield = maxi(0, interposition_shield - 1)
+		if interposition_shield == 0:
+			_interposition_absorb = 6
 		_push_log("Interposition : l'impact sur le Moral est amorti !")
 	GameState.modify_moral(char_id, final_delta)
 
@@ -1037,3 +1472,41 @@ func _push_log(msg: String) -> void:
 	combat_log.append(msg)
 	if combat_log.size() > 12:
 		combat_log.remove_at(0)
+
+func _peek_next_present_ally_id() -> String:
+	var best_id: String = "leader"
+	var best_t: int = 999
+	for a in allies:
+		if bool(a.get("present", false)):
+			var nt: int = int(a.get("next_tick", 99))
+			if nt < best_t:
+				best_t = nt
+				best_id = str(a.get("char_id", "leader"))
+	return best_id
+
+func _get_lowest_moral_present_ally_id(fallback_id: String) -> String:
+	var best_id: String = fallback_id
+	var low_m: int = 999
+	for a in allies:
+		if bool(a.get("present", false)):
+			var cid: String = str(a.get("char_id", ""))
+			var m: int = int(GameState.get_member_state(cid).get("moral", 60))
+			if m < low_m:
+				low_m = m
+				best_id = cid
+	return best_id
+
+func _delay_crises_by(ticks_add: int) -> void:
+	for i in range(crisis_queue.size()):
+		var cr: Dictionary = crisis_queue[i]
+		cr["ticks_left"] = int(cr.get("ticks_left", 1)) + ticks_add
+		crisis_queue[i] = cr
+		_remove_pending_crisis(str(cr.get("char_id", "")))
+
+func _delay_crisis_for(char_id: String, ticks_add: int) -> void:
+	for i in range(crisis_queue.size()):
+		var cr: Dictionary = crisis_queue[i]
+		if str(cr.get("char_id", "")) == char_id:
+			cr["ticks_left"] = int(cr.get("ticks_left", 1)) + ticks_add
+			crisis_queue[i] = cr
+			_remove_pending_crisis(char_id)

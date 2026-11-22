@@ -7,3 +7,4 @@ res://scripts/autoload/game_state.gd
 res://scripts/systems/dialogue_runner.gd
 res://scripts/ui/hud_overlay.gd
 res://scripts/ui/new_game_panel.gd
+res://scripts/ui/dialogue_panel.gd

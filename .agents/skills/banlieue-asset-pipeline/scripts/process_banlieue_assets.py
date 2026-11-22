@@ -236,10 +236,20 @@ def validate_project(game_root: str) -> int:
     dlgs_j = load_j("data/dialogues.json")
     encs_j = load_j("data/timeline_encounters.json")
     load_j("data/radio_fm.json")
+    equip_path = os.path.join(game_root, "data/equipment.json")
+    equip_j = load_j("data/equipment.json") if os.path.exists(equip_path) else {"skills_catalog": [], "equipment": []}
 
     char_ids = {c["id"] for c in chars_j["characters"]}
     dlg_ids = set(dlgs_j["dialogues"].keys())
     enc_ids = set(encs_j["encounters"].keys())
+    valid_skill_ids = {sk.get("id", "") for sk in equip_j.get("skills_catalog", []) if sk.get("id", "")}
+    valid_equip_ids = {eq.get("id", "") for eq in equip_j.get("equipment", []) if eq.get("id", "")}
+    valid_action_ids = {
+        act.get("id", "")
+        for eq in equip_j.get("equipment", [])
+        for act in eq.get("unlocks_actions", [])
+        if isinstance(act, dict) and act.get("id", "")
+    }
 
     valid_statuses = {"playable", "locked", "undescribed"}
     reg_ids = {idf_j.get("id", "idf")}
@@ -396,13 +406,37 @@ def validate_project(game_root: str) -> int:
             nxt = ch.get("next", "")
             if nxt and nxt not in dlg_ids:
                 errors.append(f"Unknown next dialogue {nxt} in {did}")
-            eff = ch.get("effects", {})
-            if "move_to" in eff and eff["move_to"] not in loc_ids:
-                errors.append(f"Unknown move_to in {did}")
-            if "recruit" in eff and eff["recruit"] not in char_ids:
-                errors.append(f"Unknown recruit in {did}")
-            if "start_encounter" in eff and eff["start_encounter"] not in enc_ids:
-                errors.append(f"Unknown start_encounter in {did}")
+            fnxt = ch.get("fail_next", "")
+            if fnxt and fnxt not in dlg_ids:
+                errors.append(f"Unknown fail_next dialogue {fnxt} in {did}")
+            cond = ch.get("conditions", {})
+            if isinstance(cond, dict):
+                req_act = cond.get("require_action", "")
+                if req_act and valid_action_ids and req_act not in valid_action_ids:
+                    errors.append(f"Unknown require_action {req_act} in {did}")
+                req_it = cond.get("require_item", "")
+                if req_it and valid_equip_ids and req_it not in valid_equip_ids:
+                    errors.append(f"Unknown require_item {req_it} in {did}")
+            sc = ch.get("skill_check", {})
+            if isinstance(sc, dict) and sc:
+                sk = sc.get("skill", "")
+                if valid_skill_ids and sk not in valid_skill_ids:
+                    errors.append(f"Unknown skill_check skill {sk} in {did}")
+                dc_val = sc.get("dc", 0)
+                if not isinstance(dc_val, int) or dc_val < 4:
+                    errors.append(f"Invalid skill_check dc {dc_val} in {did}")
+            for eff_key in ("effects", "fail_effects", "flaw_extra_effects"):
+                eff = ch.get(eff_key, {})
+                if not isinstance(eff, dict):
+                    continue
+                if "move_to" in eff and eff["move_to"] not in loc_ids:
+                    errors.append(f"Unknown move_to in {eff_key} of {did}")
+                if "recruit" in eff and eff["recruit"] not in char_ids:
+                    errors.append(f"Unknown recruit in {eff_key} of {did}")
+                if "start_encounter" in eff and eff["start_encounter"] not in enc_ids:
+                    errors.append(f"Unknown start_encounter in {eff_key} of {did}")
+                if "grant_item" in eff and valid_equip_ids and eff["grant_item"] not in valid_equip_ids:
+                    errors.append(f"Unknown grant_item {eff['grant_item']} in {eff_key} of {did}")
 
     res_pattern = re.compile(r"res://([A-Za-z0-9_./-]+)")
     gd_count = 0

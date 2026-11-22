@@ -16,6 +16,8 @@
           "resolve_max": 3,
           "initial_tick": 1,
           "speed": 2,
+          "dc_social": 10,
+          "dc_pression": 10,
           "intent_label": "Charge une Menace d'Aura (fait chuter le Moral)",
           "bark": "« Dégagez du quai les loques, c'est notre territoire ici ! »",
           "has_counter_interrupt": false,
@@ -29,6 +31,8 @@
           "resolve_max": 4,
           "initial_tick": 2,
           "speed": 3,
+          "dc_social": 11,
+          "dc_pression": 11,
           "intent_label": "Verrouille la grille du quai & insulte la bande",
           "bark": "« Personne monte dans la rame. Ordre de la mairie. »",
           "has_counter_interrupt": false,
@@ -42,6 +46,8 @@
           "resolve_max": 5,
           "initial_tick": 3,
           "speed": 3,
+          "dc_social": 12,
+          "dc_pression": 12,
           "intent_label": "Coup de pression / Matraque préventive",
           "bark": "« Approche d'un cran et je te règle ton compte à la matraque. »",
           "has_counter_interrupt": true,
@@ -51,20 +57,20 @@
       "player_actions": [
         {
           "id": "act_tchatche",
-          "label": "Tchatche / Bluff Attitude (montrer l'arrêté / Faveur)",
-          "desc": "Entame la détermination de la cible la plus proche (-2 résolution, -3 si dossier/Faveur).",
+          "label": "Tchatche",
+          "desc": "Jet Tchatche & Baratin (Esprit) : entame la résolution (-2/-3 si réussi, +bonus Faveur/dossier).",
           "cost_tick": 2
         },
         {
           "id": "act_pression",
-          "label": "Coup de pression (Aura)",
-          "desc": "Intimidation sèche (-2 résolution + recule la cible de 1 cran), mais augmente la tension.",
+          "label": "Pression",
+          "desc": "Jet Caisse & Pression (Corps) : -2/-3 résolution et recule la cible (+1/+2 cran), bonus si Aura ≥ 5.",
           "cost_tick": 2
         },
         {
           "id": "act_repli",
-          "label": "Préparer l'échappée vers le quai / les caves",
-          "desc": "Fait gagner +2 crans d'air avant les CRS et rapproche l'évacuation.",
+          "label": "Échappée",
+          "desc": "Jet Caves & Esquive (Corps) : retarde les CRS (+2/+3 crans) et rapproche l'évacuation (+1).",
           "cost_tick": 2
         }
       ],

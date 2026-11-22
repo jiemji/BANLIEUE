@@ -1,6 +1,6 @@
 # *Banlieue* — Architecture Technique
 
-> **Version courante : 0.5.0** — Mise à jour : 2026-11-22
+> **Version courante : 0.5.1** — Mise à jour : 2026-11-22
 
 *Spécification technique de référence et socle des Jalons 0 & 1 (Option C & D + UX Frise Combat v0.4) — Phase Technique (🛠️ Léo & 🎯 Agent Combat UX).*
 
@@ -109,8 +109,8 @@ BANLIEUE/
 
 ### Systèmes Métiers (`scripts/systems/`)
 * **`SquadManager`** : Pilote la bande modulable (`3+`, `2+1`, `1+1+1`), la **bascule libre à la volée** entre sous-groupes (`switch_to_group`), les consignes d'attente (`Guetter`, `Bricoler`, `Attendre`), les déplacements inter-lieux et le calcul de proximité (`compute_reinforcement_ticks`) permettant d'insérer les potes proches comme **« Renfort dans X crans »** sur une Frise nocturne.
-* **`TensionTimeline`** : Orchestre la **Frise chronologique de Tension** (`ux_combat_frise.md`) en crans triés avec ciblage libre (`select_target`, `cycle_target`), prévisualisations non destructives (`preview_player_action`, `preview_interruption`, `preview_restrain`), **résolution pas-à-pas stricte (`awaiting_step` / `step_next_beat`)**, **1 Réaction d'Interruption hors-tour** par personnage et par cycle (dont `sang_froid`), contre-interruptions des adversaires vétérans, **préavis diégétique de Crise d'autonomie** à `+2 crans` (couvrant jusqu'aux 6 alliés dont Manu, Zoé et Ludo), compte à rebours des CRS et arrivée du **Train Fantôme RER B**.
-* **`DialogueRunner`** : Interprète les nœuds de `dialogues.json`, vérifie les prérequis (`min_francs`, `require_member`, `require_flag`, `min_aura`) et applique leurs effets sur `GameState` puis notifie les vues via signaux.
+* **`TensionTimeline`** : Orchestre la **Frise chronologique de Tension** (`ux_combat_frise.md`) en crans triés avec ciblage libre (`select_target`, `cycle_target`), prévisualisations non destructives (`preview_player_action`, `preview_interruption`, `preview_restrain` incluant `%` et formule `2d6`), **résolution pas-à-pas stricte (`awaiting_step` / `step_next_beat`)**, Jets de rue (`2d6 + Carac + Comp`) + **8 actions actives d'équipement `★`**, **1 Réaction d'Interruption hors-tour** par personnage et par cycle (modulée par compétences, dont `sang_froid`), contre-interruptions des adversaires vétérans, **préavis diégétique de Crise d'autonomie** à `+2 crans` (couvrant jusqu'aux 6 alliés dont Manu, Zoé et Ludo), compte à rebours des CRS et arrivée du **Train Fantôme RER B**.
+* **`DialogueRunner`** : Interprète les nœuds de `dialogues.json`, vérifie les prérequis (`min_francs`, `require_member`, `require_flag`, `min_aura`, `min_skill`, `require_item`, `require_action`), résout les Jets de rue `skill_check` (`next` / `fail_next` / `fail_effects` / `flaw_extra_effects`), applique leurs effets sur `GameState` puis notifie les vues via signaux.
 
 ### Flux de Données & Navigation
 ```text

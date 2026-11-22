@@ -32,6 +32,7 @@ var current_city_id: String = "cradon_les_gonesse"
 
 var has_active_session: bool = false
 var leader_profile: Dictionary = {}
+var forced_roll_queue: Array = []
 
 func _ready() -> void:
 	reset_new_slice({})
@@ -52,6 +53,7 @@ func reset_new_slice(profile: Dictionary = {}) -> void:
 	member_states.clear()
 	member_progression.clear()
 	box_stash = ["perfecto_cloute", "parka_anonyme", "cassettes_tdk"]
+	forced_roll_queue.clear()
 	active_group_id = 0
 	current_station_idx = 0
 	last_encounter_outcome = ""
@@ -358,6 +360,207 @@ func get_unlocked_equipment_actions(char_id: String) -> Array[Dictionary]:
 						seen[aid] = true
 						out.append(ad.duplicate(true))
 	return out
+
+func enqueue_forced_roll(d1: int, d2: int) -> void:
+	forced_roll_queue.append([clampi(d1, 1, 6), clampi(d2, 1, 6)])
+
+func clear_forced_rolls() -> void:
+	forced_roll_queue.clear()
+
+func has_equipped_action(char_id: String, action_id: String) -> bool:
+	for ad in get_unlocked_equipment_actions(char_id):
+		if str(ad.get("id", "")) == action_id:
+			return true
+	return false
+
+func get_active_group_member_with_action(action_id: String) -> String:
+	for cid in get_active_group_members():
+		if has_equipped_action(cid, action_id):
+			return cid
+	return ""
+
+func has_action_in_active_group(action_id: String) -> bool:
+	return get_active_group_member_with_action(action_id) != ""
+
+func get_equipped_action_item_name(char_id: String, action_id: String) -> String:
+	for iid in _get_equipped_item_ids(char_id):
+		var idef: Dictionary = DataLoader.get_equipment_def(iid)
+		var acts_var: Variant = idef.get("unlocks_actions", [])
+		if acts_var is Array:
+			for av in (acts_var as Array):
+				if av is Dictionary and str((av as Dictionary).get("id", "")) == action_id:
+					return str(idef.get("name", iid))
+	return ""
+
+func get_skill_charac_id(skill_id: String) -> String:
+	var sk_def: Dictionary = DataLoader.get_skill_def(skill_id)
+	return str(sk_def.get("charac", "esprit"))
+
+func get_charac_label(charac_id: String) -> String:
+	if charac_id == "corps":
+		return "Corps"
+	if charac_id == "energie":
+		return "Énergie"
+	return "Esprit"
+
+func get_best_active_group_roller(skill_id: String, specific_char_id: String = "") -> Dictionary:
+	var charac_id: String = get_skill_charac_id(skill_id)
+	var charac_lbl: String = get_charac_label(charac_id)
+	var sk_name: String = str(DataLoader.get_skill_def(skill_id).get("name", skill_id))
+	var candidates: Array[String] = []
+	if specific_char_id != "" and DataLoader.characters.has(specific_char_id):
+		candidates.append(specific_char_id)
+	else:
+		candidates = get_active_group_members()
+		if candidates.is_empty():
+			candidates = ["leader"]
+
+	var best_cid: String = candidates[0]
+	var best_total: int = -999
+	var best_sk: int = -999
+	for cid in candidates:
+		var c_val: int = get_effective_characteristic(cid, charac_id)
+		var s_val: int = get_effective_skill(cid, skill_id)
+		var t_val: int = c_val + s_val
+		var is_better: bool = false
+		if t_val > best_total:
+			is_better = true
+		elif t_val == best_total:
+			if s_val > best_sk:
+				is_better = true
+			elif s_val == best_sk and cid == "leader" and best_cid != "leader":
+				is_better = true
+		if is_better:
+			best_total = t_val
+			best_sk = s_val
+			best_cid = cid
+
+	var chosen_charac: int = get_effective_characteristic(best_cid, charac_id)
+	var chosen_sk: int = get_effective_skill(best_cid, skill_id)
+	var cname: String = str(DataLoader.get_character(best_cid).get("name", best_cid))
+	return {
+		"char_id": best_cid,
+		"char_name": cname,
+		"charac_id": charac_id,
+		"charac_label": charac_lbl,
+		"charac_val": chosen_charac,
+		"skill_id": skill_id,
+		"skill_name": sk_name,
+		"skill_val": chosen_sk,
+		"mod": chosen_charac + chosen_sk,
+		"is_flaw": chosen_sk < 0
+	}
+
+func compute_street_roll_chance(mod: int, dc: int) -> int:
+	var wins: int = 0
+	for d1 in range(1, 7):
+		for d2 in range(1, 7):
+			if d1 == 1 and d2 == 1:
+				continue
+			if d1 == 6 and d2 == 6:
+				wins += 1
+			elif d1 + d2 + mod >= dc:
+				wins += 1
+	return clampi(int(round(float(wins) * 100.0 / 36.0)), 3, 97)
+
+func preview_street_roll(char_id: String, skill_id: String, dc: int, bonus: int = 0, bonus_label: String = "") -> Dictionary:
+	var charac_id: String = get_skill_charac_id(skill_id)
+	var charac_lbl: String = get_charac_label(charac_id)
+	var charac_val: int = get_effective_characteristic(char_id, charac_id)
+	var sk_def: Dictionary = DataLoader.get_skill_def(skill_id)
+	var sk_name: String = str(sk_def.get("name", skill_id))
+	var sk_val: int = get_effective_skill(char_id, skill_id)
+	var cdef: Dictionary = DataLoader.get_character(char_id)
+	var cname: String = str(cdef.get("name", char_id))
+	var mod: int = charac_val + sk_val + bonus
+	var chance_pct: int = compute_street_roll_chance(mod, dc)
+	var is_flaw: bool = sk_val < 0
+
+	var sk_sign: String = "+" if sk_val >= 0 else "-"
+	var sk_abs: int = abs(sk_val)
+	var bonus_part: String = ""
+	if bonus != 0:
+		var b_sign: String = "+" if bonus > 0 else ""
+		bonus_part = " (%s%d%s)" % [b_sign, bonus, (" " + bonus_label) if bonus_label != "" else ""]
+	var formula: String = "2d6 + %s %d %s %s %d%s vs DD %d" % [charac_lbl, charac_val, sk_sign, sk_name, sk_abs, bonus_part, dc]
+
+	return {
+		"char_id": char_id,
+		"char_name": cname,
+		"charac_id": charac_id,
+		"charac_label": charac_lbl,
+		"charac_val": charac_val,
+		"skill_id": skill_id,
+		"skill_name": sk_name,
+		"skill_val": sk_val,
+		"bonus": bonus,
+		"bonus_label": bonus_label,
+		"mod": mod,
+		"dc": dc,
+		"chance_pct": chance_pct,
+		"is_flaw": is_flaw,
+		"formula": formula
+	}
+
+func perform_street_roll(char_id: String, skill_id: String, dc: int, bonus: int = 0, bonus_label: String = "") -> Dictionary:
+	var res: Dictionary = preview_street_roll(char_id, skill_id, dc, bonus, bonus_label)
+	var d1: int = randi_range(1, 6)
+	var d2: int = randi_range(1, 6)
+	if not forced_roll_queue.is_empty():
+		var f_var: Variant = forced_roll_queue[0]
+		forced_roll_queue.remove_at(0)
+		if f_var is Array and (f_var as Array).size() >= 2:
+			var f_arr: Array = f_var as Array
+			d1 = clampi(int(f_arr[0]), 1, 6)
+			d2 = clampi(int(f_arr[1]), 1, 6)
+
+	var is_crit_fail: bool = (d1 == 1 and d2 == 1)
+	var is_crit_success: bool = (d1 == 6 and d2 == 6)
+	var dice_sum: int = d1 + d2
+	var mod: int = int(res.get("mod", 0))
+	var total: int = dice_sum + mod
+	var success: bool = is_crit_success or (not is_crit_fail and total >= dc)
+	var margin: int = total - dc
+	var is_brilliant: bool = is_crit_success or (success and margin >= 3)
+	var is_flaw: bool = bool(res.get("is_flaw", false))
+	var is_flaw_blunder: bool = (not success) and (is_crit_fail or is_flaw)
+
+	var verdict_label: String = "RATÉ"
+	if is_crit_success:
+		verdict_label = "COUP D'ÉCLAT (DOUBLE 6) !"
+	elif is_brilliant:
+		verdict_label = "COUP D'ÉCLAT !"
+	elif success:
+		verdict_label = "RÉUSSITE"
+	elif is_flaw_blunder and is_flaw:
+		verdict_label = "FAILLE QUI CRAQUE !"
+	elif is_crit_fail:
+		verdict_label = "ÉCHEC CRITIQUE !"
+
+	var cname: String = str(res.get("char_name", char_id))
+	var charac_lbl: String = str(res.get("charac_label", "Esprit"))
+	var charac_val: int = int(res.get("charac_val", 3))
+	var sk_name: String = str(res.get("skill_name", skill_id))
+	var sk_val: int = int(res.get("skill_val", 0))
+	var sk_str: String = "%+d" % sk_val
+	var b_str: String = (" %+d" % bonus) if bonus != 0 else ""
+	var roll_summary: String = "%s 🎲 %d+%d + %s %d (%s %s%s) = %d / DD %d → %s" % [
+		cname, d1, d2, charac_lbl, charac_val, sk_name, sk_str, b_str, total, dc, verdict_label
+	]
+
+	res["d1"] = d1
+	res["d2"] = d2
+	res["dice_sum"] = dice_sum
+	res["total"] = total
+	res["margin"] = margin
+	res["success"] = success
+	res["is_crit_success"] = is_crit_success
+	res["is_crit_fail"] = is_crit_fail
+	res["is_brilliant"] = is_brilliant
+	res["is_flaw_blunder"] = is_flaw_blunder
+	res["verdict_label"] = verdict_label
+	res["roll_summary"] = roll_summary
+	return res
 
 func get_skill_upgrade_cost(current_val: int, is_new_learn: bool = false) -> int:
 	if current_val >= 5:
@@ -722,6 +925,7 @@ func load_from_save_dict(profile_data: Dictionary, state_data: Dictionary) -> vo
 				box_stash.append(str(iv))
 	else:
 		box_stash = ["perfecto_cloute", "parka_anonyme", "cassettes_tdk"]
+	forced_roll_queue.clear()
 
 	active_group_id = int(state_data.get("active_group_id", 0))
 	current_station_idx = int(state_data.get("current_station_idx", 0))

@@ -54,14 +54,31 @@
       "choices": [
         {
           "label": "Mettre la main au cambouis pour graisser la chaîne et régler l'avance",
-          "tag": "Système D • +Moral",
+          "tag": "Système D • +Moral / +15 XP",
           "conditions": { "require_not_flag": "mobs_tuned" },
+          "skill_check": {
+            "skill": "mecanique_mob",
+            "dc": 9,
+            "bonus_if_item": "cle_molette",
+            "bonus_val": 2,
+            "fail_flag": "mobs_tune_failed",
+            "retryable": false
+          },
           "effects": {
             "set_flag": { "mobs_tuned": true },
             "moral": { "all": 5 },
+            "add_xp": { "target": "all", "amount": 15 },
             "unlock_clue": "103 SP réglées : renforts plus vifs en ville."
           },
-          "next": ""
+          "fail_effects": {
+            "moral": { "leader": -3 },
+            "add_xp": { "target": "all", "amount": 5 }
+          },
+          "flaw_extra_effects": {
+            "moral": { "leader": -4 }
+          },
+          "next": "box_garage_mobs_ok",
+          "fail_next": "box_garage_mobs_fail"
         },
         {
           "label": "Enfiler les badges et relever le col du blouson (+1 Aura)",
@@ -81,14 +98,64 @@
         }
       ]
     },
+    "box_garage_mobs_ok": {
+      "speaker_id": "leader",
+      "speaker_name": "Établi & Peugeot 103 SP",
+      "text": "Un tour de clé de 12 et deux coups de soufflette sur le gicleur : le moteur ronronne au quart de tour. Vos renforts fileront à travers Cradon.",
+      "choices": [
+        {
+          "label": "Nickel, on est prêts à rouler.",
+          "tag": "OK",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "box_garage_mobs_fail": {
+      "speaker_id": "karim",
+      "speaker_name": "Établi — Bougie noyée",
+      "text": "Tu serres un peu trop fort et la rondelle du gicleur saute sous le canapé éventré ! Karim éclate de rire : « Touche plus à rien avant qu'elle pisse l'essence partout ! »",
+      "choices": [
+        {
+          "label": "« Ouais, bon… ça tiendra quand même jusqu'au bourg. »",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
     "box_garage_radio": {
       "speaker_id": "nadia",
       "speaker_name": "Radiocassette du QG",
       "text": "Nadia a tiré un fil de cuivre jusqu'au soupirail : les 5 fréquences de Cradon-lès-Gonesse passent net depuis le panneau FM à droite. En plein jour, la 104.7 n'émet qu'un souffle blanc — mais dès que la nuit tombera, écoute bien.",
       "choices": [
         {
+          "label": "[★ Cassettes TDK] Lancer une compile Radio Lucien pour détendre la bande",
+          "tag": "Équipement • +10 Moral / +10 XP",
+          "conditions": { "require_action": "act_equip_pause_musique", "require_not_flag": "box_music_played" },
+          "effects": {
+            "moral": { "all": 10 },
+            "add_xp": { "target": "all", "amount": 10 },
+            "set_flag": { "box_music_played": true }
+          },
+          "next": "box_garage_radio_ok"
+        },
+        {
           "label": "Noté.",
           "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "box_garage_radio_ok": {
+      "speaker_id": "karim",
+      "speaker_name": "Karim — Ambiance Box-Garage",
+      "text": "Les accords de guitare saturée emplissent le box sous les néons. Karim bat la mesure du pied contre l'établi : « Ça remet tout de suite d'aplomb avant d'affronter le bourg ! »",
+      "choices": [
+        {
+          "label": "Retourner à l'exploration",
+          "tag": "OK",
           "effects": {},
           "next": ""
         }
@@ -140,17 +207,59 @@
       "choices": [
         {
           "label": "Glisser une pièce de 5 F et faire péter le score",
-          "tag": "-5 F • +Moral",
+          "tag": "Culture 80s • Claque gratuite ou -5 F",
           "conditions": { "min_francs": 5, "require_not_flag": "played_flipper" },
+          "skill_check": {
+            "skill": "jeux_culture",
+            "dc": 10,
+            "bonus_if_item": "piece_flipper",
+            "bonus_val": 2
+          },
           "effects": {
+            "set_flag": { "played_flipper": true },
+            "moral": { "all": 10 },
+            "add_xp": { "target": "all", "amount": 15 }
+          },
+          "fail_effects": {
             "francs": -5,
             "set_flag": { "played_flipper": true },
-            "moral": { "all": 8 }
+            "moral": { "all": 4 },
+            "add_xp": { "target": "all", "amount": 5 }
           },
-          "next": ""
+          "flaw_extra_effects": {
+            "moral": { "leader": -4 }
+          },
+          "next": "galaxian_flipper_win",
+          "fail_next": "galaxian_flipper_tilt"
         },
         {
           "label": "Garder ses sous",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "galaxian_flipper_win": {
+      "speaker_id": "ludo",
+      "speaker_name": "Ludo — Devant le Space Invader",
+      "text": "CLAC ! La partie gratuite claque devant toute la salle, pièce de 5 F toujours intacte dans ta paume ! Toute la bande souffle un grand coup (+10 Moral, 0 F dépensé).",
+      "choices": [
+        {
+          "label": "« Trop facile ce plateau. »",
+          "tag": "OK",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "galaxian_flipper_tilt": {
+      "speaker_id": "leader",
+      "speaker_name": "TILT !",
+      "text": "Secousse un peu trop sèche sur la vitre : TILT rouge et la pièce de 5 F glisse dans la caisse. Ça détend quand même les nerfs (+4 Moral, -5 F).",
+      "choices": [
+        {
+          "label": "« Bon… au moins on a soufflé deux minutes. »",
           "tag": "Fermer",
           "effects": {},
           "next": ""
@@ -190,21 +299,91 @@
           "next": "tour_b_success"
         },
         {
-          "label": "Tenter un baratin frontal devant la vitre (risque familial)",
-          "tag": "Attitude • Perte de Moral",
-          "conditions": { "require_not_flag": "tour_b_done" },
+          "label": "[★ Trousseau des caves] Ouvrir la gaine technique du hall",
+          "tag": "Équipement + Système D",
+          "conditions": { "require_action": "act_equip_pass_tour", "require_not_flag": "tour_b_done" },
+          "skill_check": {
+            "skill": "systeme_d",
+            "dc": 9
+          },
           "effects": {
+            "set_flag": { "tour_b_done": true, "has_caves_key": true },
+            "faveurs": 1,
+            "grant_item": "cle_chaufferies",
+            "add_xp": { "target": "all", "amount": 20 },
+            "unlock_clue": "Gaine technique ouverte incognito : double de l'arrêté & clé subtilisés."
+          },
+          "fail_effects": {
+            "set_flag": { "tour_b_done": true, "has_caves_key": true },
+            "notoriete": 1,
+            "moral": { "nadia": -10, "leader": -5 },
+            "add_xp": { "target": "all", "amount": 10 },
+            "unlock_clue": "Double de l'arrêté récupéré dans le bruit des gaines — mais la concierge a prévenu sa tante."
+          },
+          "flaw_extra_effects": {
+            "moral": { "leader": -4 }
+          },
+          "next": "tour_b_success",
+          "fail_next": "tour_b_bluff_fail"
+        },
+        {
+          "label": "Tenter un baratin frontal devant la vitre (Tchatche & Baratin)",
+          "tag": "Jet Tchatche • Propre si réussi / Risque sinon",
+          "conditions": { "require_not_flag": "tour_b_done" },
+          "skill_check": {
+            "skill": "tchatche",
+            "dc": 11,
+            "bonus_if_action": "act_equip_pass_mjc",
+            "bonus_val": 2
+          },
+          "effects": {
+            "set_flag": { "tour_b_done": true, "has_caves_key": true },
+            "grant_item": "cle_chaufferies",
+            "add_xp": { "target": "all", "amount": 25 },
+            "unlock_clue": "Bluff impeccable devant la loge : double de l'arrêté & clé récupérés sans esclandre."
+          },
+          "fail_effects": {
             "set_flag": { "tour_b_done": true, "has_caves_key": true },
             "notoriete": 1,
             "moral": { "nadia": -10, "leader": -5 },
             "add_xp": { "target": "all", "amount": 10 },
             "unlock_clue": "Double de l'arrêté récupéré dans le hall — mais la concierge a prévenu sa tante."
           },
-          "next": "tour_b_success"
+          "flaw_extra_effects": {
+            "moral": { "leader": -4 }
+          },
+          "next": "tour_b_bluff_ok",
+          "fail_next": "tour_b_bluff_fail"
         },
         {
           "label": "Revenir avec Nadia ou préparer un autre angle",
           "tag": "Plus tard",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "tour_b_bluff_ok": {
+      "speaker_id": "concierge",
+      "speaker_name": "Mme Deschamps — Bluff validé",
+      "text": "Tu prétextes une course urgente pour l'entretien des compteurs de la MJC avec un aplomb royal. Mme Deschamps grommelle, te tend le passe des chaufferies sans même se retourner vers la tante de Nadia, et tu récupères l'enveloppe intacte (+25 XP).",
+      "choices": [
+        {
+          "label": "Empocher le passe des chaufferies et filer",
+          "tag": "OK",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "tour_b_bluff_fail": {
+      "speaker_id": "concierge",
+      "speaker_name": "Mme Deschamps — Grille cramoisie",
+      "text": "« Tu crois me la faire à l'envers comme ton grand frère ?! » La vitre claque, sa voix porte jusqu'au couloir et la tante de Nadia tourne la tête. Tu arraches quand même l'enveloppe avant de détaler — mais la rumeur monte (+1 Notoriété, Moral entamé).",
+      "choices": [
+        {
+          "label": "Déguerpir vite vers les escaliers",
+          "tag": "Fermer",
           "effects": {},
           "next": ""
         }
@@ -271,21 +450,66 @@
         },
         {
           "label": "Dépanner la mobylette du fils du patron dans la cour",
-          "tag": "Système D • Gratuit / +1 Faveur",
-          "conditions": { "require_flag": "mobs_tuned", "require_not_flag": "bebert_done" },
+          "tag": "Mécanique 103 SP • +1 Faveur",
+          "conditions": { "require_not_flag": "bebert_done" },
+          "skill_check": {
+            "skill": "mecanique_mob",
+            "dc": 10,
+            "bonus_if_flag": "mobs_tuned",
+            "bonus_val": 2
+          },
           "effects": {
             "faveurs": 1,
             "set_flag": { "bebert_done": true },
-            "moral": { "karim": -14 },
+            "moral": { "karim": -10 },
+            "add_xp": { "target": "all", "amount": 25 },
             "unlock_clue": "Dépannage express chez Bébert : Faveur gagnée sans lâcher un centime !"
           },
-          "next": "chez_bebert_so_pass"
+          "fail_effects": {
+            "francs": -5,
+            "faveurs": 1,
+            "set_flag": { "bebert_done": true },
+            "moral": { "karim": -18 },
+            "add_xp": { "target": "all", "amount": 10 },
+            "unlock_clue": "Nuage bleu chez Bébert : 5 F de bougie et Faveur obtenue dans la fumée."
+          },
+          "flaw_extra_effects": {
+            "moral": { "leader": -4 }
+          },
+          "next": "chez_bebert_mob_ok",
+          "fail_next": "chez_bebert_mob_fail"
         },
         {
           "label": "Laisser Franck finir son demi",
           "tag": "Fermer",
           "effects": {},
           "next": ""
+        }
+      ]
+    },
+    "chez_bebert_mob_ok": {
+      "speaker_id": "franck",
+      "speaker_name": "Franck — Cour de Chez Bébert",
+      "text": "Tu recales l'allumage en deux coups de clé plate. Le vieux cheminot lève son ballon de rouge depuis la porte : « Bien bossé, gamin. On s'occupe de leur papier demain. »",
+      "choices": [
+        {
+          "label": "Rentrer au comptoir retrouver Karim",
+          "tag": "Suite",
+          "effects": {},
+          "next": "chez_bebert_so_pass"
+        }
+      ]
+    },
+    "chez_bebert_mob_fail": {
+      "speaker_id": "franck",
+      "speaker_name": "Franck — Bougie claquée",
+      "text": "Le moteur tousse, crache un gros nuage bleu dans la cour et te force à lâcher 5 F pour une bougie neuve. Le patron accepte quand même le marché, mais Franck grimace derrière sa mousse.",
+      "choices": [
+        {
+          "label": "Retourner vers la vitrine du troquet",
+          "tag": "Suite",
+          "effects": {},
+          "next": "chez_bebert_so_pass"
         }
       ]
     },
@@ -329,7 +553,61 @@
           "next": ""
         },
         {
+          "label": "Observer la relève du S.O. à distance (Flair & Connaissance du milieu)",
+          "tag": "Flair • Neutralise le S.O. Vétéran / +25 XP",
+          "conditions": { "require_not_flag": "ruelle_done" },
+          "skill_check": {
+            "skill": "lecture_rue",
+            "dc": 11,
+            "bonus_if_action": "act_equip_pass_mjc",
+            "bonus_val": 2
+          },
+          "effects": {
+            "set_flag": { "ruelle_done": true, "ludo_guetteur": true, "so_veteran_spotted": true },
+            "add_xp": { "target": "all", "amount": 25 },
+            "unlock_clue": "Relève S.O. repérée : la contre-interruption initiale du Chef S.O. Vétéran est éventée !"
+          },
+          "fail_effects": {
+            "set_flag": { "ruelle_done": true, "ludo_guetteur": true },
+            "notoriete": 1,
+            "moral": { "all": -5 },
+            "add_xp": { "target": "all", "amount": 10 },
+            "unlock_clue": "Filature repérée dans la ruelle du Relais (+1 Notoriété)."
+          },
+          "flaw_extra_effects": {
+            "moral": { "leader": -4 }
+          },
+          "next": "ruelle_recon_ok",
+          "fail_next": "ruelle_recon_fail"
+        },
+        {
           "label": "Attendre avant de trancher",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "ruelle_recon_ok": {
+      "speaker_id": "ludo",
+      "speaker_name": "Ludo — Relève décryptée",
+      "text": "Tu repères leurs tics, leur horaire exact et le grand barbu à la matraque avant qu'il ne sorte du troquet. « Bien vu, souffle Ludo : à la gare du Y, ce vieux S.O. pourra pas vous prendre par surprise sur vos réactions ! »",
+      "choices": [
+        {
+          "label": "Noté pour ce soir.",
+          "tag": "OK",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "ruelle_recon_fail": {
+      "speaker_id": "ludo",
+      "speaker_name": "Ludo — Grilles grillées",
+      "text": "Une boîte de conserve roule sous ta semelle au coin du fourgon. Deux têtes du S.O. se retournent net et notent vos blousons avant de remonter dans l'Estafette (+1 Notoriété, -5 Moral).",
+      "choices": [
+        {
+          "label": "Se fondre vite dans la contre-allée",
           "tag": "Fermer",
           "effects": {},
           "next": ""
@@ -471,7 +749,50 @@
           "next": "garage_bananes_manu_recruited"
         },
         {
+          "label": "Tenir le bras de fer d'atelier face à Manu",
+          "tag": "Caisse & Pression • Recrutement",
+          "conditions": { "require_not_flag": "manu_recruited" },
+          "skill_check": {
+            "skill": "baston_pression",
+            "dc": 11,
+            "bonus_if_action": "act_equip_intimidation_look",
+            "bonus_val": 2,
+            "fail_flag": "manu_duel_failed",
+            "retryable": false
+          },
+          "effects": {
+            "recruit": "manu",
+            "notoriete": 1,
+            "moral": { "zoe": -6, "manu": 4 },
+            "add_xp": { "target": "all", "amount": 25 },
+            "set_flag": { "manu_recruited": true },
+            "unlock_clue": "Manu des Bananes rejoint la bande après un bras de fer mémorable."
+          },
+          "fail_effects": {
+            "moral": { "leader": -4 },
+            "add_xp": { "target": "all", "amount": 10 }
+          },
+          "flaw_extra_effects": {
+            "moral": { "leader": -4 }
+          },
+          "next": "garage_bananes_manu_recruited",
+          "fail_next": "garage_bananes_manu_fail"
+        },
+        {
           "label": "« On repasse plus tard quand l'établi sera dégagé. »",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "garage_bananes_manu_fail": {
+      "speaker_id": "manu",
+      "speaker_name": "Manu — Établi de ferraille",
+      "text": "Ton coude touche la tôle graisseuse en deux secondes. Manu ricane sans méchanceté : « Va plutôt régler tes 103 SP ou ramener ta réputation du bourg, la Cité. On verra après. »",
+      "choices": [
+        {
+          "label": "« À charge de revanche, Manu. »",
           "tag": "Fermer",
           "effects": {},
           "next": ""
@@ -569,7 +890,49 @@
           "next": "squat_kepons_zoe_recruited"
         },
         {
+          "label": "Tenir la répartie punk face à Zoé",
+          "tag": "Tchatche & Baratin • Recrutement",
+          "conditions": { "require_not_flag": "zoe_recruited" },
+          "skill_check": {
+            "skill": "tchatche",
+            "dc": 11,
+            "fail_flag": "zoe_duel_failed",
+            "retryable": false
+          },
+          "effects": {
+            "recruit": "zoe",
+            "notoriete": 1,
+            "moral": { "manu": -6, "zoe": 4 },
+            "grant_item": "bombe_pochoir",
+            "add_xp": { "target": "all", "amount": 25 },
+            "set_flag": { "zoe_recruited": true },
+            "unlock_clue": "Zoé des Kepons rejoint la bande après un échange sec."
+          },
+          "fail_effects": {
+            "moral": { "leader": -4 },
+            "add_xp": { "target": "all", "amount": 10 }
+          },
+          "flaw_extra_effects": {
+            "moral": { "leader": -4 }
+          },
+          "next": "squat_kepons_zoe_recruited",
+          "fail_next": "squat_kepons_zoe_fail"
+        },
+        {
           "label": "« Juste de passage au bord du canal. »",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "squat_kepons_zoe_fail": {
+      "speaker_id": "zoe",
+      "speaker_name": "Zoé — Retour dans les cordes",
+      "text": "Zoé te coupe la chique en trois vannes sèches sous les rires des autres Kepons : « Reviens avec du concret sur l'arrêté du Galaxian ou un vrai levier du bourg, sinon file. »",
+      "choices": [
+        {
+          "label": "« On repasse avec de la matière. »",
           "tag": "Fermer",
           "effects": {},
           "next": ""
@@ -607,7 +970,61 @@
           "next": ""
         },
         {
+          "label": "[★ Bombe & Pochoir] Doubler les tracts au pochoir dans l'allée",
+          "tag": "Équipement + Système D • +1 Faveur / +25 XP",
+          "conditions": { "require_action": "act_equip_pochoir", "require_not_flag": "kepons_tracts_printed" },
+          "skill_check": {
+            "skill": "systeme_d",
+            "dc": 9
+          },
+          "effects": {
+            "faveurs": 1,
+            "add_xp": { "target": "all", "amount": 25 },
+            "set_flag": { "kepons_tracts_printed": true },
+            "unlock_clue": "Pochoirs kepons posés proprement dans tout le secteur Canal."
+          },
+          "fail_effects": {
+            "notoriete": 1,
+            "faveurs": 1,
+            "moral": { "all": -4 },
+            "add_xp": { "target": "all", "amount": 10 },
+            "set_flag": { "kepons_tracts_printed": true },
+            "unlock_clue": "Pochoirs posés à la va-vite sous un projecteur (+1 Notoriété)."
+          },
+          "flaw_extra_effects": {
+            "moral": { "leader": -4 }
+          },
+          "next": "squat_kepons_pochoir_ok",
+          "fail_next": "squat_kepons_pochoir_fail"
+        },
+        {
           "label": "Ne rien imprimer",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "squat_kepons_pochoir_ok": {
+      "speaker_id": "zoe",
+      "speaker_name": "Zoé — Murs rouges sur le Canal",
+      "text": "Trois coups de bombe bien cadrés au pochoir : le slogan anti-couvre-feu claque sur le béton du quai sans une seule coulure (+1 Faveur, +25 XP).",
+      "choices": [
+        {
+          "label": "Ranger la bombe de peinture",
+          "tag": "OK",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "squat_kepons_pochoir_fail": {
+      "speaker_id": "zoe",
+      "speaker_name": "Zoé — Peinture sur les doigts",
+      "text": "La buse bave en plein faisceau de phare : le slogan passe quand même, mais la patrouille repère l'allée rouge vif (+1 Faveur, +1 Notoriété).",
+      "choices": [
+        {
+          "label": "Rentrer dans l'entrepôt",
           "tag": "Fermer",
           "effects": {},
           "next": ""
@@ -656,9 +1073,15 @@
       "text": "Un vieux blockhaus de brique cadenassé s'enfonce dans la mousse. Devant la porte en fer, une large flaque boueuse renvoie une lueur pâle bleutée — simple reflet d'hydrocarbures… à moins que l'air ne bourdonne.",
       "choices": [
         {
-          "label": "[Ondes & Électronique 2+] Régler le Walkman sur la fréquence fantôme devant le bunker",
-          "tag": "Compétence Ondes 2+ · Nuit • +1 Faveur / +25 XP",
-          "conditions": { "min_skill": { "id": "ondes_radio", "val": 2 }, "require_phase": "night", "require_not_flag": "poudrerie_bunker_checked" },
+          "label": "Régler le Walkman sur 104.7 FM devant le bunker",
+          "tag": "Nuit • Ondes & Électronique / +25 XP",
+          "conditions": { "require_phase": "night", "require_not_flag": "poudrerie_bunker_checked" },
+          "skill_check": {
+            "skill": "ondes_radio",
+            "dc": 11,
+            "bonus_if_action": "act_equip_record_fm",
+            "bonus_val": 2
+          },
           "effects": {
             "faveurs": 1,
             "add_xp": { "target": "all", "amount": 25 },
@@ -666,7 +1089,17 @@
             "set_flag": { "poudrerie_bunker_checked": true, "poudrerie_done": true },
             "unlock_clue": "Bande magnétique captée au pied du bunker de la Poudrerie (voix claire sur 104.7 FM)."
           },
-          "next": ""
+          "fail_effects": {
+            "moral": { "all": -6 },
+            "add_xp": { "target": "all", "amount": 10 },
+            "set_flag": { "poudrerie_bunker_checked": true, "poudrerie_done": true },
+            "unlock_clue": "Larsen violent sur 104.7 FM devant le bunker : montre décalée et bande froissée."
+          },
+          "flaw_extra_effects": {
+            "moral": { "all": -4 }
+          },
+          "next": "poudrerie_bunker_ok",
+          "fail_next": "poudrerie_bunker_fail"
         },
         {
           "label": "[Nuit · Nadia] Approcher le walkman et caler la bande sur 104.7 FM",
@@ -696,6 +1129,32 @@
         },
         {
           "label": "Ne pas traîner devant la lisière",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "poudrerie_bunker_ok": {
+      "speaker_id": "nadia",
+      "speaker_name": "Nadia — Signal capté sur 104.7 FM",
+      "text": "Le bobinage du Walkman accroche un timbre net à travers les ronflements électriques : quelques mots coupés citent les rails sous la gare du Y. Une cassette TDK traîne dans la niche sèche du bunker (+1 Faveur, +25 XP).",
+      "choices": [
+        {
+          "label": "Rembobiner la bande et quitter la lisière",
+          "tag": "OK",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "poudrerie_bunker_fail": {
+      "speaker_id": "nadia",
+      "speaker_name": "Nadia — Larsen dans la flaque",
+      "text": "Une boucle magnétique claque violemment dans le casque ! Les touches cliquettent toutes seules, le cadrant de montre indique quatre minutes de retard et un frisson glacial traverse le groupe (-6 Moral).",
+      "choices": [
+        {
+          "label": "Arracher le casque et reculer des barbelés",
           "tag": "Fermer",
           "effects": {},
           "next": ""

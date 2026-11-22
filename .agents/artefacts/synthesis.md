@@ -1,6 +1,6 @@
 # Synthèse du Projet — *Banlieue*
 
-> **Version courante : 0.5.0** — Dernière mise à jour : 2026-11-22
+> **Version courante : 0.5.1** — Dernière mise à jour : 2026-11-22
 
 ## 1. Identité & Stack
 * **Titre** : *Banlieue* — *Cradon-lès-Gonesse (1980–1984)*
@@ -25,10 +25,11 @@
 * **Interface (`ui/`)** : `TitleMenuPanel`, `NewGamePanel`, `SaveLoadPanel`, `OptionsPanel`, `HudOverlay` (avec bouton `Fiches [F]`), `DialoguePanel`, `TimelinePanel` (**Option A Unifiée**), `CharacterSheetPanel` (**Carnet de Bande `[F]`**).
 * **Orchestrateur** : `main.gd` (machine d'états `AppState`, raccourcis `Échap`/`F`/`Backspace`/`M`/`1-6`, masquage `_hud` en combat & micro-secousse caméra, Sas Boeing).
 
-## 5. Dernières Améliorations *(v0.5.0 — 2026-11-22)*
-* **Fiches de Personnages PJ & Carnet de Bande `[F]` ([fiches_personnages_pj.md](file:///e:/JDR/BANLIEUE/docs/fiches_personnages_pj.md))** :
+## 5. Dernières Améliorations *(v0.5.1 — 2026-11-22)*
+* **Jets de rue (`2d6 + Carac + Comp`), Failles & Équipement Actif (`v0.5.1`)** : Moteur unifié `preview_street_roll()` / `perform_street_roll()` dans `GameState` (36 combinaisons exactes `3..97%`, Coup d'éclat `+10 XP` / impact accru, Couac de faille sur `< 0`), câblé sur 10 scènes de [dialogues.json](file:///e:/JDR/BANLIEUE/game/data/dialogues.json) (`DialoguePanel` avec badges `%` et bandeau résultat) et sur `TensionTimeline` / `TimelinePanel` (actions `[1–6]` incluant `★` équipement `1×/confrontation`, Interruptions modulées par compétences).
+* **Fiches de Personnages PJ & Carnet de Bande `[F]` (`v0.5.0` — [fiches_personnages_pj.md](file:///e:/JDR/BANLIEUE/docs/fiches_personnages_pj.md))** :
   * **3 Caractéristiques & 10 Compétences bipolaires (`-3..+5`)** dans [equipment.json](file:///e:/JDR/BANLIEUE/game/data/equipment.json), `characters.json` et `player_profiles.json`, évolutives par **XP** et **24 équipements actifs** (`Look`, `Outil`, `Fétiche` + `box_stash`), sauvegardées dans `member_progression` / `box_stash`.
-  * **UI Double-Page `[F]` (`character_sheet_panel.gd`)** : portraits/pion, barres `Esprit/Corps/Énergie`, compétences `-3..+5` avec dépense XP, échange coffre en 1 clic, actions débloquées, traits et thermomètre relationnel (`DialogueRunner` & `TensionTimeline` câblés).
+  * **UI Double-Page `[F]` (`character_sheet_panel.gd`)** : portraits/pion, barres `Esprit/Corps/Énergie`, compétences `-3..+5` avec dépense XP, échange coffre en 1 clic, actions débloquées, traits et thermomètre relationnel.
 * **Acquis précédents *(v0.4.0 → v0.4.2)*** : Frise-Cartes Unifiée Option A (`ux_combat_frise.md`), renommage complet `FAVE → Attitude` & `FASA → Aura`, pas-à-pas strict `step_next_beat()`.
 
 ## Statut du Code

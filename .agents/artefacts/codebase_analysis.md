@@ -1,6 +1,6 @@
 # Analyse Technique de la Codebase — *Banlieue*
 
-> **Version courante : 0.5.0** — Mise à jour : 2026-11-22
+> **Version courante : 0.5.1** — Mise à jour : 2026-11-22
 
 ---
 
@@ -46,12 +46,12 @@
 | **Orchestrateur** | `main.gd` | Machine d'états `AppState`, cycle titre 28 s, Sas Boeing, arbitrage `Échap`/`F`/`Backspace`/`M`/`1-6`, HUD/shake combat |
 | **Autoload** | `autoload/data_loader.gd` | Chargement hiérarchique JSON, `player_profiles.json`, `equipment.json` (`skills_catalog`, `equipment_catalog`) & `apply_leader_profile()` |
 | **Autoload** | `autoload/settings_manager.gd` | Chargement/sauvegarde `user://settings.cfg`, affichage, audio, grain, secousse, police |
-| **Autoload** | `autoload/game_state.gd` | État vivant, `member_progression` (`xp`, `skills`, `equipment`, `traits`), `box_stash`, `aura_bonus`/`get_total_aura()`, `to_save_dict()` |
+| **Autoload** | `autoload/game_state.gd` | État vivant, `member_progression` (`xp`, `skills`, `equipment`, `traits`), `box_stash`, moteur Jets de rue `2d6` (`preview_street_roll`, `perform_street_roll`), `aura_bonus`/`get_total_aura()`, `to_save_dict()` |
 | **Autoload** | `autoload/audio_radio.gd` | Synthèse temps réel (`AudioStreamGenerator`) SFX + Cold Wave + lit FM titre |
 | **Autoload** | `autoload/save_manager.gd` | Gestion des 3 cassettes manuelles (`slot_1..3.json`) et lecture rapide des métadonnées |
 | **Système** | `systems/squad_manager.gd` | Formation (`3+` / `2+1` / `1+1+1`), bascule à la volée, déplacements & distances de renfort |
-| **Système** | `systems/tension_timeline.gd` | Frise pas-à-pas `3B`, ciblage libre `2A` + `preview_*`, stats/bonus équipement, gains d'XP/traits en fin de scène |
-| **Système** | `systems/dialogue_runner.gd` | Évaluation de prérequis (dont `min_skill`, `require_item`) et exécution des effets (`add_xp`, `grant_item`, `add_trait`) |
+| **Système** | `systems/tension_timeline.gd` | Frise pas-à-pas `3B`, ciblage libre `2A` + `preview_*`, Jets de rue `2d6`, 8 actions équipement `★`, Interruptions modulées, gains XP/traits |
+| **Système** | `systems/dialogue_runner.gd` | Évaluation prérequis (`min_skill`, `require_item`, `require_action`), résolution `skill_check` (`next`/`fail_next`), effets (`add_xp`, `grant_item`, `add_trait`) |
 | **Monde** | `world/world_map_view.gd` | Cartes papier 2D N1–N3 (`Camera2D`, zoom, survol, marqueurs de groupes) |
 | **Monde** | `world/iso_district_view.gd` | Vue isométrique 2:1 N4 hybride (`backdrop`/`modular`), mode accueil & mode scène de combat cinémascope |
 | **Monde** | `world/iso_prop_node.gd` | Props isométriques triés par Y-sort en mode modulaire |
@@ -75,5 +75,5 @@
 ---
 
 ## 5. Couverture de Test & Validation
-* **Validation statique & intégrité (`--mode validate`)** : Contrôle JSON atlas N1–N3 (`map_idf.png`, `map_93.png`, `map_cradon.png` + 5 secteurs & 9 lieux inclus), **9/9 intérieurs N4** en mode `backdrop` (`garage_bananes`, `squat_kepons`, `lisiere_poudrerie` inclus), **9 personnages** (`manu` & `zoe` inclus), **23 dialogues**, rencontres, `player_profiles.json`, `res://` et RGBA `526 px` de tous les pions → **0 erreur** (**0 pending graphic assets**).
-* **Smoke test automatisé Godot 4.7.2 headless (`smoke_test_menus.gd`)** : Vérifie les 5 autoloads, les 4 archétypes sociaux, les 6 portraits/pions joueur réels sur disque, **Manu & Zoé + bande à 6 membres**, les 5 secteurs / 9 lieux de Cradon, les `occluders` calibrés des 9 intérieurs `backdrop`, la spécialité `sang_froid`, la persistance `SettingsManager`, le cycle complet `SaveManager` et la machine d'états UI de `main.tscn` → **0 erreur**.
+* **Validation statique & intégrité (`--mode validate`)** : Contrôle JSON atlas N1–N3 (`map_idf.png`, `map_93.png`, `map_cradon.png` + 5 secteurs & 9 lieux inclus), **9/9 intérieurs N4** en mode `backdrop` (`garage_bananes`, `squat_kepons`, `lisiere_poudrerie` inclus), **9 personnages** (`manu` & `zoe` inclus), **dialogues (`skill_check`, `fail_next`, `require_action`)**, `equipment.json`, rencontres, `player_profiles.json`, `res://` et RGBA `526 px` de tous les pions → **0 erreur** (**0 pending graphic assets**).
+* **Smoke test automatisé Godot 4.7.2 headless (`smoke_test_menus.gd`)** : Vérifie les 5 autoloads, les 4 archétypes sociaux, les 6 portraits/pions joueur réels sur disque, **Manu & Zoé + bande à 6 membres**, les 5 secteurs / 9 lieux de Cradon, les `occluders` calibrés des 9 intérieurs `backdrop`, la spécialité `sang_froid`, la persistance `SettingsManager`, le cycle complet `SaveManager`, la machine d'états UI de `main.tscn` et la suite `v0.5.1` (Jets de rue `2d6`, Couacs de faille, `require_action` et actions d'équipement actives sur la Frise) → **0 erreur**.
