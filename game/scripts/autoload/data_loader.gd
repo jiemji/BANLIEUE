@@ -1,5 +1,8 @@
 extends Node
 
+const MODULAR_CANVAS_W: int = 256
+const MODULAR_CANVAS_H: int = 526
+
 var characters: Dictionary = {}
 var regions: Dictionary = {}
 var departments: Dictionary = {}
@@ -18,9 +21,16 @@ var skills_catalog: Array[Dictionary] = []
 var skills_by_id: Dictionary = {}
 var equipment_catalog: Dictionary = {}
 var _base_leader_def: Dictionary = {}
+var _part_image_cache: Dictionary = {}
+var _modular_tex_cache: Dictionary = {}
 
 func _ready() -> void:
 	load_all()
+
+## Vide les caches mémoire des pièces modulaires et textures assemblées à la fermeture de l'arbre.
+func _exit_tree() -> void:
+	_part_image_cache.clear()
+	_modular_tex_cache.clear()
 
 func load_all() -> void:
 	characters.clear()
@@ -40,6 +50,8 @@ func load_all() -> void:
 	skills_by_id.clear()
 	equipment_catalog.clear()
 	_base_leader_def.clear()
+	_part_image_cache.clear()
+	_modular_tex_cache.clear()
 
 	var chars_data: Variant = _read_json("res://data/characters.json")
 	if chars_data is Dictionary:
@@ -300,7 +312,93 @@ func _res_file_exists(res_path: String) -> bool:
 	var abs_path: String = ProjectSettings.globalize_path(res_path)
 	return FileAccess.file_exists(abs_path)
 
-## Applique le profil du protagoniste (nom, portrait/pion vérifiés sur disque, stats et spécialité) sur characters["leader"].
+## Charge et normalise en RGBA8 (avec cache mémoire) une pièce graphique modulaire (tête, haut ou bas).
+func _load_part_image(res_path: String) -> Image:
+	if res_path == "":
+		return null
+	if _part_image_cache.has(res_path):
+		var cached_v: Variant = _part_image_cache.get(res_path, null)
+		if cached_v is Image:
+			return cached_v as Image
+		return null
+	var img: Image = null
+	if ResourceLoader.exists(res_path):
+		var loaded: Resource = load(res_path)
+		if loaded is Texture2D:
+			var timg: Image = (loaded as Texture2D).get_image()
+			if timg != null and not timg.is_empty():
+				img = timg.duplicate()
+	if img == null:
+		var abs_path: String = ProjectSettings.globalize_path(res_path)
+		if FileAccess.file_exists(abs_path):
+			var disk_img: Image = Image.load_from_file(abs_path)
+			if disk_img != null and not disk_img.is_empty():
+				img = disk_img
+	if img != null:
+		if img.is_compressed():
+			img.decompress()
+		if img.get_format() != Image.FORMAT_RGBA8:
+			img.convert(Image.FORMAT_RGBA8)
+	_part_image_cache[res_path] = img
+	return img
+
+## Blende une sous-région d'une pièce modulaire centrée horizontalement et alignée sur le bas du canevas 256x526.
+func _blend_part_region(canvas: Image, part_img: Image, region: Rect2i) -> void:
+	if part_img == null or part_img.is_empty():
+		return
+	var pw: int = part_img.get_width()
+	var ph: int = part_img.get_height()
+	var ox: int = int((MODULAR_CANVAS_W - pw) * 0.5)
+	var oy: int = MODULAR_CANVAS_H - ph
+	var full_src: Rect2i = Rect2i(region.position.x - ox, region.position.y - oy, region.size.x, region.size.y)
+	var clamped: Rect2i = full_src.intersection(Rect2i(0, 0, pw, ph))
+	if clamped.size.x <= 0 or clamped.size.y <= 0:
+		return
+	var dst_pos: Vector2i = Vector2i(ox + clamped.position.x, oy + clamped.position.y)
+	canvas.blend_rect(part_img, clamped, dst_pos)
+
+## Assemble et met en cache un sprite en pied 256x526 à partir de 3 calques RGBA (tête, haut+bras, bas+pieds).
+func assemble_modular_pawn(head_path: String, top_path: String, bottom_path: String) -> Texture2D:
+	var cache_key: String = "%s|%s|%s" % [head_path, top_path, bottom_path]
+	if _modular_tex_cache.has(cache_key):
+		var c_tex_v: Variant = _modular_tex_cache.get(cache_key, null)
+		if c_tex_v is Texture2D:
+			return c_tex_v as Texture2D
+		return null
+
+	var h_img: Image = _load_part_image(head_path)
+	var t_img: Image = _load_part_image(top_path)
+	var b_img: Image = _load_part_image(bottom_path)
+	if h_img == null and t_img == null and b_img == null:
+		_modular_tex_cache[cache_key] = null
+		return null
+
+	var canvas: Image = Image.create_empty(MODULAR_CANVAS_W, MODULAR_CANVAS_H, false, Image.FORMAT_RGBA8)
+	if b_img != null:
+		_blend_part_region(canvas, b_img, Rect2i(0, 0, MODULAR_CANVAS_W, MODULAR_CANVAS_H))
+	if h_img != null:
+		_blend_part_region(canvas, h_img, Rect2i(0, 96, MODULAR_CANVAS_W, 48))
+	if t_img != null:
+		_blend_part_region(canvas, t_img, Rect2i(0, 0, MODULAR_CANVAS_W, MODULAR_CANVAS_H))
+	if h_img != null:
+		_blend_part_region(canvas, h_img, Rect2i(0, 0, MODULAR_CANVAS_W, 102))
+		_blend_part_region(canvas, h_img, Rect2i(0, 102, 104, 34))
+		_blend_part_region(canvas, h_img, Rect2i(152, 102, 104, 34))
+
+	var tex: ImageTexture = ImageTexture.create_from_image(canvas)
+	_modular_tex_cache[cache_key] = tex
+	return tex
+
+## Retourne la texture assemblée 256x526 depuis un dictionnaire d'apparence ({head, top/default_top, bottom/default_bottom}).
+func get_appearance_pawn_texture(appearance: Dictionary) -> Texture2D:
+	if appearance.is_empty():
+		return null
+	var head_p: String = str(appearance.get("head", ""))
+	var top_p: String = str(appearance.get("top", str(appearance.get("default_top", ""))))
+	var bot_p: String = str(appearance.get("bottom", str(appearance.get("default_bottom", ""))))
+	return assemble_modular_pawn(head_p, top_p, bot_p)
+
+## Applique le profil du protagoniste (nom, portrait BD, apparence modulaire 3 parties, stats et spécialité) sur characters["leader"].
 func apply_leader_profile(profile: Dictionary) -> void:
 	if _base_leader_def.is_empty():
 		var existing: Variant = characters.get("leader", {})
@@ -315,11 +413,19 @@ func apply_leader_profile(profile: Dictionary) -> void:
 	var port_id: String = str(profile.get("portrait_id", "player_01"))
 	var port_def: Dictionary = get_portrait_def(port_id)
 	var p_path: String = str(port_def.get("portrait", str(profile.get("portrait_path", ""))))
-	var pw_path: String = str(port_def.get("pawn", str(profile.get("pawn_path", ""))))
 	if _res_file_exists(p_path):
 		merged["portrait"] = p_path
-	if _res_file_exists(pw_path):
-		merged["pawn"] = pw_path
+
+	var base_app_var: Variant = _base_leader_def.get("appearance", {})
+	var base_app: Dictionary = (base_app_var as Dictionary).duplicate(true) if (base_app_var is Dictionary) else {}
+	var head_p: String = str(port_def.get("head", str(profile.get("head_path", str(base_app.get("head", ""))))))
+	var top_p: String = str(port_def.get("default_top", str(profile.get("default_top_path", str(base_app.get("default_top", ""))))))
+	var bot_p: String = str(port_def.get("default_bottom", str(profile.get("default_bottom_path", str(base_app.get("default_bottom", ""))))))
+	merged["appearance"] = {
+		"head": head_p if _res_file_exists(head_p) else str(base_app.get("head", "")),
+		"default_top": top_p if _res_file_exists(top_p) else str(base_app.get("default_top", "")),
+		"default_bottom": bot_p if _res_file_exists(bot_p) else str(base_app.get("default_bottom", ""))
+	}
 
 	var arch_id: String = str(profile.get("archetype_id", "mains_noires"))
 	var arch_def: Dictionary = get_archetype_def(arch_id)

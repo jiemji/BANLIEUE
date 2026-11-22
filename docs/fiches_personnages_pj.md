@@ -82,20 +82,23 @@ Les compétences vont de **`-3` (point noir / handicap concret)** à **`+5` (ré
   * Progresser dans une compétence maîtrisée (**`0 → +1 → +2 → +3 → +4 → +5`**) : **`40 / 60 / 90 / 130 / 180 XP`**.
   * **Acquérir une nouvelle compétence hors profil** : possible dès qu'un compagnon/lieu mentor l'enseigne (ex. Manu pour `mecanique_mob`, Nadia pour `ondes_radio`, Zoé pour `systeme_d`) ou via un temps mort au Box-Garage au coût de **`50 XP`** *(débloque le rang `+1`)* — **ou temporairement sans XP via un équipement adapté**.
 
-### B. Les 3 Emplacements d'Équipement & Effets Actifs
-Chaque PJ dispose de **3 emplacements** partageables/rangeables dans le coffre du **Box-Garage** :
-1. **`Look / Blouson`** : modifie l'**Aura**, la lecture tribale dans les quartiers et certains seuils de dialogue.
-2. **`Outil / Bricole`** : apporte des **bonus de compétence** ou **débloque de nouvelles compétences / actions jouables**.
-3. **`Objet fétiche`** : stabilise le **Moral**, relève la résistance nocturne ou ouvre une réplique / action de récupération.
+### B. Les 4 Emplacements d'Équipement, Silhouette Modulaire & Effets Actifs (`v0.7.0`)
+Chaque PJ dispose de **4 emplacements** partageables/rangeables dans le coffre du **Box-Garage**. Sur la **fiche d'inventaire (`[F]`)**, l'écran Nouvelle Partie et la **grille isométrique (exploration & combat)**, l'équipement `Haut` (`look_top`) et `Bas` (`look_bottom`) assemble en direct la silhouette en pied (`256×526` RGBA, **tête + haut/bras + bas/pieds**), tandis que les **portraits BD `1024×1024`** restent inchangés dans les dialogues, cartes de Frise et en-têtes :
+1. **`Haut` (`look_top`)** : blouson, parka, perfecto, veste d'atelier — modifie l'**Aura**, l'**Attitude**, la lecture tribale dans les quartiers et l'apparence du torse/bras sur le pion.
+2. **`Bas` (`look_bottom`)** : jean délavé, pantalon de chantier, tartan punk, treillis & rangers, baskets — apporte des bonus cohérents (mobilité `caves_esquive`, ancrage `baston_pression`, `Moral max`, `Attitude` ou `Aura`) et change jambes/chaussures sur le pion.
+3. **`Outil / Bricole` (`tool`)** : apporte des **bonus de compétence** ou **débloque de nouvelles compétences / actions jouables**.
+4. **`Objet fétiche` (`fetish`)** : stabilise le **Moral**, relève la résistance nocturne ou ouvre une réplique / action de récupération.
 
-| Exemple d'équipement | Emplacement | Bonus chiffré | Nouvelle compétence ou action débloquée |
+| Exemple d'équipement | Emplacement | Bonus chiffré | Effet visuel / Action débloquée |
 |---|---|---|---|
-| **Perfecto clouté 1982** | `Look` | `+1 Aura`, `+1 baston_pression` | Débloque la réplique `[Intimidation Look]` face aux Skins / S.O. |
-| **Parka anonyme à capuche** | `Look` | `+1 caves_esquive`, `-1 Notoriété subie` *(rôle discret)* | Permet l'action `[Infiltration discrète]` devant les patrouilles CRS. |
-| **Walkman Sony bricolé + K7** | `Outil` | `+2 ondes_radio` | Rend `ondes_radio` utilisable même à `0` et ouvre `[Enregistrer la Fréquence]` la nuit. |
-| **Clé passe-partout des chaufferies** | `Outil` | `+2 caves_esquive` | Débloque `[Couper par les caves]` (+1 avance Échappée dès le début d'une Frise en ville). |
-| **Bombe de peinture & pochoir** | `Outil` | `+1 systeme_d` | Débloque `[Bomber un mot d'ordre]` (détourne une patrouille ou gagne +1 Faveur kepon). |
-| **Cassettes Radio Lucien / TDK** | `Fétiche` | `+8 Moral max` ou `Seuil Stress -3` | Débloque `[Pause musique au Box]` (+6 Moral à un pote en crise au retour de virée). |
+| **Perfecto clouté 1982** | `Haut` (`look_top`) | `+1 Aura`, `+1 baston_pression` | Met le perfecto clouté sur le pion + réplique `[Intimidation Look]`. |
+| **Parka anonyme à capuche** | `Haut` (`look_top`) | `+1 caves_esquive` | Met la parka grise sur le pion + action `[Infiltration discrète]`. |
+| **Jean retroussé & grosses rangers** | `Bas` (`look_bottom`) | `+1 Aura`, `+1 baston_pression` | Équipe jean à revers & rangers lacées sur le pion. |
+| **Pantalon écossais & Docs 14 trous** | `Bas` (`look_bottom`) | `+2 Attitude`, `+1 systeme_d` | Équipe le tartan punk & Docs sur le pion. |
+| **Walkman Sony bricolé + K7** | `Outil` (`tool`) | `+2 ondes_radio` | Rend `ondes_radio` utilisable même à `0` et ouvre `[Enregistrer la Fréquence]` la nuit. |
+| **Clé passe-partout des chaufferies** | `Outil` (`tool`) | `+2 caves_esquive` | Débloque `[Couper par les caves]` (+1 avance Échappée dès le début d'une Frise en ville). |
+| **Bombe de peinture & pochoir** | `Outil` (`tool`) | `+1 systeme_d` | Débloque `[Bomber un mot d'ordre]` (détourne une patrouille ou gagne +1 Faveur kepon). |
+| **Cassettes Radio Lucien / TDK** | `Fétiche` (`fetish`) | `+8 Moral max`, `Seuil Stress -3` | Débloque `[Pause musique au Box]` (+6 Moral à un pote en crise au retour de virée). |
 
 ### C. Traits & Cicatrices de vécu
 Les scènes décisives inscrivent sur la fiche des **Traits permanents** *(ex. « Sang-froid du Quai Y » : +1 `sang_froid_nerfs` de nuit ; « Cousin grillé au Relais » : `-1` Aura face au S.O. mais `+2` en `lecture_rue` sur la Mairie ; « Cambouis 2-temps » : +1 cran renfort en 103 SP)*.
@@ -127,14 +130,13 @@ Sur la page gauche de la fiche, chaque PJ expose :
 |  | Portrait |  Lieu d'attache     |  • Tchatche & Baratin   [+2] (+)  |
 |  |   BD     |  Esp:4 | Cor:2 | Én:3|  • Système D            [+3] (+)  |
 |  +----------+  Att.66 · Aura 2    |  • Caves & Esquive      [-1] (+)  |
-|  [Pion]        Moral 66/100 (S.32)|  ...                              |
-|                                   | --------------------------------- |
-|  HISTOIRE & ARC PERSONNEL         |  SPÉCIALITÉ FRISE & ACTIONS       |
-|  Bio sociale + faille de Stress   |  ⚡ Réflexe de rue (+actions matos)|
-|                                   | --------------------------------- |
-|  RELATIONS DANS LA BANDE          |  ÉQUIPEMENT (3 emplacements)      |
-|  • Karim [Soudés] · Manu [Tension]|  [Look] [Outil] [Fétiche] (+Coffre)|
-|                                   |  TRAITS : • Sang-froid du Quai Y  |
+|  [Pion]        Moral 66/100 (S.32)|  ⚡ Réflexe de rue (+actions matos)|
+|  (tête+haut+bas)                  | --------------------------------- |
+|  HISTOIRE & ARC PERSONNEL         |  ÉQUIPEMENT (4 emplacements)      |
+|  Bio sociale + faille de Stress   |  [Haut] [Bas] [Outil] [Fétiche]   |
+|                                   |  (+Coffre du Box-Garage)          |
+|  RELATIONS DANS LA BANDE          |  TRAITS : • Sang-froid du Quai Y  |
+|  • Karim [Soudés] · Manu [Tension]|                                   |
 +-----------------------------------+-----------------------------------+
 ```
 
@@ -167,13 +169,13 @@ Les fiches PJ pilotent directement les actions incertaines en dialogue et sur la
 
 ---
 
-## 7. Contrat de Données Cible pour l'Implémentation (`v0.5.0` → `v0.5.1`)
+## 7. Contrat de Données (`v0.7.0`)
 
-1. **`game/data/characters.json` & `player_profiles.json`** *(rétrocompatible)* :
-   * `"age"`, `"home_location"`, `"bio"`, `"characteristics": {"esprit": 3, "corps": 3, "energie": 4}`, `"skills": {...}`, `"default_equipment": {"look": "", "tool": "", "fetish": ""}` et `"relations": {...}`.
+1. **`game/data/characters.json` & `player_profiles.json`** :
+   * `"age"`, `"home_location"`, `"bio"`, `"characteristics": {"esprit": 3, "corps": 3, "energie": 4}`, `"skills": {...}`, `"appearance": {"head": ..., "default_top": ..., "default_bottom": ...}`, `"default_equipment": {"look_top": ..., "look_bottom": ..., "tool": ..., "fetish": ...}` et `"relations": {...}`. Les portraits BD `1024×1024` sont conservés sur `"portrait"`.
 2. **`game/data/equipment.json`** :
-   * Catalogue Data-Driven des objets (`id`, `slot` `"look"|"tool"|"fetish"`, `name`, `desc`, `stat_mods`, `skill_mods`, `unlocks_skills`, `unlocks_actions`).
-3. **`game/data/dialogues.json` & `timeline_encounters.json`** (`v0.5.1`) :
-   * Choix `skill_check` (`skill`, `dc`, `bonus_if_flag/item/action`, `fail_next`, `fail_effects`, `flaw_extra_effects`), condition `require_action`, et difficultés `dc_social` / `dc_pression` sur chaque adversaire.
+   * Catalogue Data-Driven des objets (`id`, `slot` `"look_top"|"look_bottom"|"tool"|"fetish"`, `sprite` pour les vêtements modulaires `256×526`, `name`, `desc`, `stat_mods`, `skill_mods`, `unlocks_skills`, `unlocks_actions`).
+3. **`game/data/dialogues.json` & `timeline_encounters.json`** :
+   * Choix `skill_check` (`skill`, `dc`, `bonus_if_flag/item/action`, `fail_next`, `fail_effects`, `flaw_extra_effects`), condition `require_action`, et champ `"appearance"` (`head`, `top`, `bottom`) sur chaque adversaire de `timeline_encounters.json` pour affichage en vrai sprite isométrique `256×526`.
 4. **`GameState` & `SaveManager`** :
-   * Stocker par membre dans `member_progression[cid]` : `xp`, `skills` modifiés, `equipment` équipé, `traits` et `box_stash` (coffre partagé du Box-Garage), sérialisés dans `slot_1..3.json`.
+   * Stocker par membre dans `member_progression[cid]` : `xp`, `skills` modifiés, `equipment` équipé (4 emplacements), `traits` et `box_stash` (coffre partagé du Box-Garage), sérialisés dans `slot_1..3.json`. `GameState.get_character_pawn_texture(cid)` pilote l'assemblage temps réel vers `[F]`, les intérieurs N4 et la grille de combat.

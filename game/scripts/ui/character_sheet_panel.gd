@@ -3,7 +3,7 @@ extends Control
 
 signal closed
 
-const CharacterSheetPanelSlotOrder: Array[String] = ["look", "tool", "fetish"]
+const CharacterSheetPanelSlotOrder: Array[String] = ["look_top", "look_bottom", "tool", "fetish"]
 
 var _active_char_id: String = "leader"
 var _panel: PanelContainer = null
@@ -163,7 +163,7 @@ func _build_ui() -> void:
 	vis_h.add_child(_portrait_tex)
 
 	_pawn_tex = TextureRect.new()
-	_pawn_tex.custom_minimum_size = Vector2(66, 104)
+	_pawn_tex.custom_minimum_size = Vector2(78, 138)
 	_pawn_tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_pawn_tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	vis_h.add_child(_pawn_tex)
@@ -258,7 +258,7 @@ func _build_ui() -> void:
 	right_v.add_child(HSeparator.new())
 
 	var l_eq_t: Label = Label.new()
-	l_eq_t.text = "ÉQUIPEMENT DU PJ (3 Emplacements : Look / Outil / Fétiche)"
+	l_eq_t.text = "ÉQUIPEMENT DU PJ (4 Emplacements : Haut / Bas / Outil / Fétiche)"
 	l_eq_t.add_theme_font_size_override("font_size", 11)
 	l_eq_t.add_theme_color_override("font_color", Color(0.95, 0.55, 0.16))
 	right_v.add_child(l_eq_t)
@@ -307,7 +307,7 @@ func refresh() -> void:
 	_lbl_xp.text = "XP dispo : %d" % xp_avail
 
 	_portrait_tex.texture = _load_texture_safe(str(cdef.get("portrait", "")))
-	_pawn_tex.texture = _load_texture_safe(str(cdef.get("pawn", "")))
+	_pawn_tex.texture = GameState.get_character_pawn_texture(_active_char_id)
 
 	var home_id: String = str(cdef.get("home_location", "box_garage"))
 	var home_name: String = str(DataLoader.get_location(home_id).get("name", home_id))
@@ -507,7 +507,7 @@ func _rebuild_equipment(prog: Dictionary) -> void:
 		c.queue_free()
 	var eq_var: Variant = prog.get("equipment", {})
 	var eq_d: Dictionary = eq_var as Dictionary if eq_var is Dictionary else {}
-	var slot_labels: Dictionary = {"look": "Look", "tool": "Outil", "fetish": "Fétiche"}
+	var slot_labels: Dictionary = {"look_top": "Haut", "look_bottom": "Bas", "tool": "Outil", "fetish": "Fétiche"}
 	for sl in CharacterSheetPanelSlotOrder:
 		var iid: String = str(eq_d.get(sl, ""))
 		var row: HBoxContainer = HBoxContainer.new()
@@ -547,7 +547,7 @@ func _rebuild_stash() -> void:
 		l_emp.add_theme_color_override("font_color", Color(0.62, 0.64, 0.70))
 		_stash_vbox.add_child(l_emp)
 		return
-	var slot_labels: Dictionary = {"look": "Look", "tool": "Outil", "fetish": "Fétiche"}
+	var slot_labels: Dictionary = {"look_top": "Haut", "look_bottom": "Bas", "tool": "Outil", "fetish": "Fétiche"}
 	for iid in GameState.box_stash:
 		var idef: Dictionary = DataLoader.get_equipment_def(iid)
 		if idef.is_empty():

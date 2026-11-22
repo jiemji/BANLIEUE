@@ -51,19 +51,23 @@ func _ready() -> void:
 	_name_label.add_theme_color_override("font_color", Color(0.98, 0.96, 0.92))
 	_name_panel.add_child(_name_label)
 
+## Configure le sprite RGBA complet ou assemblé du pion, son cartel et le dimensionnement du contour shader 2 px.
 func setup_character(tex: Texture2D, short_name: String, char_color: Color, target_h: float) -> void:
+	var was_standee: bool = _is_standee
+	var tex_changed: bool = (_body_sprite.texture != tex) or not is_equal_approx(_target_h, target_h)
 	_is_standee = false
 	_standee_portrait_tex = null
 	_body_sprite.visible = true
 	_shadow_sprite.visible = true
 	_target_h = target_h
 	_char_color = char_color
-	_name_label.text = short_name
-	var pw: float = maxf(60.0, float(short_name.length()) * 7.2 + 14.0)
-	_name_panel.size = Vector2(pw, 19.0)
-	_name_panel.position = Vector2(-pw * 0.5, -target_h - 24.0)
+	if _name_label.text != short_name:
+		_name_label.text = short_name
+		var pw: float = maxf(60.0, float(short_name.length()) * 7.2 + 14.0)
+		_name_panel.size = Vector2(pw, 19.0)
+		_name_panel.position = Vector2(-pw * 0.5, -target_h - 24.0)
 
-	if tex != null:
+	if tex != null and (was_standee or tex_changed):
 		_tex_size = tex.get_size()
 		_shadow_sprite.texture = tex
 		_body_sprite.texture = tex
@@ -75,7 +79,9 @@ func setup_character(tex: Texture2D, short_name: String, char_color: Color, targ
 		var s: float = target_h / char_px_h
 		_body_sprite.scale = Vector2(s, s)
 		_body_mat.set_shader_parameter("render_size", Vector2(_tex_size.x * s, _tex_size.y * s))
-	queue_redraw()
+		queue_redraw()
+	elif was_standee:
+		queue_redraw()
 
 ## Configure un pion standee BD en pied stylisé pour les PNJ disposant d'un portrait sans sprite détouré.
 func setup_standee_character(portrait_tex: Texture2D, short_name: String, char_color: Color, target_h: float) -> void:

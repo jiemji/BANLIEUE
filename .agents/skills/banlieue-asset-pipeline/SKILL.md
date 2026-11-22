@@ -25,16 +25,24 @@ description: >-
 3. **Post-traitement** :
    `python ".agents/skills/banlieue-asset-pipeline/scripts/process_banlieue_assets.py" --mode portrait --src "<raw>" --dst "game/assets/portraits/<id>.png"`
 
-### B. Sprite Personnage en Pied RGBA (`526 px` paddé) → `game/assets/pawns/<id>_pawn.png`
-1. **Référence stricte obligatoire** : passer `game/assets/portraits/<id>.png` à `image-generator` (même visage, coupe de cheveux et haut de vêtement).
+### B. Pions Modulaires 3 Parties (`256×526` RGBA) → `game/assets/modular/{heads,tops,bottoms}/`
+> **Portraits BD vs Pions modulaires** : les **portraits BD `1024×1024`** restent conservés pour les dialogues, la frise et les fiches. L'assemblage en 3 calques (`head` + `top` + `bottom`) sert à la **fiche d'inventaire `[F]`**, à l'aperçu Nouvelle Partie et à la **représentation en pied des PJ et PNJ sur la grille intérieure ou de combat**.
+
+1. **Référence stricte de pose & proportions** : passer `game/assets/pawns/leader_pawn.png` (et le portrait du PNJ s'il existe) à `image-generator`.
 2. **Brief de génération** :
-   * Corps entier debout de la tête aux chaussures avec marge généreuse sur les 4 côtés, angle **3/4 face avec légère plongée** cohérente avec un diorama isométrique.
-   * **Contour d'encre noire fermé tout autour de la silhouette**, **SANS bordure blanche/crème**, **SANS socle/support gris sous les pieds**, **SANS ombre portée au sol**, **SANS décor**.
-   * Isolé centré sur un **fond 100 % plat, uniforme, uni magenta pur (`#FF00FF`)**.
-3. **Post-traitement & détourage RGBA** :
-   `python ".agents/skills/banlieue-asset-pipeline/scripts/process_banlieue_assets.py" --mode clean_pawn --src "<raw>" --dst "game/assets/pawns/<id>_pawn.png"`
-   *(Ajouter `--strip-standee` uniquement si une image brute contient encore un socle gris et une bordure crème.)*
-   Produit une texture RGBA **`500 px` personnage + `16 px` marge haut/côtés + `10 px` marge bas = `526 px`**.
+   * Corps entier debout de la tête aux chaussures, pose canonique identique à `leader_pawn.png` (angle **3/4 face légère plongée**, bras le long du corps légèrement écartés des hanches, proportions tête/buste/jambes verrouillées).
+   * **Contour d'encre noire fermé**, **SANS bordure blanche/crème**, **SANS socle gris sous les pieds**, **SANS ombre portée au sol**, **SANS décor**.
+   * Isolé centré sur **fond plat uniforme `#FF00FF`**.
+3. **Post-traitement & découpe canonique `256×526`** :
+   * Détourage d'abord : `python ".agents/skills/banlieue-asset-pipeline/scripts/process_banlieue_assets.py" --mode clean_pawn --src "<raw>" --dst "<clean_526.png>"`
+   * Découpe en 3 calques alignés sur **`X = 128`** et **`chin_y = 101`** :
+     `python ".agents/skills/banlieue-asset-pipeline/scripts/process_banlieue_assets.py" --mode split_pawn --src "<clean_526.png>" --head-dst "game/assets/modular/heads/<id>.png" --top-dst "game/assets/modular/tops/<top_id>.png" --bottom-dst "game/assets/modular/bottoms/<bot_id>.png"`
+   * Découpe en lot des 12 pions de référence : `--mode split_all_pawns` ; planche-contact mix & match : `--mode preview_modular --dst "<preview.png>"`.
+4. **Conventions des 3 calques `256×526` RGBA** :
+   * `heads/<id>.png` : visage, cheveux (dont mèches latérales) + colonne cou descendant jusqu'à `y ≈ 136`.
+   * `tops/<id>.png` : col/épaules/buste jusqu'à la taille (`y ≈ 265`) + **les deux bras et mains** (`y ≈ 326`), avec l'ouverture de peau du cou vide dans le V du col (sans cacher cols, écharpes ni casques).
+   * `bottoms/<id>.png` : jambes + hanches + chaussures (`y ≈ 252..516`), sans avant-bras sur les cuisses, prêt à recevoir n'importe quel haut par-dessus.
+   * Assemblage runtime : `DataLoader.assemble_modular_pawn(head, top, bottom)` compose les 4 passes en une seule `ImageTexture` `256×526` mise en cache pour que `pawn_outline.gdshader` trace **un contour `2 px` continu sans couture interne** et une **ombre `4h` unique**.
 
 ### C. Décor Isométrique 2:1 (`4:3`, `1200×896`) → `game/assets/locations/<loc_id>.png`
 1. **Référence stricte obligatoire** : `game/assets/locations/box_garage.png`.
@@ -53,6 +61,6 @@ description: >-
 * **Ombre silhouette orientée `4h` (`+30°`)** : projetée automatiquement par `pawn_actor.gd` depuis la texture RGBA ; s'oriente dynamiquement si le lieu déclare des sources dans `"lights": [{"grid_x": ..., "grid_y": ..., "radius": 320, "strength": 1.0}]` de `game/data/locations.json`.
 * **Contrôle obligatoire avant livraison** :
   1. Inspecter chaque PNG final avec `read_file` (vérifier absence de halo, bottes/chaussures intactes, zéro speckle flottant).
-  2. Câbler `"portrait"` / `"pawn"` dans `game/data/characters.json` ou `"backdrop"` / `"hotspots"` / `"lights"` dans `game/data/locations.json`.
+  2. Câbler les pièces dans `game/data/characters.json` (`"appearance"` + `"default_equipment"`), `game/data/equipment.json` (`"slot": "look_top" | "look_bottom"` + `"sprite"`), `game/data/timeline_encounters.json` (`"appearance"` des ennemis) ou `"backdrop"` / `"hotspots"` / `"lights"` dans les JSON de `game/data/maps/interiors/`. Conserver `"portrait"` intact (`1024×1024`).
   3. Lancer :
      `python ".agents/skills/banlieue-asset-pipeline/scripts/process_banlieue_assets.py" --mode validate --game-root "e:\JDR\BANLIEUE\game"`

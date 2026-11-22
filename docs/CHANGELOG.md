@@ -2,6 +2,12 @@
 
 Toutes les évolutions notables du projet Godot 4 et de ses documents de conception sont consignées ici.
 
+## [0.7.0] - 2026-11-22
+### Personnages Modulaires en 3 Parties (`tête / haut+bras / bas+pieds`) & Équipement `Haut / Bas`
+- **Pipeline Assets 2D Modulaire (`process_banlieue_assets.py`, `SKILL.md`, `banlieue-asset-artist.md`)** : Découpe canonique `256×526` RGBA en 3 calques empilables (`heads/`, `tops/`, `bottoms/`) à partir des 12 pions existants plus 6 nouveaux sprites générés sur gabarit `leader_pawn.png` pour les PNJ et objets du coffre (`concierge`, `so_agent`, `cousin_so`, `skin_nerveux`, `perfecto_cloute`, `parka_anonyme`, `treillis_rangers`).
+- **4 Emplacements d'Équipement (`equipment.json`, `characters.json`, `player_profiles.json`, `timeline_encounters.json`, `tour_b.json`)** : Scission de l'ancien slot `look` en **`look_top` (Haut — 14 blousons/vestes/parkas)** et **`look_bottom` (Bas — 13 pantalons/jeans/chaussures à bonus cohérents)** aux côtés de `tool` et `fetish` ; câblage `"appearance"` sur les 9 personnages (incluant Mme Deschamps déployée dans `tour_b.json`), les 6 profils joueur et les 3 ennemis de combat.
+- **Assemblage Runtime Unifié (`data_loader.gd`, `game_state.gd`, `pawn_actor.gd`, `iso_district_view.gd`, `character_sheet_panel.gd`, `new_game_panel.gd`, `tension_timeline.gd`)** : Composition en 4 passes sur une seule `ImageTexture` `256×526` mise en cache (préservant un contour shader `2 px` continu sans couture interne ni ombre coupée), rafraîchissement temps réel du Carnet `[F]`, de Nouvelle Partie et des grilles N4/combat (remplaçant les standees ennemis par de vrais pions assemblés), tout en conservant intactes les illustrations **portraits BD `1024×1024`** dans les dialogues, la Frise et les en-têtes.
+
 ## [0.6.0] - 2026-11-22
 ### Refonte IHM Combat Tactique Isométrique
 - **Frise Chronologique Haute à Cartes Verticales (`timeline_panel.gd`)** : Déplacement de la frise en bandeau haut (`y = 8..126`) avec cartes rectangulaires verticales (`82×104 px`) centrées sur l'essentiel (portrait, nom, jauge Moral/Résolution).

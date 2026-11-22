@@ -13,6 +13,11 @@
           "name": "Skin du Bourg",
           "role": "Agitateur (Aura)",
           "portrait": "res://assets/portraits/so_agent.png",
+          "appearance": {
+            "head": "res://assets/modular/heads/skin_nerveux.png",
+            "top": "res://assets/modular/tops/harrington_skin.png",
+            "bottom": "res://assets/modular/bottoms/treillis_rangers.png"
+          },
           "resolve_max": 3,
           "initial_tick": 1,
           "speed": 2,
@@ -28,6 +33,11 @@
           "name": "Cousin S.O.",
           "role": "Milice municipale",
           "portrait": "res://assets/portraits/so_agent.png",
+          "appearance": {
+            "head": "res://assets/modular/heads/cousin_so.png",
+            "top": "res://assets/modular/tops/coupe_vent_lycee.png",
+            "bottom": "res://assets/modular/bottoms/pantalon_so.png"
+          },
           "resolve_max": 4,
           "initial_tick": 2,
           "speed": 3,
@@ -43,6 +53,11 @@
           "name": "Chef S.O. Vétéran",
           "role": "Gros bras aguerri",
           "portrait": "res://assets/portraits/so_agent.png",
+          "appearance": {
+            "head": "res://assets/modular/heads/so_agent.png",
+            "top": "res://assets/modular/tops/blouson_so.png",
+            "bottom": "res://assets/modular/bottoms/treillis_rangers.png"
+          },
           "resolve_max": 5,
           "initial_tick": 3,
           "speed": 3,

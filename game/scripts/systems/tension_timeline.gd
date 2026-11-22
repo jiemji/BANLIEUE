@@ -1659,7 +1659,7 @@ func get_entity_sheet_data(kind: String, entity_id: String) -> Dictionary:
 		var eq_var: Variant = prog.get("equipment", {})
 		if eq_var is Dictionary:
 			var eq_d: Dictionary = eq_var as Dictionary
-			for sl in ["look", "tool", "fetish"]:
+			for sl in ["look_top", "look_bottom", "tool", "fetish"]:
 				var iid: String = str(eq_d.get(sl, ""))
 				if iid != "":
 					var idef: Dictionary = DataLoader.get_equipment_def(iid)

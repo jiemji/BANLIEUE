@@ -6,6 +6,8 @@ signal active_group_changed(group_id: int)
 signal zoom_changed(level: int, map_id: String)
 signal log_added(entry: String)
 
+const EQUIP_SLOTS: Array[String] = ["look_top", "look_bottom", "tool", "fetish"]
+
 var phase: String = "day" # "day", "twilight", "night"
 var clock_minutes: int = 17 * 60 + 30
 var francs: int = 25
@@ -52,7 +54,7 @@ func reset_new_slice(profile: Dictionary = {}) -> void:
 	squad_members.clear()
 	member_states.clear()
 	member_progression.clear()
-	box_stash = ["perfecto_cloute", "parka_anonyme", "cassettes_tdk"]
+	box_stash = ["perfecto_cloute", "parka_anonyme", "treillis_rangers", "pantalon_velours_ville", "cassettes_tdk"]
 	forced_roll_queue.clear()
 	active_group_id = 0
 	current_station_idx = 0
@@ -82,7 +84,9 @@ func reset_new_slice(profile: Dictionary = {}) -> void:
 		"archetype_id": chosen_arch_id,
 		"portrait_id": chosen_port_id,
 		"portrait_path": str(port_def.get("portrait", str(profile.get("portrait_path", "")))),
-		"pawn_path": str(port_def.get("pawn", str(profile.get("pawn_path", ""))))
+		"head_path": str(port_def.get("head", str(profile.get("head_path", "")))),
+		"default_top_path": str(port_def.get("default_top", str(profile.get("default_top_path", "")))),
+		"default_bottom_path": str(port_def.get("default_bottom", str(profile.get("default_bottom_path", ""))))
 	}
 	DataLoader.apply_leader_profile(leader_profile)
 
@@ -234,11 +238,11 @@ func _ensure_progression_entry(char_id: String, initial_xp: int = 0) -> void:
 		var skd: Dictionary = raw_sk as Dictionary
 		for sk_k in skd.keys():
 			base_skills[str(sk_k)] = int(skd.get(sk_k, 0))
-	var base_eq: Dictionary = {"look": "", "tool": "", "fetish": ""}
+	var base_eq: Dictionary = {"look_top": "", "look_bottom": "", "tool": "", "fetish": ""}
 	var raw_eq: Variant = cdef.get("default_equipment", {})
 	if raw_eq is Dictionary:
 		var eqd: Dictionary = raw_eq as Dictionary
-		for sl_k in ["look", "tool", "fetish"]:
+		for sl_k in EQUIP_SLOTS:
 			base_eq[sl_k] = str(eqd.get(sl_k, ""))
 	var empty_traits: Array[String] = []
 	member_progression[char_id] = {
@@ -263,11 +267,47 @@ func _get_equipped_item_ids(char_id: String) -> Array[String]:
 	var eq_var: Variant = prog.get("equipment", {})
 	if eq_var is Dictionary:
 		var eq_d: Dictionary = eq_var as Dictionary
-		for slot_k in ["look", "tool", "fetish"]:
+		for slot_k in EQUIP_SLOTS:
 			var iid: String = str(eq_d.get(slot_k, ""))
 			if iid != "":
 				res.append(iid)
 	return res
+
+## Retourne les chemins modulaires effectifs (head, top, bottom) d'un personnage selon son apparence et ses vêtements équipés.
+func get_character_modular_paths(char_id: String) -> Dictionary:
+	var cdef: Dictionary = DataLoader.get_character(char_id)
+	var app_var: Variant = cdef.get("appearance", {})
+	var app: Dictionary = app_var as Dictionary if app_var is Dictionary else {}
+	var head_p: String = str(app.get("head", ""))
+	var top_p: String = str(app.get("default_top", ""))
+	var bot_p: String = str(app.get("default_bottom", ""))
+
+	if squad_members.has(char_id) or member_progression.has(char_id):
+		var prog: Dictionary = get_member_progression(char_id)
+		var eq_var: Variant = prog.get("equipment", {})
+		if eq_var is Dictionary:
+			var eq_d: Dictionary = eq_var as Dictionary
+			var top_id: String = str(eq_d.get("look_top", ""))
+			if top_id != "":
+				var top_sp: String = str(DataLoader.get_equipment_def(top_id).get("sprite", ""))
+				if top_sp != "":
+					top_p = top_sp
+			var bot_id: String = str(eq_d.get("look_bottom", ""))
+			if bot_id != "":
+				var bot_sp: String = str(DataLoader.get_equipment_def(bot_id).get("sprite", ""))
+				if bot_sp != "":
+					bot_p = bot_sp
+
+	return {"head": head_p, "top": top_p, "bottom": bot_p}
+
+## Retourne le sprite en pied 256x526 assemblé pour ce PJ ou PNJ.
+func get_character_pawn_texture(char_id: String) -> Texture2D:
+	var mp: Dictionary = get_character_modular_paths(char_id)
+	return DataLoader.assemble_modular_pawn(
+		str(mp.get("head", "")),
+		str(mp.get("top", "")),
+		str(mp.get("bottom", ""))
+	)
 
 func _sum_equipment_stat_mod(char_id: String, stat_key: String) -> int:
 	var total: int = 0
@@ -685,11 +725,11 @@ func equip_item(char_id: String, item_id: String) -> bool:
 	if idef.is_empty() or not box_stash.has(item_id):
 		return false
 	var slot_name: String = str(idef.get("slot", ""))
-	if slot_name != "look" and slot_name != "tool" and slot_name != "fetish":
+	if not EQUIP_SLOTS.has(slot_name):
 		return false
 	var prog: Dictionary = get_member_progression(char_id)
 	var eq_var: Variant = prog.get("equipment", {})
-	var eq_d: Dictionary = (eq_var as Dictionary).duplicate(true) if eq_var is Dictionary else {"look": "", "tool": "", "fetish": ""}
+	var eq_d: Dictionary = (eq_var as Dictionary).duplicate(true) if eq_var is Dictionary else {"look_top": "", "look_bottom": "", "tool": "", "fetish": ""}
 	var idx: int = box_stash.find(item_id)
 	if idx >= 0:
 		box_stash.remove_at(idx)
@@ -955,7 +995,7 @@ func load_from_save_dict(profile_data: Dictionary, state_data: Dictionary) -> vo
 			for iv in (bs_var as Array):
 				box_stash.append(str(iv))
 	else:
-		box_stash = ["perfecto_cloute", "parka_anonyme", "cassettes_tdk"]
+		box_stash = ["perfecto_cloute", "parka_anonyme", "treillis_rangers", "pantalon_velours_ville", "cassettes_tdk"]
 	forced_roll_queue.clear()
 
 	active_group_id = int(state_data.get("active_group_id", 0))

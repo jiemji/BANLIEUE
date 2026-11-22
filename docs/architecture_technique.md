@@ -1,6 +1,6 @@
 # *Banlieue* — Architecture Technique
 
-> **Version courante : 0.6.0** — Mise à jour : 2026-11-22
+> **Version courante : 0.7.0** — Mise à jour : 2026-11-22
 
 *Spécification technique de référence et socle des Jalons 0 & 1 (Option C & D + UX Frise Combat v0.4) — Phase Technique (🛠️ Léo & 🎯 Agent Combat UX).*
 
@@ -17,7 +17,7 @@
 * **Moteur & Langage** : **Godot Engine 4** (`config_version=5`, renderer `GL Compatibility` pour compatibilité universelle 4.4–4.7 et démarrage immédiat sans dépendance lourde) + **GDScript 2.0**.
 * **Architecture Data-Driven (Option C)** : Séparation stricte entre le code moteur (`scripts/`), les scènes (`scenes/`), les shaders (`shaders/`) et l'ensemble des données narratives et cartographiques modulaires au format **JSON** (`data/world/` + `data/maps/interiors/`). Permet d'étendre le 93, d'ajouter de nouvelles communes et d'injecter le futur **Chantier D (Scénario)** sans modifier le moteur.
 * **Rendu DA & Son du Jalon 0 / Jalon 1** :
-  * *Visuel* : Décors isométriques BD illustrés (`game/assets/locations/`) ou greybox vectoriel de secours + **sprites personnages en pied RGBA détourés sans socle (`526 px` paddés)** animés par `PawnActor` (`scripts/world/pawn_actor.gd`) avec **shader contour dynamique `2 px`** (`shaders/pawn_outline.gdshader` : crème repos, orange déplacement, jaune dialogue, bleu guet, rouge Stress) et **ombre silhouette projetée vers 4h (`+30°`)** prête pour des `lights` dynamiques + shader post-process `film_1982_post.gdshader` (grain 16mm, bascule Jour gouache délavée ↔ Nuit N&B argentique préservant sélectivement les **4 couleurs-signaux** : orange sodium, rouge fanzine, bleu électrique, halo pâle de la Poudrerie).
+  * *Visuel* : Décors isométriques BD illustrés (`game/assets/locations/`) ou greybox vectoriel de secours + **sprites modulaires en pied `256×526` RGBA assemblés en direct (`heads` + `tops` + `bottoms`)** par `DataLoader.assemble_modular_pawn()` et animés par `PawnActor` (`scripts/world/pawn_actor.gd`) pour les PJ et PNJ (dont combat isométrique, avec **shader contour dynamique `2 px`** sans couture interne et **ombre silhouette orientée `4h`**) + shader post-process `film_1982_post.gdshader` (grain 16mm, bascule Jour gouache délavée ↔ Nuit N&B argentique préservant sélectivement les **4 couleurs-signaux** : orange sodium, rouge fanzine, bleu électrique, halo pâle de la Poudrerie). Les portraits BD `1024×1024` restent conservés dans `assets/portraits/`.
   * *Pipeline Assets capitalisé* : Agent dédié persistant [banlieue-asset-artist.md](file:///e:/JDR/BANLIEUE/.agents/agents/banlieue-asset-artist.md) + skill [SKILL.md](file:///e:/JDR/BANLIEUE/.agents/skills/banlieue-asset-pipeline/SKILL.md) + script `process_banlieue_assets.py`.
   * *Audio* : Synthèse procédurale légère en temps réel via `AudioStreamGenerator` (clic mécanique de touche cassette sur la Frise, coup sec d'Interruption hors-tour, grondement grave Boeing au Sas crépusculaire, souffle/zapping FM et impulsion basse Cold Wave nocturne), zéro fichier audio externe requis pour le Jalon 0.
 
@@ -38,13 +38,14 @@ BANLIEUE/
     ├── project.godot                    # Configuration Godot 4.4+ (GL Compatibility) & Autoloads
     ├── icon.svg                         # Icône du projet
     ├── assets/                          # Portraits BD (1024px), sprites en pied RGBA (526px), décors & cartes
-    │   ├── portraits/                   # leader, player_02..06, karim, nadia, ludo, franck, manu, zoe, concierge, so_agent
-    │   ├── pawns/                       # *_pawn.png (RGBA propre sans socle pour contour 2px + ombre 4h)
+    │   ├── portraits/                   # Portraits BD 1024px conservés (leader, player_02..06, karim..so_agent)
+    │   ├── modular/                     # Calques 256×526 RGBA PJ & PNJ assemblés à la volée : heads/, tops/, bottoms/
+    │   ├── pawns/                       # Sprites sources complets de référence (526 px, dont leader_pawn.png)
     │   ├── locations/                   # 9 décors iso 1200×896 (6 Jalon 0 + garage_bananes, squat_kepons, lisiere_poudrerie)
     │   └── maps/                        # Cartes IGN État-Major / RER 1982 (map_idf, map_93, map_cradon)
     ├── data/                            # Cœur Data-Driven 100 % JSON (atlas hiérarchique + systèmes)
-    │   ├── characters.json              # 9 personnages : Compagnons (dont Manu & Zoé) & PNJ (Attitude/Aura, Moral, Stress)
-    │   ├── player_profiles.json         # 4 archétypes sociaux & galerie de 6 portraits/pions libres
+    │   ├── characters.json              # 9 personnages : Compagnons & PNJ (appearance head/default_top/default_bottom, equip 4 slots)
+    │   ├── player_profiles.json         # 4 archétypes sociaux & galerie de 6 portraits/têtes libres
     │   ├── world/                       # Cartes N1–N3 style IGN / RATP 1982
     │   │   ├── idf.json                 # N1 : Île-de-France — map_idf.png (seul le 93 playable)
     │   │   ├── departments/93.json      # N2 : Seine-Saint-Denis — map_93.png (seule Cradon playable)
@@ -60,8 +61,8 @@ BANLIEUE/
     │   │   ├── squat_kepons.json        # 8×8 (backdrop — squat_kepons.png)
     │   │   └── lisiere_poudrerie.json   # 8×8 (backdrop — lisiere_poudrerie.png)
     │   ├── dialogues.json               # 40 nœuds narratifs, Jets de rue (skill_check), conditions (min_skill, require_item, require_action) et effets (XP/Objets/Traits/Recrutement)
-    │   ├── equipment.json               # Catalogue des 10 compétences (-3..+5) et des 24 équipements Look/Outil/Fétiche
-    │   ├── timeline_encounters.json     # Rencontre Gare RER « du Y », ennemis, CRS, Train Fantôme & interruptions
+    │   ├── equipment.json               # Catalogue des 10 compétences (-3..+5) et équipements 4 emplacements (look_top / look_bottom / tool / fetish)
+    │   ├── timeline_encounters.json     # Rencontre Gare RER « du Y », ennemis modulaires 3 parties, CRS, Train Fantôme & interruptions
     │   └── radio_fm.json                # 5 fréquences FM (92.4, 95.8, 98.6, 101.2, 104.7 nuit)
     ├── shaders/
     │   ├── film_1982_post.gdshader      # Grain argentique 16mm, bascule Jour/Nuit 4 couleurs-signaux, tremblement Sas
@@ -101,9 +102,9 @@ BANLIEUE/
 ## 3. Systèmes Cœurs & Flux de Données
 
 ### Autoloads *(Singletons sans `class_name`)*
-1. **`DataLoader`** : Charge la hiérarchie modulaire (`data/world/idf.json` → `departments/*.json` → `cities/*.json` → `maps/interiors/*.json`), les personnages, dialogues, rencontres, stations FM ainsi que `data/player_profiles.json` ; expose les accesseurs typés (`get_region`, `get_department`, `get_city`, `get_interior`, `get_location`, `get_character`, `get_dialogue`, `get_encounter`, `get_portrait_def`, `get_archetype_def`) et `apply_leader_profile()`.
+1. **`DataLoader`** : Charge la hiérarchie modulaire (`data/world/idf.json` → `departments/*.json` → `cities/*.json` → `maps/interiors/*.json`), les personnages, dialogues, rencontres, stations FM ainsi que `data/player_profiles.json` et `equipment.json` ; expose les accesseurs typés (`get_region`, `get_department`, `get_city`, `get_interior`, `get_location`, `get_character`, `get_dialogue`, `get_encounter`, `get_portrait_def`, `get_archetype_def`), `apply_leader_profile()`, ainsi que l'assembleur RGBA 4 passes en cache **`assemble_modular_pawn()`** / `get_appearance_pawn_texture()`.
 2. **`SettingsManager`** : Persiste les préférences utilisateur dans `user://settings.cfg` (`ConfigFile`) — mode fenêtré/plein écran, volume général, coupure du son, ambiance FM, grain 16mm, secousse d'écran et taille de police des dialogues.
-3. **`GameState`** : Source unique de vérité pour l'état de la partie (`has_active_session`, `leader_profile`, `current_zoom_level` `1..4`, `current_region_id`, `current_department_id`, `current_city_id`, `phase` `"day" | "twilight" | "night"`, `clock_minutes`, `francs`, `faveurs`, `notoriete`, `aura_bonus`, `flags`, `clues`, `squad_members`, `member_states`, `member_progression`, `box_stash`, `active_group_id`, `current_station_idx`) et moteur centralisé de **Jets de rue `2d6 + Carac + Comp`** (`preview_street_roll`, `perform_street_roll`) ; expose `to_save_dict()` / `load_from_save_dict()` et émet des signaux découplés (`state_changed`, `phase_changed`, `active_group_changed`, `zoom_changed`, `log_added`).
+3. **`GameState`** : Source unique de vérité pour l'état de la partie (`has_active_session`, `leader_profile`, `current_zoom_level` `1..4`, `current_region_id`, `current_department_id`, `current_city_id`, `phase` `"day" | "twilight" | "night"`, `clock_minutes`, `francs`, `faveurs`, `notoriete`, `aura_bonus`, `flags`, `clues`, `squad_members`, `member_states`, `member_progression`, `box_stash`, `active_group_id`, `current_station_idx`), équipement **4 emplacements (`look_top`, `look_bottom`, `tool`, `fetish`)**, assemblage temps réel **`get_character_modular_paths()` / `get_character_pawn_texture()`**, et moteur centralisé de **Jets de rue `2d6 + Carac + Comp`** (`preview_street_roll`, `perform_street_roll`) ; expose `to_save_dict()` / `load_from_save_dict()` et émet des signaux découplés (`state_changed`, `phase_changed`, `active_group_changed`, `zoom_changed`, `log_added`).
 4. **`AudioRadio`** : Synthétiseur procédural alimenté par `GameState` et `SettingsManager` (tonalité adaptée au changement de phase Jour/Sas/Nuit, lit FM feutré en mode accueil `title_mode` et zapping des 5 fréquences FM).
 5. **`SaveManager`** : Gère les 3 emplacements manuels (`Cassette A`, `Cassette B`, `Cassette C` → `user://saves/slot_1..3.json`, zéro auto-save) avec lecture rapide des métadonnées (`read_slot_meta`), sauvegarde, chargement et suppression.
 
@@ -140,7 +141,7 @@ BANLIEUE/
 
 ### Structure des Menus, Persistance & Création de Partie *(livré en v0.2.0 / v0.2.1)*
 Conformément à la spécification validée dans [structure_menus_et_ecrans.md](file:///e:/JDR/BANLIEUE/docs/structure_menus_et_ecrans.md), la couche accueil, sauvegarde, options et sélection du protagoniste s'appuie sur les modules suivants :
-* **Données & Assets** : `data/player_profiles.json` (4 archétypes sociaux dont la spécialité Frise `sang_froid` câblée dans `tension_timeline.gd` + galerie complète et opérationnelle de **6 portraits BD** et **6 pions en pied RGBA 526 px assortis** `player_01..06`, plus repli automatique dans `DataLoader.apply_leader_profile()` si un futur profil manque sur disque).
+* **Données & Assets** : `data/player_profiles.json` (4 archétypes sociaux dont la spécialité Frise `sang_froid` câblée dans `tension_timeline.gd` + galerie complète et opérationnelle de **6 profils visuels `player_01..06`** associant chacun un **portrait BD `1024 px` conservé** et sa tête + tenue modulaire **`256×526` RGBA** dans `assets/modular/`).
 * **Persistance *(Autoloads)*** : `scripts/autoload/save_manager.gd` (3 emplacements manuels `user://saves/slot_1.json`..`slot_3.json`, zéro auto-save) et `scripts/autoload/settings_manager.gd` (`user://settings.cfg` pour affichage, audio/FM, grain 16mm, secousse écran et taille de texte).
 * **Écrans UI** : `scripts/ui/title_menu_panel.gd` (menu unifié Accueil/Pause sur fond vivant du Box-Garage piloté par `AppState` dans `main.gd`), `scripts/ui/save_load_panel.gd`, `scripts/ui/options_panel.gd` et `scripts/ui/new_game_panel.gd`.
 

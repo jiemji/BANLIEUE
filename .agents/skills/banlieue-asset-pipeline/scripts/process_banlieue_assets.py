@@ -5,7 +5,64 @@ import re
 import sys
 from collections import deque
 import numpy as np
-from PIL import Image, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter
+
+
+MODULAR_W = 256
+MODULAR_H = 526
+MODULAR_CX = 128
+CANON_CHIN_Y = 101
+
+EXISTING_PAWN_SPECS: dict[str, dict] = {
+    "leader_pawn.png": {
+        "head": "leader", "top": "bleu_atelier", "bottom": "jean_atelier_boots",
+        "chin_y": 103, "collar_y": 124, "waist_y": 265,
+    },
+    "player_02_pawn.png": {
+        "head": "player_02", "top": "parka_dalle", "bottom": "jean_revers_baskets",
+        "chin_y": 99, "collar_y": 126, "waist_y": 262, "flank_coat_y": 304, "side_hair_max_y": 108,
+    },
+    "player_03_pawn.png": {
+        "head": "player_03", "top": "blouson_jean", "bottom": "pantalon_velours_ville",
+        "chin_y": 95, "collar_y": 118, "waist_y": 262, "side_hair_max_y": 106,
+    },
+    "player_04_pawn.png": {
+        "head": "player_04", "top": "bomber_bordeaux", "bottom": "pantalon_toile_baskets",
+        "chin_y": 96, "collar_y": 116, "waist_y": 262,
+    },
+    "player_05_pawn.png": {
+        "head": "player_05", "top": "velours_ocre", "bottom": "jean_brut_bottines",
+        "chin_y": 100, "collar_y": 128, "waist_y": 266, "side_hair_max_y": 112, "strip_light_collar": True,
+    },
+    "player_06_pawn.png": {
+        "head": "player_06", "top": "coupe_vent_lycee", "bottom": "jean_delave_baskets",
+        "chin_y": 100, "collar_y": 118, "waist_y": 262, "waist_bot_y": 265,
+    },
+    "karim_pawn.png": {
+        "head": "karim", "top": "veste_survet", "bottom": "bas_survet_baskets",
+        "chin_y": 102, "collar_y": 124, "waist_y": 266, "waist_bot_y": 270,
+    },
+    "nadia_pawn.png": {
+        "head": "nadia", "top": "duffle_coat", "bottom": "jean_noir_rangers",
+        "chin_y": 101, "collar_y": 110, "waist_y": 262, "waist_bot_y": 265, "side_hair_max_y": 112, "strip_orange_phones": True,
+    },
+    "ludo_pawn.png": {
+        "head": "ludo", "top": "blouson_college", "bottom": "jean_baskets_toile",
+        "chin_y": 111, "collar_y": 130, "waist_y": 274, "waist_bot_y": 276, "dy_top": -6, "hands_in_pockets": True,
+    },
+    "franck_pawn.png": {
+        "head": "franck", "top": "veste_citroen", "bottom": "pantalon_chantier",
+        "chin_y": 101, "collar_y": 102, "waist_y": 271, "waist_bot_y": 275,
+    },
+    "manu_pawn.png": {
+        "head": "manu", "top": "perfecto_manu", "bottom": "jean_revers_santiags",
+        "chin_y": 103, "collar_y": 123, "waist_y": 265,
+    },
+    "zoe_pawn.png": {
+        "head": "zoe", "top": "cuir_kepon", "bottom": "pantalon_tartan_docs",
+        "chin_y": 103, "collar_y": 124, "waist_y": 258, "dy_top": -2, "hip_cx": 101, "hands_in_pockets": True,
+    },
+}
 
 
 def convert_to_png(src_path: str, dst_path: str, mode_label: str = "ASSET") -> None:
@@ -224,6 +281,487 @@ def make_preview(backdrop_path: str, pawn_paths: list[str], out_path: str, targe
     print(f"PREVIEW SAVED: {out_path}")
 
 
+def _shift_to_canonical(src_arr: np.ndarray, dx: int, dy: int) -> np.ndarray:
+    """Replace un tableau RGBA source sur le canevas canonique 256x526 après décalage (dx, dy)."""
+    canvas = np.zeros((MODULAR_H, MODULAR_W, 4), dtype=np.uint8)
+    sh, sw, _ = src_arr.shape
+    for sy in range(sh):
+        ty = sy + dy
+        if 0 <= ty < MODULAR_H:
+            x0_s = max(0, -dx)
+            x1_s = min(sw, MODULAR_W - dx)
+            if x1_s > x0_s:
+                canvas[ty, x0_s + dx:x1_s + dx] = src_arr[sy, x0_s:x1_s]
+    return canvas
+
+
+def _measure_landmarks(arr: np.ndarray) -> dict[str, int]:
+    """Détecte les repères anatomiques (hip_cx, neck_cx, neck_y, chin_y) d'un pion RGBA."""
+    a = arr[:, :, 3] > 30
+    r = arr[:, :, 0].astype(np.int32)
+    g = arr[:, :, 1].astype(np.int32)
+    b = arr[:, :, 2].astype(np.int32)
+    luma = 0.299 * r + 0.587 * g + 0.114 * b
+
+    hip_xs = np.where(a[330:356])[1]
+    hip_cx = int(round((int(hip_xs.min()) + int(hip_xs.max())) / 2.0)) if len(hip_xs) else arr.shape[1] // 2
+
+    best_ny, best_nw = 92, 999
+    for y in range(72, 122):
+        xs = np.where(a[y])[0]
+        if len(xs) and (int(xs[-1]) - int(xs[0])) < best_nw:
+            best_nw = int(xs[-1]) - int(xs[0])
+            best_ny = y
+    nxs = np.where(a[best_ny])[0]
+    neck_cx = int(round((int(nxs[0]) + int(nxs[-1])) / 2.0)) if len(nxs) else hip_cx
+
+    chin_y = 101
+    for y in range(max(82, best_ny - 2), min(116, best_ny + 22)):
+        sl = slice(max(0, neck_cx - 5), min(arr.shape[1], neck_cx + 6))
+        if np.any(a[y, sl]) and float(np.median(luma[y, sl])) < 72.0:
+            chin_y = y
+            break
+
+    return {"hip_cx": hip_cx, "neck_cx": neck_cx, "neck_y": best_ny, "chin_y": chin_y}
+
+
+def _skin_mask(arr: np.ndarray) -> np.ndarray:
+    """Construit un masque booléen heuristique des pixels de peau (visage, cou et mains)."""
+    a = arr[:, :, 3] > 30
+    r = arr[:, :, 0].astype(np.int32)
+    g = arr[:, :, 1].astype(np.int32)
+    b = arr[:, :, 2].astype(np.int32)
+    luma = 0.299 * r + 0.587 * g + 0.114 * b
+    return a & (r > 95) & (r > g + 5) & (g >= b - 2) & ((r - b) > 12) & (luma > 68)
+
+
+def _keep_main_component_near(mask: np.ndarray, seed_y: int, seed_x: int) -> np.ndarray:
+    """Conserve uniquement la composante connexe la plus proche du point (seed_y, seed_x)."""
+    ys, xs = np.where(mask)
+    if len(ys) == 0:
+        return mask
+    d2 = (ys - seed_y) ** 2 + (xs - seed_x) ** 2
+    i0 = int(np.argmin(d2))
+    seed = np.zeros_like(mask, dtype=bool)
+    seed[ys[i0], xs[i0]] = True
+    return _flood_from_mask(seed, mask)
+
+
+def split_pawn_to_modular(
+    src_path: str,
+    head_dst: str,
+    top_dst: str,
+    bottom_dst: str,
+    cfg: dict | None = None,
+) -> None:
+    """Découpe un pion 526 px détouré en 3 calques alignés 256x526 RGBA (tête, haut+bras, bas+pieds)."""
+    cfg = cfg or {}
+    im = Image.open(src_path).convert("RGBA")
+    src = np.array(im, dtype=np.uint8)
+    # Nettoyer les petits trous magenta enfermés à l'intérieur du sprite (lacets, interstices bras/jambes)
+    rm, gm, bm = src[:, :, 0].astype(np.int32), src[:, :, 1].astype(np.int32), src[:, :, 2].astype(np.int32)
+    inner_mag = (src[:, :, 3] > 20) & (rm - gm > 28) & (bm - gm > 28) & (np.minimum(rm, bm) > gm + 20)
+    if np.any(inner_mag):
+        src = src.copy()
+        src[inner_mag, 3] = 0
+
+    lm = _measure_landmarks(src)
+
+    hip_cx = int(cfg.get("hip_cx", lm["hip_cx"]))
+    neck_cx = int(cfg.get("neck_cx", lm["neck_cx"]))
+    chin_y = int(cfg.get("chin_y", lm["chin_y"]))
+    collar_y = int(cfg.get("collar_y", 122))
+    waist_y = int(cfg.get("waist_y", 265))
+    dy_top = int(cfg.get("dy_top", 0))
+    waist_bot_y = int(cfg.get("waist_bot_y", waist_y + dy_top))
+    flank_coat_y = int(cfg.get("flank_coat_y", waist_y))
+    side_hair_max_y = int(cfg.get("side_hair_max_y", 101))
+    hands_in_pockets = bool(cfg.get("hands_in_pockets", False))
+    overlap_side = str(cfg.get("arm_overlap_side", "right"))
+
+    dx_head = MODULAR_CX - neck_cx
+    dy_head = max(-14, min(10, CANON_CHIN_Y - chin_y))
+    dx_body = MODULAR_CX - hip_cx
+
+    # --- 1. TÊTE (256x526) ---
+    head_arr = _shift_to_canonical(src, dx_head, dy_head)
+    shifted_collar_y = max(106, min(136, collar_y + dy_head))
+    head_arr[138:, :, 3] = 0
+    for x in range(MODULAR_W):
+        dist_c = abs(x - MODULAR_CX)
+        if dist_c > 38:
+            max_y = 98
+        elif dist_c > 16:
+            max_y = min(side_hair_max_y, 118)
+        else:
+            max_y = min(135, max(108, shifted_collar_y - 1))
+        if max_y + 1 < 138:
+            head_arr[max_y + 1:138, x, 3] = 0
+
+    if cfg.get("strip_light_collar", False):
+        hluma = 0.299 * head_arr[:, :, 0] + 0.587 * head_arr[:, :, 1] + 0.114 * head_arr[:, :, 2]
+        bad_fluff = (np.arange(MODULAR_H)[:, None] >= 100) & (np.abs(np.arange(MODULAR_W)[None, :] - MODULAR_CX) > 14) & (hluma > 118)
+        head_arr[bad_fluff, 3] = 0
+    if cfg.get("strip_orange_phones", False):
+        r_h = head_arr[:, :, 0].astype(np.int32)
+        b_h = head_arr[:, :, 2].astype(np.int32)
+        bad_org = (np.arange(MODULAR_H)[:, None] >= 95) & (np.abs(np.arange(MODULAR_W)[None, :] - MODULAR_CX) > 14) & (r_h > 105) & ((r_h - b_h) > 28)
+        head_arr[bad_org, 3] = 0
+
+    # Étendre proprement la colonne centrale du cou jusqu'à y=136 avec la teinte de peau du menton/cou
+    h_skin = _skin_mask(head_arr)
+    sample_skin = head_arr[max(84, CANON_CHIN_Y - 12):CANON_CHIN_Y + 4, MODULAR_CX - 14:MODULAR_CX + 15]
+    sample_mask = h_skin[max(84, CANON_CHIN_Y - 12):CANON_CHIN_Y + 4, MODULAR_CX - 14:MODULAR_CX + 15]
+    if np.any(sample_mask):
+        skin_rgb = np.median(sample_skin[sample_mask][:, :3], axis=0).astype(np.uint8)
+    else:
+        skin_rgb = np.array([212, 168, 134], dtype=np.uint8)
+    neck_shadow = np.clip(skin_rgb.astype(np.int32) - np.array([28, 30, 26]), 25, 255).astype(np.uint8)
+
+    for y in range(CANON_CHIN_Y + 2, 137):
+        half_w = 14 if y < 114 else (13 if y < 126 else 12)
+        t = (y - (CANON_CHIN_Y + 2)) / 34.0
+        for x in range(MODULAR_CX - half_w - 1, MODULAR_CX + half_w + 2):
+            if head_arr[y, x, 3] > 40:
+                continue
+            dx_n = abs(x - MODULAR_CX)
+            if dx_n >= half_w:
+                head_arr[y, x] = [18, 16, 15, 255]
+            elif t < 0.25 or x < MODULAR_CX - 2:
+                head_arr[y, x] = [neck_shadow[0], neck_shadow[1], neck_shadow[2], 255]
+            else:
+                head_arr[y, x] = [skin_rgb[0], skin_rgb[1], skin_rgb[2], 255]
+
+    head_ok = _keep_main_component_near(head_arr[:, :, 3] > 20, 62, MODULAR_CX)
+    head_arr[~head_ok, 3] = 0
+
+    # --- 2. BAS + PIEDS (256x526) ---
+    bot_src = _shift_to_canonical(src, dx_body, 0)
+    bot_arr = bot_src.copy()
+    wy_bot = max(254, min(288, waist_bot_y))
+    bot_arr[:wy_bot, :, 3] = 0
+
+    anchor_L_list, anchor_R_list = [], []
+    for ay in range(328, 349):
+        axs = np.where(bot_arr[ay, :, 3] > 40)[0]
+        if len(axs):
+            anchor_L_list.append(int(axs[0]))
+            anchor_R_list.append(int(axs[-1]))
+    thigh_L_base = int(np.median(anchor_L_list)) if anchor_L_list else (MODULAR_CX - 48)
+    thigh_R_base = int(np.median(anchor_R_list)) if anchor_R_list else (MODULAR_CX + 48)
+
+    # Couleur médiane de référence du pantalon/jupe sur le haut de cuisse propre (y=328..338)
+    ref_patch = bot_arr[328:338, thigh_L_base + 6:thigh_R_base - 6]
+    ref_luma = 0.299 * ref_patch[:, :, 0] + 0.587 * ref_patch[:, :, 1] + 0.114 * ref_patch[:, :, 2]
+    ref_valid = (ref_patch[:, :, 3] > 40) & (ref_luma > 35)
+    thigh_ref_rgb = np.median(ref_patch[ref_valid][:, :3], axis=0) if np.any(ref_valid) else np.array([58, 72, 86])
+
+    if not hands_in_pockets:
+        bot_skin = _skin_mask(bot_arr)
+        for y in range(wy_bot, 330):
+            prog = (330 - y) / float(max(1, 330 - wy_bot))
+            est_L = int(round(thigh_L_base - prog * 2.0))
+            est_R = int(round(thigh_R_base + prog * 1.0))
+
+            row_op = bot_arr[y, :, 3] > 40
+            cut_L = est_L
+            if overlap_side == "right":
+                in_t = False
+                s_t = 0
+                best_gap = None
+                for x in range(max(0, thigh_L_base - 35), MODULAR_CX):
+                    if not row_op[x] and not in_t:
+                        in_t = True
+                        s_t = x
+                    elif row_op[x] and in_t:
+                        in_t = False
+                        if x - s_t >= 1 and s_t > 45:
+                            best_gap = x
+                if best_gap is not None and abs(best_gap - est_L) <= 10:
+                    cut_L = best_gap
+                cut_R = est_R
+            else:
+                # Mirroir (ex: concierge) : bras gauche de l'image chevauche le bord gauche, droite séparée
+                in_t = False
+                s_t = 0
+                best_gap_r = None
+                for x in range(MODULAR_CX, min(MODULAR_W, thigh_R_base + 35)):
+                    if not row_op[x] and not in_t:
+                        in_t = True
+                        s_t = x
+                    elif row_op[x] and in_t:
+                        in_t = False
+                        if x < thigh_R_base + 30:
+                            best_gap_r = s_t - 1
+                cut_R = best_gap_r if (best_gap_r is not None and abs(best_gap_r - est_R) <= 10) else est_R
+
+            bot_arr[y, :cut_L, 3] = 0
+            bot_arr[y, cut_R + 1:, 3] = 0
+
+            # Nettoyer peau + manchettes/doigts sur le bord chevauché et combler proprement
+            if overlap_side == "right":
+                scan_x0, scan_x1 = MODULAR_CX + 24, cut_R + 1
+                bad_cols = []
+                for x in range(scan_x0, scan_x1):
+                    if bot_arr[y, x, 3] <= 40:
+                        continue
+                    pix = bot_arr[y, x, :3].astype(np.float32)
+                    cdist = float(np.linalg.norm(pix - thigh_ref_rgb))
+                    if bot_skin[y, x] or (x >= cut_R - 14 and cdist > 44.0) or (x >= cut_R - 10 and np.mean(pix) < 35.0):
+                        bad_cols.append(x)
+                if bad_cols:
+                    hx_min = max(MODULAR_CX + 26, min(bad_cols) - 2)
+                    for fx in range(hx_min, cut_R - 1):
+                        sx = max(MODULAR_CX + 10, hx_min - 3 - ((fx - hx_min) % 5))
+                        if bot_arr[y, sx, 3] > 40:
+                            bot_arr[y, fx, :3] = bot_arr[y, sx, :3]
+                        else:
+                            bot_arr[y, fx, :3] = np.clip(thigh_ref_rgb, 0, 255).astype(np.uint8)
+                        bot_arr[y, fx, 3] = 255
+                    bot_arr[y, cut_R - 1:cut_R + 1] = [18, 16, 15, 255]
+            else:
+                scan_x0, scan_x1 = cut_L, MODULAR_CX - 24
+                bad_cols = []
+                for x in range(scan_x0, scan_x1):
+                    if bot_arr[y, x, 3] <= 40:
+                        continue
+                    pix = bot_arr[y, x, :3].astype(np.float32)
+                    cdist = float(np.linalg.norm(pix - thigh_ref_rgb))
+                    if bot_skin[y, x] or (x <= cut_L + 14 and cdist > 44.0) or (x <= cut_L + 10 and np.mean(pix) < 35.0):
+                        bad_cols.append(x)
+                if bad_cols:
+                    hx_max = min(MODULAR_CX - 26, max(bad_cols) + 2)
+                    for fx in range(cut_L + 2, hx_max + 1):
+                        sx = min(MODULAR_CX - 10, hx_max + 3 + ((hx_max - fx) % 5))
+                        if bot_arr[y, sx, 3] > 40:
+                            bot_arr[y, fx, :3] = bot_arr[y, sx, :3]
+                        else:
+                            bot_arr[y, fx, :3] = np.clip(thigh_ref_rgb, 0, 255).astype(np.uint8)
+                        bot_arr[y, fx, 3] = 255
+                    bot_arr[y, cut_L:cut_L + 2] = [18, 16, 15, 255]
+
+    # Nettoyer les pans de chemise au centre (ex: Ludo) puis étendre le haut par réflexion verticale texturée (~8-10 px)
+    if cfg.get("hands_in_pockets", False):
+        for cy in range(wy_bot, min(wy_bot + 16, MODULAR_H)):
+            row_r = bot_arr[cy]
+            c_xs = np.where(row_r[:, 3] > 40)[0]
+            if len(c_xs) < 20:
+                continue
+            rx0_c, rx1_c = int(c_xs[0]), int(c_xs[-1])
+            clean_band = row_r[max(rx0_c + 4, MODULAR_CX - 34):max(rx0_c + 12, MODULAR_CX - 22), :3]
+            if len(clean_band) == 0:
+                continue
+            clean_med = np.median(clean_band, axis=0).astype(np.float32)
+            for cx in range(MODULAR_CX - 22, MODULAR_CX + 23):
+                if cx <= rx0_c + 2 or cx >= rx1_c - 2:
+                    continue
+                if row_r[cx, 3] > 40:
+                    pix = row_r[cx, :3].astype(np.float32)
+                    if float(np.linalg.norm(pix - clean_med)) > 40.0:
+                        sx_clean = max(rx0_c + 5, MODULAR_CX - 32 + ((cx - (MODULAR_CX - 22)) % 9))
+                        bot_arr[cy, cx] = bot_arr[cy, sx_clean]
+
+    ref_y = min(MODULAR_H - 1, wy_bot + 2)
+    ref_xs = np.where(bot_arr[ref_y, :, 3] > 40)[0]
+    if len(ref_xs):
+        rx0, rx1 = max(thigh_L_base - 2, int(ref_xs[0])), min(thigh_R_base + 2, int(ref_xs[-1]))
+        ext_top = max(238 if overlap_side == "left" else 252, wy_bot - 10)
+        for ey in range(ext_top, wy_bot):
+            src_y = min(MODULAR_H - 1, wy_bot + 1 + (wy_bot - ey))
+            bot_arr[ey, rx0:rx1 + 1] = bot_arr[src_y, rx0:rx1 + 1]
+            # Garde contour noir latéral propre sur les bords remontés
+            if bot_arr[ey, rx0, 3] > 40:
+                bot_arr[ey, rx0:rx0 + 2] = [18, 16, 15, 255]
+            if bot_arr[ey, rx1, 3] > 40:
+                bot_arr[ey, rx1 - 1:rx1 + 1] = [18, 16, 15, 255]
+
+    bot_ok = _keep_main_component_near(bot_arr[:, :, 3] > 20, 400, MODULAR_CX)
+    bot_arr[~bot_ok, 3] = 0
+
+    # --- 3. HAUT + BRAS (256x526) ---
+    top_arr = _shift_to_canonical(src, dx_body, dy_top)
+    top_collar_y = max(98, min(136, collar_y + dy_top))
+    top_waist_y = waist_y + dy_top
+    top_flank_y = flank_coat_y + dy_top
+
+    top_arr[:88, :, 3] = 0
+    t_skin = _skin_mask(top_arr)
+    for y in range(88, min(134, top_collar_y)):
+        half_face = 26 if y < 101 else 16
+        for x in range(max(0, MODULAR_CX - half_face), min(MODULAR_W, MODULAR_CX + half_face + 1)):
+            if y < 100 or t_skin[y, x] or abs(x - MODULAR_CX) <= 13:
+                top_arr[y, x, 3] = 0
+
+    if hands_in_pockets:
+        top_arr[top_waist_y:, :, 3] = 0
+    else:
+        for y in range(top_waist_y, MODULAR_H):
+            if y > 326:
+                top_arr[y, :, 3] = 0
+                continue
+            prog = (326 - y) / float(max(1, 326 - top_waist_y))
+            row_op = top_arr[y, :, 3] > 40
+            if overlap_side == "right":
+                cut_L = int(round(thigh_L_base - prog * 2.0))
+                in_t = False
+                s_t = 0
+                best_gap_l = None
+                for x in range(max(0, thigh_L_base - 35), MODULAR_CX):
+                    if not row_op[x] and not in_t:
+                        in_t = True
+                        s_t = x
+                    elif row_op[x] and in_t:
+                        in_t = False
+                        if s_t > 45:
+                            best_gap_l = s_t
+                if best_gap_l is not None and abs(best_gap_l - cut_L) <= 10:
+                    cut_L = best_gap_l
+
+                cut_R = int(round(thigh_R_base - 14.0 + prog * 4.0))
+                hand_r = np.where(t_skin[y, MODULAR_CX + 26:])[0]
+                if len(hand_r):
+                    cut_R = min(cut_R, int(hand_r[0]) + MODULAR_CX + 26 - 2)
+            else:
+                cut_L = int(round(thigh_L_base + 14.0 - prog * 4.0))
+                hand_l = np.where(t_skin[y, :MODULAR_CX - 26])[0]
+                if len(hand_l):
+                    cut_L = max(cut_L, int(hand_l[-1]) + 2)
+                in_t = False
+                s_t = 0
+                best_gap_r = None
+                for x in range(MODULAR_CX, min(MODULAR_W, thigh_R_base + 35)):
+                    if not row_op[x] and not in_t:
+                        in_t = True
+                        s_t = x
+                    elif row_op[x] and in_t:
+                        in_t = False
+                        if x < thigh_R_base + 30:
+                            best_gap_r = x
+                cut_R = best_gap_r if (best_gap_r is not None and abs(best_gap_r - thigh_R_base) <= 10) else int(round(thigh_R_base + prog * 2.0))
+
+            if y <= top_flank_y and top_flank_y > top_waist_y:
+                center_L = max(cut_L, MODULAR_CX - 22)
+                center_R = min(cut_R, MODULAR_CX + 22)
+                top_arr[y, center_L:center_R + 1, 3] = 0
+            else:
+                top_arr[y, cut_L:cut_R + 1, 3] = 0
+
+    top_ok = _keep_main_component_near(top_arr[:, :, 3] > 20, 185, MODULAR_CX)
+    top_arr[~top_ok, 3] = 0
+
+    for dst, arr_out in ((head_dst, head_arr), (top_dst, top_arr), (bottom_dst, bot_arr)):
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        Image.fromarray(arr_out, mode="RGBA").save(dst, "PNG")
+    print(f"SPLIT MODULAR: {os.path.basename(src_path)} -> {os.path.basename(head_dst)}, {os.path.basename(top_dst)}, {os.path.basename(bottom_dst)}")
+
+
+def compose_modular_rgba(head_path: str, top_path: str, bottom_path: str) -> Image.Image:
+    """Assemble une preview PIL 256x526 selon l'ordre exact 4 passes utilisé par Godot (bas -> cou -> haut -> tête)."""
+    canvas = Image.new("RGBA", (MODULAR_W, MODULAR_H), (0, 0, 0, 0))
+    b_im = Image.open(bottom_path).convert("RGBA") if bottom_path and os.path.exists(bottom_path) else None
+    t_im = Image.open(top_path).convert("RGBA") if top_path and os.path.exists(top_path) else None
+    h_im = Image.open(head_path).convert("RGBA") if head_path and os.path.exists(head_path) else None
+
+    if b_im is not None:
+        canvas.alpha_composite(b_im)
+    if h_im is not None:
+        # Dessin du cou (y=96..143) derrière le col et le t-shirt du haut
+        neck_crop = h_im.crop((0, 96, MODULAR_W, 144))
+        canvas.alpha_composite(neck_crop, (0, 96))
+    if t_im is not None:
+        canvas.alpha_composite(t_im)
+    if h_im is not None:
+        # Dessin du visage/cheveux (y=0..102) et des longueurs latérales devant les épaules
+        upper_crop = h_im.crop((0, 0, MODULAR_W, 102))
+        canvas.alpha_composite(upper_crop, (0, 0))
+        hair_l = h_im.crop((0, 102, 104, 136))
+        hair_r = h_im.crop((152, 102, MODULAR_W, 136))
+        canvas.alpha_composite(hair_l, (0, 102))
+        canvas.alpha_composite(hair_r, (152, 102))
+    return canvas
+
+
+def split_all_existing_pawns(game_root: str) -> None:
+    """Découpe en lot les 12 pions complets historiques de game/assets/pawns/ vers assets/modular/."""
+    pawns_dir = os.path.join(game_root, "assets", "pawns")
+    mod_dir = os.path.join(game_root, "assets", "modular")
+    for fname, spec in EXISTING_PAWN_SPECS.items():
+        src_p = os.path.join(pawns_dir, fname)
+        if not os.path.exists(src_p):
+            print(f"SKIP missing pawn: {src_p}")
+            continue
+        split_pawn_to_modular(
+            src_p,
+            os.path.join(mod_dir, "heads", f"{spec['head']}.png"),
+            os.path.join(mod_dir, "tops", f"{spec['top']}.png"),
+            os.path.join(mod_dir, "bottoms", f"{spec['bottom']}.png"),
+            cfg=spec,
+        )
+
+
+def make_modular_preview(game_root: str, combos_json: str, out_path: str) -> None:
+    """Génère une planche-contact visuelle combinant têtes, hauts et bas avec simulation contour 2 px."""
+    mod_dir = os.path.join(game_root, "assets", "modular")
+    if combos_json and os.path.exists(combos_json):
+        with open(combos_json, "r", encoding="utf-8") as f:
+            combos = json.load(f)
+    else:
+        combos = [
+            ("leader", "bleu_atelier", "jean_atelier_boots", "Leader orig"),
+            ("karim", "veste_survet", "bas_survet_baskets", "Karim orig"),
+            ("nadia", "duffle_coat", "jean_noir_rangers", "Nadia orig"),
+            ("franck", "veste_citroen", "pantalon_chantier", "Franck orig"),
+            ("manu", "perfecto_manu", "jean_revers_santiags", "Manu orig"),
+            ("zoe", "cuir_kepon", "pantalon_tartan_docs", "Zoe orig"),
+            ("ludo", "blouson_college", "jean_baskets_toile", "Ludo orig"),
+            ("player_02", "parka_dalle", "jean_revers_baskets", "P02 orig"),
+            ("player_04", "bomber_bordeaux", "pantalon_toile_baskets", "P04 orig"),
+            ("player_05", "velours_ocre", "jean_brut_bottines", "P05 orig"),
+            ("leader", "veste_survet", "pantalon_tartan_docs", "Mix L+Sur+Tar"),
+            ("player_04", "bleu_atelier", "jean_delave_baskets", "Mix P4+Bleu+J"),
+            ("player_05", "bomber_bordeaux", "jean_atelier_boots", "Mix P5+Bom+Bot"),
+            ("karim", "parka_dalle", "pantalon_chantier", "Mix K+Parka+Ch"),
+            ("zoe", "veste_citroen", "bas_survet_baskets", "Mix Z+Cit+Sur"),
+            ("nadia", "blouson_jean", "jean_revers_santiags", "Mix N+Jean+San"),
+        ]
+    cols = 4
+    rows = (len(combos) + cols - 1) // cols
+    cell_w, cell_h = 266, 560
+    sheet = Image.new("RGB", (cols * cell_w, rows * cell_h), (28, 30, 36))
+    draw = ImageDraw.Draw(sheet)
+    for idx, entry in enumerate(combos):
+        hid, tid, bid, label = entry
+        comp = compose_modular_rgba(
+            os.path.join(mod_dir, "heads", f"{hid}.png"),
+            os.path.join(mod_dir, "tops", f"{tid}.png"),
+            os.path.join(mod_dir, "bottoms", f"{bid}.png"),
+        )
+        outlined = _add_2px_outline(comp, (242, 140, 40) if idx % 2 == 0 else (238, 232, 218))
+        cx = (idx % cols) * cell_w + 5
+        cy = (idx // cols) * cell_h + 26
+        sheet.paste(outlined.convert("RGB"), (cx, cy), outlined.getchannel("A"))
+        draw.text((cx + 8, (idx // cols) * cell_h + 6), label, fill=(245, 220, 160))
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    sheet.save(out_path, "PNG")
+    print(f"MODULAR PREVIEW SAVED: {out_path} ({sheet.size[0]}x{sheet.size[1]})")
+
+
+def _check_modular_png(fp: str, label: str, errors: list[str]) -> None:
+    """Valide qu'un PNG modulaire existe, est en RGBA, mesure 256x526 et conserve ses coins transparents."""
+    if not os.path.exists(fp):
+        errors.append(f"Missing {label}: {fp}")
+        return
+    im = Image.open(fp)
+    if im.mode != "RGBA":
+        errors.append(f"{label} not RGBA: {fp}")
+    w, h = im.size
+    if w != MODULAR_W or h != MODULAR_H:
+        errors.append(f"Expected {MODULAR_W}x{MODULAR_H} for {label} ({fp}), got {w}x{h}")
+    alpha = im.getchannel("A")
+    if alpha.getpixel((0, 0)) != 0 or alpha.getpixel((w - 1, h - 1)) != 0:
+        errors.append(f"Transparent corners missing in {label}: {fp}")
+
+
 def validate_project(game_root: str) -> int:
     errors: list[str] = []
 
@@ -243,7 +781,23 @@ def validate_project(game_root: str) -> int:
     dlg_ids = set(dlgs_j["dialogues"].keys())
     enc_ids = set(encs_j["encounters"].keys())
     valid_skill_ids = {sk.get("id", "") for sk in equip_j.get("skills_catalog", []) if sk.get("id", "")}
-    valid_equip_ids = {eq.get("id", "") for eq in equip_j.get("equipment", []) if eq.get("id", "")}
+    valid_slots = {"look_top", "look_bottom", "tool", "fetish"}
+    equip_by_id = {}
+    for eq in equip_j.get("equipment", []):
+        eid = eq.get("id", "")
+        slot = eq.get("slot", "")
+        if slot not in valid_slots:
+            errors.append(f"Invalid equipment slot '{slot}' on {eid}")
+        if eid:
+            equip_by_id[eid] = eq
+        if slot in ("look_top", "look_bottom"):
+            sp = eq.get("sprite", "")
+            if not sp or not sp.startswith("res://"):
+                errors.append(f"Missing or invalid sprite path on {slot} equipment {eid}: {sp}")
+            else:
+                _check_modular_png(os.path.join(game_root, sp[6:]), f"equipment.{eid}.sprite", errors)
+
+    valid_equip_ids = set(equip_by_id.keys())
     valid_action_ids = {
         act.get("id", "")
         for eq in equip_j.get("equipment", [])
@@ -307,25 +861,29 @@ def validate_project(game_root: str) -> int:
 
     for c in chars_j["characters"]:
         cid = c["id"]
-        for key in ("portrait", "pawn"):
-            res_p = c.get(key, "")
-            if res_p:
-                if not res_p.startswith("res://"):
-                    errors.append(f"Invalid {key} path for {cid}: {res_p}")
+        port_p = c.get("portrait", "")
+        if not port_p or not port_p.startswith("res://") or not os.path.exists(os.path.join(game_root, port_p[6:])):
+            errors.append(f"Missing or invalid portrait for {cid}: {port_p}")
+        app = c.get("appearance", {})
+        if not isinstance(app, dict):
+            errors.append(f"Missing appearance dict for {cid}")
+        else:
+            for ak in ("head", "default_top", "default_bottom"):
+                ap = app.get(ak, "")
+                if not ap or not ap.startswith("res://"):
+                    errors.append(f"Invalid appearance.{ak} for {cid}: {ap}")
                 else:
-                    fp = os.path.join(game_root, res_p[6:])
-                    if not os.path.exists(fp):
-                        errors.append(f"Missing {key} file for {cid}: {fp}")
-                    elif key == "pawn":
-                        im = Image.open(fp)
-                        if im.mode != "RGBA":
-                            errors.append(f"Pawn not RGBA: {fp}")
-                        w, h = im.size
-                        if h != 526:
-                            errors.append(f"Expected pawn height 526 for {fp}, got {h}")
-                        alpha = im.getchannel("A")
-                        if alpha.getpixel((0, 0)) != 0 or alpha.getpixel((w - 1, h - 1)) != 0:
-                            errors.append(f"Pawn transparent padding missing in {fp}")
+                    _check_modular_png(os.path.join(game_root, ap[6:]), f"{cid}.appearance.{ak}", errors)
+        def_eq = c.get("default_equipment", {})
+        if isinstance(def_eq, dict) and def_eq:
+            for sl, iid in def_eq.items():
+                if sl not in valid_slots:
+                    errors.append(f"Invalid default_equipment slot '{sl}' on {cid}")
+                elif iid:
+                    if iid not in equip_by_id:
+                        errors.append(f"Unknown default_equipment item '{iid}' on {cid}")
+                    elif equip_by_id[iid].get("slot") != sl:
+                        errors.append(f"Slot mismatch for {cid}.{sl} = {iid} (expected {equip_by_id[iid].get('slot')})")
 
     pending_assets: list[str] = []
     profiles_path = os.path.join(game_root, "data/player_profiles.json")
@@ -333,33 +891,47 @@ def validate_project(game_root: str) -> int:
         prof_j = load_j("data/player_profiles.json")
         for p_entry in prof_j.get("portraits", []):
             pid = p_entry.get("id", "?")
-            is_pending = bool(p_entry.get("pending_asset", False))
-            for key in ("portrait", "pawn"):
-                res_p = p_entry.get(key, "")
-                if not res_p or not res_p.startswith("res://"):
-                    errors.append(f"Invalid {key} path for player profile {pid}: {res_p}")
-                    continue
-                fp = os.path.join(game_root, res_p[6:])
-                if not os.path.exists(fp):
-                    if is_pending:
-                        pending_assets.append(f"{pid}.{key} ({res_p})")
-                    else:
-                        errors.append(f"Missing {key} file for player profile {pid}: {fp}")
-                elif key == "pawn":
-                    im = Image.open(fp)
-                    if im.mode != "RGBA":
-                        errors.append(f"Player pawn not RGBA: {fp}")
-                    w, h = im.size
-                    if h != 526:
-                        errors.append(f"Expected player pawn height 526 for {fp}, got {h}")
-                    alpha = im.getchannel("A")
-                    if alpha.getpixel((0, 0)) != 0 or alpha.getpixel((w - 1, h - 1)) != 0:
-                        errors.append(f"Player pawn transparent padding missing in {fp}")
+            port_p = p_entry.get("portrait", "")
+            if not port_p or not port_p.startswith("res://") or not os.path.exists(os.path.join(game_root, port_p[6:])):
+                errors.append(f"Missing portrait for player profile {pid}: {port_p}")
+            for ak in ("head", "default_top", "default_bottom"):
+                ap = p_entry.get(ak, "")
+                if not ap or not ap.startswith("res://"):
+                    errors.append(f"Invalid {ak} for player profile {pid}: {ap}")
+                else:
+                    _check_modular_png(os.path.join(game_root, ap[6:]), f"profile.{pid}.{ak}", errors)
         for arch in prof_j.get("archetypes", []):
             aid = arch.get("id", "")
             for req_k in ("id", "title", "story", "specialty_id"):
                 if not str(arch.get(req_k, "")).strip():
                     errors.append(f"Missing {req_k} in archetype {aid or '?'}")
+            de = arch.get("default_equipment", {})
+            if isinstance(de, dict):
+                for sl, iid in de.items():
+                    if sl not in valid_slots:
+                        errors.append(f"Invalid archetype default_equipment slot '{sl}' on {aid}")
+                    elif iid:
+                        if iid not in equip_by_id:
+                            errors.append(f"Unknown archetype equipment '{iid}' on {aid}")
+                        elif equip_by_id[iid].get("slot") != sl:
+                            errors.append(f"Slot mismatch on {aid}.{sl} = {iid}")
+
+    for enc_id, enc_d in encs_j.get("encounters", {}).items():
+        for en in enc_d.get("enemies", []):
+            eid = en.get("id", "?")
+            ep = en.get("portrait", "")
+            if not ep or not ep.startswith("res://") or not os.path.exists(os.path.join(game_root, ep[6:])):
+                errors.append(f"Missing enemy portrait in {enc_id}/{eid}: {ep}")
+            eapp = en.get("appearance", {})
+            if not isinstance(eapp, dict):
+                errors.append(f"Missing enemy appearance in {enc_id}/{eid}")
+            else:
+                for ak in ("head", "top", "bottom"):
+                    ap = eapp.get(ak, "")
+                    if not ap or not ap.startswith("res://"):
+                        errors.append(f"Invalid enemy appearance.{ak} in {enc_id}/{eid}: {ap}")
+                    else:
+                        _check_modular_png(os.path.join(game_root, ap[6:]), f"encounter.{enc_id}.{eid}.{ak}", errors)
 
     for l in interiors_list:
         lid = l["id"]
@@ -478,9 +1050,16 @@ def validate_project(game_root: str) -> int:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", required=True, choices=["portrait", "clean_pawn", "backdrop", "preview", "validate"])
+    parser.add_argument("--mode", required=True, choices=["portrait", "clean_pawn", "backdrop", "preview", "split_pawn", "split_all_pawns", "preview_modular", "validate"])
     parser.add_argument("--src", default="")
     parser.add_argument("--dst", default="")
+    parser.add_argument("--head-dst", default="")
+    parser.add_argument("--top-dst", default="")
+    parser.add_argument("--bottom-dst", default="")
+    parser.add_argument("--collar-y", type=int, default=122)
+    parser.add_argument("--waist-y", type=int, default=265)
+    parser.add_argument("--cfg-json", default="")
+    parser.add_argument("--combos-json", default="")
     parser.add_argument("--strip-standee", action="store_true")
     parser.add_argument("--backdrop", default="")
     parser.add_argument("--pawns", nargs="*", default=[])
@@ -494,6 +1073,15 @@ if __name__ == "__main__":
         convert_to_png(args.src, args.dst, "BACKDROP")
     elif args.mode == "clean_pawn":
         cutout_clean_pawn(args.src, args.dst, strip_standee=args.strip_standee)
+    elif args.mode == "split_pawn":
+        cfg_d = {"collar_y": args.collar_y, "waist_y": args.waist_y}
+        if args.cfg_json:
+            cfg_d.update(json.loads(args.cfg_json))
+        split_pawn_to_modular(args.src, args.head_dst, args.top_dst, args.bottom_dst, cfg=cfg_d)
+    elif args.mode == "split_all_pawns":
+        split_all_existing_pawns(args.game_root)
+    elif args.mode == "preview_modular":
+        make_modular_preview(args.game_root, args.combos_json, args.dst)
     elif args.mode == "preview":
         make_preview(args.backdrop, args.pawns, args.dst, target_h=args.height)
     elif args.mode == "validate":

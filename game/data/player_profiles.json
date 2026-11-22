@@ -12,37 +12,49 @@
       "id": "player_01",
       "label": "Blouson cuir",
       "portrait": "res://assets/portraits/leader.png",
-      "pawn": "res://assets/pawns/leader_pawn.png"
+      "head": "res://assets/modular/heads/leader.png",
+      "default_top": "res://assets/modular/tops/bleu_atelier.png",
+      "default_bottom": "res://assets/modular/bottoms/jean_atelier_boots.png"
     },
     {
       "id": "player_02",
       "label": "Parka kaki",
       "portrait": "res://assets/portraits/player_02.png",
-      "pawn": "res://assets/pawns/player_02_pawn.png"
+      "head": "res://assets/modular/heads/player_02.png",
+      "default_top": "res://assets/modular/tops/parka_dalle.png",
+      "default_bottom": "res://assets/modular/bottoms/jean_revers_baskets.png"
     },
     {
       "id": "player_03",
       "label": "Veste jean",
       "portrait": "res://assets/portraits/player_03.png",
-      "pawn": "res://assets/pawns/player_03_pawn.png"
+      "head": "res://assets/modular/heads/player_03.png",
+      "default_top": "res://assets/modular/tops/blouson_jean.png",
+      "default_bottom": "res://assets/modular/bottoms/pantalon_velours_ville.png"
     },
     {
       "id": "player_04",
       "label": "Bomber bordeaux",
       "portrait": "res://assets/portraits/player_04.png",
-      "pawn": "res://assets/pawns/player_04_pawn.png"
+      "head": "res://assets/modular/heads/player_04.png",
+      "default_top": "res://assets/modular/tops/bomber_bordeaux.png",
+      "default_bottom": "res://assets/modular/bottoms/pantalon_toile_baskets.png"
     },
     {
       "id": "player_05",
       "label": "Velours ocre",
       "portrait": "res://assets/portraits/player_05.png",
-      "pawn": "res://assets/pawns/player_05_pawn.png"
+      "head": "res://assets/modular/heads/player_05.png",
+      "default_top": "res://assets/modular/tops/velours_ocre.png",
+      "default_bottom": "res://assets/modular/bottoms/jean_brut_bottines.png"
     },
     {
       "id": "player_06",
       "label": "Coupe-vent bleu",
       "portrait": "res://assets/portraits/player_06.png",
-      "pawn": "res://assets/pawns/player_06_pawn.png"
+      "head": "res://assets/modular/heads/player_06.png",
+      "default_top": "res://assets/modular/tops/coupe_vent_lycee.png",
+      "default_bottom": "res://assets/modular/bottoms/jean_delave_baskets.png"
     }
   ],
   "archetypes": [
@@ -71,7 +83,7 @@
       "home_location": "box_garage",
       "characteristics": { "esprit": 3, "corps": 3, "energie": 4 },
       "skills": { "caves_esquive": 3, "systeme_d": 2, "lecture_rue": 1, "baston_pression": -1, "ondes_radio": -1 },
-      "default_equipment": { "look": "parka_dalle", "tool": "trousseau_caves", "fetish": "" },
+      "default_equipment": { "look_top": "parka_dalle", "look_bottom": "jean_revers_baskets", "tool": "trousseau_caves", "fetish": "" },
       "start_flags": [
         "bg_dalle"
       ]
@@ -101,7 +113,7 @@
       "home_location": "galaxian",
       "characteristics": { "esprit": 4, "corps": 2, "energie": 3 },
       "skills": { "tchatche": 4, "jeux_culture": 2, "lecture_rue": 1, "caves_esquive": -1, "mecanique_mob": -2 },
-      "default_equipment": { "look": "blouson_jean", "tool": "", "fetish": "carnet_balto" },
+      "default_equipment": { "look_top": "blouson_jean", "look_bottom": "pantalon_toile_baskets", "tool": "", "fetish": "carnet_balto" },
       "start_flags": [
         "bg_bourg"
       ]
@@ -131,7 +143,7 @@
       "home_location": "box_garage",
       "characteristics": { "esprit": 2, "corps": 4, "energie": 4 },
       "skills": { "mecanique_mob": 3, "baston_pression": 3, "sang_froid_nerfs": 2, "tchatche": -1, "ondes_radio": -2 },
-      "default_equipment": { "look": "bleu_atelier", "tool": "cle_molette", "fetish": "" },
+      "default_equipment": { "look_top": "bleu_atelier", "look_bottom": "jean_atelier_boots", "tool": "cle_molette", "fetish": "" },
       "start_flags": [
         "bg_atelier"
       ]
@@ -161,7 +173,7 @@
       "home_location": "lisiere_poudrerie",
       "characteristics": { "esprit": 4, "corps": 2, "energie": 3 },
       "skills": { "sang_froid_nerfs": 3, "lecture_rue": 3, "tchatche": 2, "mecanique_mob": -1, "baston_pression": -2 },
-      "default_equipment": { "look": "coupe_vent_lycee", "tool": "", "fetish": "badge_mjc" },
+      "default_equipment": { "look_top": "coupe_vent_lycee", "look_bottom": "pantalon_velours_ville", "tool": "", "fetish": "badge_mjc" },
       "start_flags": [
         "bg_pavillons"
       ]

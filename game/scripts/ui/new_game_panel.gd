@@ -216,7 +216,7 @@ func _build_ui() -> void:
 
 	var lbl_neutral: Label = Label.new()
 	lbl_neutral.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	lbl_neutral.text = "Pion en pied assorti sur la carte.\nAucune statistique ni contrainte liée à l'apparence."
+	lbl_neutral.text = "Pion en pied assemblé (tête + haut + bas).\nPortrait libre, sans contrainte de stats."
 	lbl_neutral.add_theme_font_size_override("font_size", 11)
 	lbl_neutral.add_theme_color_override("font_color", Color(0.68, 0.74, 0.82))
 	prev_info.add_child(lbl_neutral)
@@ -381,16 +381,37 @@ func _select_portrait(portrait_id: String, play_sfx: bool = true) -> void:
 
 	var pdef: Dictionary = DataLoader.get_portrait_def(_selected_portrait_id)
 	var p_tex: Texture2D = _load_texture_safe(str(pdef.get("portrait", "")))
-	var pw_tex: Texture2D = _load_texture_safe(str(pdef.get("pawn", "")))
-	var is_fallback: bool = (p_tex == null or pw_tex == null)
 	if p_tex == null:
 		p_tex = _load_texture_safe("res://assets/portraits/leader.png")
-	if pw_tex == null:
-		pw_tex = _load_texture_safe("res://assets/pawns/leader_pawn.png")
 	_preview_portrait.texture = p_tex
-	_preview_pawn.texture = pw_tex
-	var base_lbl: String = str(pdef.get("label", ""))
-	_preview_port_label.text = ("%s (visuel provisoire — génération en attente)" % base_lbl) if is_fallback else base_lbl
+	_preview_port_label.text = str(pdef.get("label", ""))
+	_update_modular_preview()
+
+## Assemble l'aperçu 256x526 combinant la tête du portrait choisi et les vêtements de départ de l'archétype.
+func _update_modular_preview() -> void:
+	if _preview_pawn == null:
+		return
+	var pdef: Dictionary = DataLoader.get_portrait_def(_selected_portrait_id)
+	var adef: Dictionary = DataLoader.get_archetype_def(_selected_archetype_id)
+	var head_p: String = str(pdef.get("head", ""))
+	var top_p: String = str(pdef.get("default_top", ""))
+	var bot_p: String = str(pdef.get("default_bottom", ""))
+
+	var eq_var: Variant = adef.get("default_equipment", {})
+	if eq_var is Dictionary:
+		var eq_d: Dictionary = eq_var as Dictionary
+		var top_id: String = str(eq_d.get("look_top", ""))
+		if top_id != "":
+			var top_sp: String = str(DataLoader.get_equipment_def(top_id).get("sprite", ""))
+			if top_sp != "":
+				top_p = top_sp
+		var bot_id: String = str(eq_d.get("look_bottom", ""))
+		if bot_id != "":
+			var bot_sp: String = str(DataLoader.get_equipment_def(bot_id).get("sprite", ""))
+			if bot_sp != "":
+				bot_p = bot_sp
+
+	_preview_pawn.texture = DataLoader.assemble_modular_pawn(head_p, top_p, bot_p)
 
 func _select_archetype(arch_id: String, play_sfx: bool = true) -> void:
 	if play_sfx:
@@ -438,6 +459,7 @@ func _select_archetype(arch_id: String, play_sfx: bool = true) -> void:
 		str(adef.get("specialty_desc", ""))
 	]
 	_lbl_arch_bonus.text = "Atout de départ : " + str(adef.get("bonus_summary", ""))
+	_update_modular_preview()
 	_update_summary()
 
 func _update_summary() -> void:
@@ -458,7 +480,9 @@ func _on_launch_pressed() -> void:
 		"archetype_id": _selected_archetype_id,
 		"portrait_id": _selected_portrait_id,
 		"portrait_path": str(pdef.get("portrait", "")),
-		"pawn_path": str(pdef.get("pawn", ""))
+		"head_path": str(pdef.get("head", "")),
+		"default_top_path": str(pdef.get("default_top", "")),
+		"default_bottom_path": str(pdef.get("default_bottom", ""))
 	}
 	close_panel()
 	start_game_requested.emit(profile)

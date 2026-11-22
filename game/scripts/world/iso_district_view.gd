@@ -76,6 +76,13 @@ func _ready() -> void:
 
 	set_location("box_garage")
 	set_view_active(true)
+	if not GameState.state_changed.is_connected(_on_game_state_changed):
+		GameState.state_changed.connect(_on_game_state_changed)
+
+## Resynchronise les pions affichés lorsque l'équipement ou l'état de la bande change en direct.
+func _on_game_state_changed() -> void:
+	if is_inside_tree() and visible:
+		_sync_pawn_actors()
 
 func set_view_active(active: bool) -> void:
 	visible = active
@@ -904,9 +911,7 @@ func _get_visible_npcs(loc: Dictionary) -> Array[Dictionary]:
 		var req_flag: String = str(nd.get("require_flag", ""))
 		if req_flag != "" and not GameState.has_flag(req_flag):
 			continue
-		var cdef: Dictionary = DataLoader.get_character(cid)
-		var pawn_path: String = str(cdef.get("pawn", ""))
-		if pawn_path == "" or _load_texture_safe(pawn_path) == null:
+		if GameState.get_character_pawn_texture(cid) == null:
 			continue
 		out.append(nd)
 	return out
@@ -976,8 +981,7 @@ func _sync_pawn_actors() -> void:
 				_pawn_container.add_child(actor)
 				_pawn_actors[cid] = actor
 
-			var pawn_path: String = str(cdef.get("pawn", ""))
-			var pawn_tex: Texture2D = _load_texture_safe(pawn_path) if pawn_path != "" else null
+			var pawn_tex: Texture2D = GameState.get_character_pawn_texture(cid)
 			var base_name: String = str(cdef.get("name", cid)).split(" ")[0]
 			var label_txt: String = base_name
 			if is_split:
@@ -1017,8 +1021,7 @@ func _sync_pawn_actors() -> void:
 		if nid == "" or cid == "":
 			continue
 		var cdef: Dictionary = DataLoader.get_character(cid)
-		var pawn_path: String = str(cdef.get("pawn", ""))
-		var pawn_tex: Texture2D = _load_texture_safe(pawn_path)
+		var pawn_tex: Texture2D = GameState.get_character_pawn_texture(cid)
 		if pawn_tex == null:
 			continue
 		var npc_actor: Node2D = null
@@ -1258,8 +1261,7 @@ func _sync_combat_pawns() -> void:
 			_pawn_container.add_child(actor)
 			_pawn_actors[cid] = actor
 
-		var pawn_path: String = str(cdef.get("pawn", ""))
-		var pawn_tex: Texture2D = _load_texture_safe(pawn_path) if pawn_path != "" else null
+		var pawn_tex: Texture2D = GameState.get_character_pawn_texture(cid)
 		var base_name: String = str(cdef.get("name", cid)).split(" ")[0]
 		actor.visible = true
 		actor.position = pos
@@ -1317,12 +1319,18 @@ func _sync_combat_pawns() -> void:
 			_combat_enemy_actors[eid] = e_actor
 
 		var e_name: String = str(en.get("name", eid))
-		var e_port: Texture2D = _load_texture_safe(str(en.get("portrait", "res://assets/portraits/so_agent.png")))
+		var e_app_var: Variant = en.get("appearance", {})
+		var e_app: Dictionary = e_app_var as Dictionary if e_app_var is Dictionary else {}
+		var e_tex: Texture2D = DataLoader.get_appearance_pawn_texture(e_app)
 		var e_col: Color = Color(0.88, 0.24, 0.24)
 		e_actor.visible = true
 		e_actor.position = epos
 		e_actor.z_index = clampi(int(epos.y), -3500, 3500)
-		e_actor.call("setup_standee_character", e_port, e_name, e_col, target_h)
+		if e_tex != null:
+			e_actor.call("setup_character", e_tex, e_name, e_col, target_h)
+		else:
+			var e_port: Texture2D = _load_texture_safe(str(en.get("portrait", "res://assets/portraits/so_agent.png")))
+			e_actor.call("setup_standee_character", e_port, e_name, e_col, target_h)
 
 		var e_is_a: bool = (act_kind == "enemy" and act_id == eid)
 		var e_is_t: bool = _is_combat_targetable("enemy", eid)

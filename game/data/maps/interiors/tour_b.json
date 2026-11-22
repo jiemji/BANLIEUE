@@ -72,7 +72,18 @@
       "color_hex": "#4aa3df"
     }
   ],
-  "npcs": [],
+  "npcs": [
+    {
+      "id": "npc_concierge_tour_b",
+      "char_id": "concierge",
+      "label": "Mme Deschamps",
+      "grid_x": 2.4,
+      "grid_y": 4.2,
+      "dialogue_id": "tour_b_concierge",
+      "phase": "any",
+      "action_state": "guarding"
+    }
+  ],
   "neighbors": {
     "box_garage": 1,
     "lisiere_poudrerie": 1,

@@ -7,7 +7,11 @@
       "tribe": "Cradon — Dalle / Libre",
       "color_hex": "#f28c28",
       "portrait": "res://assets/portraits/leader.png",
-      "pawn": "res://assets/pawns/leader_pawn.png",
+      "appearance": {
+        "head": "res://assets/modular/heads/leader.png",
+        "default_top": "res://assets/modular/tops/bleu_atelier.png",
+        "default_bottom": "res://assets/modular/bottoms/jean_atelier_boots.png"
+      },
       "attitude": 65,
       "aura": 3,
       "moral_start": 70,
@@ -25,7 +29,7 @@
       "arc_summary": "Tenir la cohésion du groupe entre débrouille de jour et pression policière de nuit.",
       "characteristics": { "esprit": 3, "corps": 3, "energie": 4 },
       "skills": { "caves_esquive": 2, "systeme_d": 2, "tchatche": 1, "baston_pression": 0 },
-      "default_equipment": { "look": "bleu_atelier", "tool": "cle_molette", "fetish": "" },
+      "default_equipment": { "look_top": "bleu_atelier", "look_bottom": "jean_atelier_boots", "tool": "cle_molette", "fetish": "" },
       "relations": {
         "karim": { "status": "soudes", "label": "Pote d'enfance de la Dalle" },
         "nadia": { "status": "soudes", "label": "Complémentaires en ville" },
@@ -42,7 +46,11 @@
       "tribe": "La Dalle & Premiers B-Boys",
       "color_hex": "#e03e36",
       "portrait": "res://assets/portraits/karim.png",
-      "pawn": "res://assets/pawns/karim_pawn.png",
+      "appearance": {
+        "head": "res://assets/modular/heads/karim.png",
+        "default_top": "res://assets/modular/tops/veste_survet.png",
+        "default_bottom": "res://assets/modular/bottoms/bas_survet_baskets.png"
+      },
       "attitude": 60,
       "aura": 4,
       "moral_start": 56,
@@ -60,7 +68,7 @@
       "arc_summary": "Transformer sa colère légitime contre la matraque en force collective avant qu'une nuit électrique ne lui coûte la bande.",
       "characteristics": { "esprit": 2, "corps": 4, "energie": 3 },
       "skills": { "caves_esquive": 3, "solidarite_bande": 3, "tchatche": 2, "jeux_culture": 1, "ondes_radio": -1, "sang_froid_nerfs": -2 },
-      "default_equipment": { "look": "survet_baskets", "tool": "", "fetish": "ghetto_blaster" },
+      "default_equipment": { "look_top": "veste_survet", "look_bottom": "bas_survet_baskets", "tool": "", "fetish": "ghetto_blaster" },
       "relations": {
         "leader": { "status": "soudes", "label": "Pote d'enfance de la Dalle" },
         "nadia": { "status": "soudes", "label": "Trio inséparable du Box-Garage" },
@@ -77,7 +85,11 @@
       "tribe": "Tour B & MJC / Ondes FM",
       "color_hex": "#4aa3df",
       "portrait": "res://assets/portraits/nadia.png",
-      "pawn": "res://assets/pawns/nadia_pawn.png",
+      "appearance": {
+        "head": "res://assets/modular/heads/nadia.png",
+        "default_top": "res://assets/modular/tops/duffle_coat.png",
+        "default_bottom": "res://assets/modular/bottoms/jean_noir_rangers.png"
+      },
       "attitude": 58,
       "aura": 2,
       "moral_start": 66,
@@ -95,7 +107,7 @@
       "arc_summary": "Comprendre si les ondes nocturnes cachent un jeu dangereux d'adultes ou une vraie faille sous la Dalle.",
       "characteristics": { "esprit": 4, "corps": 2, "energie": 3 },
       "skills": { "ondes_radio": 4, "systeme_d": 3, "caves_esquive": 2, "solidarite_bande": -1, "baston_pression": -2 },
-      "default_equipment": { "look": "duffle_coat", "tool": "walkman_bricole", "fetish": "" },
+      "default_equipment": { "look_top": "duffle_coat", "look_bottom": "jean_noir_rangers", "tool": "walkman_bricole", "fetish": "" },
       "relations": {
         "leader": { "status": "soudes", "label": "Regard clair et fidélité de palier" },
         "karim": { "status": "soudes", "label": "Trio inséparable du Box-Garage" },
@@ -112,7 +124,11 @@
       "tribe": "Fracture MJC / LEP",
       "color_hex": "#d9c252",
       "portrait": "res://assets/portraits/ludo.png",
-      "pawn": "res://assets/pawns/ludo_pawn.png",
+      "appearance": {
+        "head": "res://assets/modular/heads/ludo.png",
+        "default_top": "res://assets/modular/tops/blouson_college.png",
+        "default_bottom": "res://assets/modular/bottoms/jean_baskets_toile.png"
+      },
       "attitude": 52,
       "aura": 3,
       "moral_start": 58,
@@ -130,7 +146,7 @@
       "arc_summary": "Choisir enfin son camp quand la guerre froide de Cradon-lès-Gonesse exige un engagement sans filet.",
       "characteristics": { "esprit": 3, "corps": 2, "energie": 3 },
       "skills": { "tchatche": 3, "jeux_culture": 3, "lecture_rue": 2, "sang_froid_nerfs": -1, "baston_pression": -2 },
-      "default_equipment": { "look": "blouson_college", "tool": "", "fetish": "piece_flipper" },
+      "default_equipment": { "look_top": "blouson_college", "look_bottom": "jean_baskets_toile", "tool": "", "fetish": "piece_flipper" },
       "relations": {
         "leader": { "status": "complementaires", "label": "Pivot du Galaxian & du Bourg" },
         "karim": { "status": "friction", "label": "Paire explosive : méfiance viscérale envers le S.O." },
@@ -147,7 +163,11 @@
       "tribe": "Les Vieux de la Rouge",
       "color_hex": "#9b8c7d",
       "portrait": "res://assets/portraits/franck.png",
-      "pawn": "res://assets/pawns/franck_pawn.png",
+      "appearance": {
+        "head": "res://assets/modular/heads/franck.png",
+        "default_top": "res://assets/modular/tops/veste_citroen.png",
+        "default_bottom": "res://assets/modular/bottoms/pantalon_chantier.png"
+      },
       "attitude": 78,
       "aura": 5,
       "moral_start": 52,
@@ -165,7 +185,7 @@
       "arc_summary": "Retrouver une raison de croire que les jeunes de la Dalle peuvent encore gagner une manche.",
       "characteristics": { "esprit": 3, "corps": 4, "energie": 2 },
       "skills": { "lecture_rue": 4, "baston_pression": 3, "solidarite_bande": 2, "sang_froid_nerfs": -1, "caves_esquive": -2 },
-      "default_equipment": { "look": "veste_citroen", "tool": "", "fetish": "plan_ratp_1979" },
+      "default_equipment": { "look_top": "veste_citroen", "look_bottom": "pantalon_chantier", "tool": "", "fetish": "plan_ratp_1979" },
       "relations": {
         "leader": { "status": "soudes", "label": "Mentor de rue & mémoire d'Aulnay" },
         "karim": { "status": "friction", "label": "Paire explosive : fatalisme usé vs sang chaud" },
@@ -182,7 +202,11 @@
       "tribe": "Locataires de la Dalle",
       "color_hex": "#73828a",
       "portrait": "res://assets/portraits/concierge.png",
-      "pawn": "",
+      "appearance": {
+        "head": "res://assets/modular/heads/concierge.png",
+        "default_top": "res://assets/modular/tops/gilet_concierge.png",
+        "default_bottom": "res://assets/modular/bottoms/jupe_concierge.png"
+      },
       "attitude": 58,
       "aura": 3,
       "moral_start": 60,
@@ -202,7 +226,11 @@
       "tribe": "Mairie & S.O.",
       "color_hex": "#4c5b70",
       "portrait": "res://assets/portraits/so_agent.png",
-      "pawn": "",
+      "appearance": {
+        "head": "res://assets/modular/heads/so_agent.png",
+        "default_top": "res://assets/modular/tops/blouson_so.png",
+        "default_bottom": "res://assets/modular/bottoms/pantalon_so.png"
+      },
       "attitude": 35,
       "aura": 6,
       "moral_start": 70,
@@ -222,7 +250,11 @@
       "tribe": "Les Bananes du Garage",
       "color_hex": "#d96b27",
       "portrait": "res://assets/portraits/manu.png",
-      "pawn": "res://assets/pawns/manu_pawn.png",
+      "appearance": {
+        "head": "res://assets/modular/heads/manu.png",
+        "default_top": "res://assets/modular/tops/perfecto_manu.png",
+        "default_bottom": "res://assets/modular/bottoms/jean_revers_santiags.png"
+      },
       "attitude": 64,
       "aura": 5,
       "moral_start": 68,
@@ -240,7 +272,7 @@
       "arc_summary": "Tenir sa promesse faite à son père sans glisser dans les combines troubles de son grand frère.",
       "characteristics": { "esprit": 2, "corps": 5, "energie": 3 },
       "skills": { "mecanique_mob": 4, "baston_pression": 3, "lecture_rue": 1, "caves_esquive": -1, "ondes_radio": -3 },
-      "default_equipment": { "look": "perfecto_manu", "tool": "kit_103sp", "fetish": "" },
+      "default_equipment": { "look_top": "perfecto_manu", "look_bottom": "jean_revers_santiags", "tool": "kit_103sp", "fetish": "" },
       "relations": {
         "leader": { "status": "complementaires", "label": "Respect mutuel autour des 103 SP" },
         "zoe": { "status": "friction", "label": "Paire explosive : fierté rocker vs squat punk" },
@@ -257,7 +289,11 @@
       "tribe": "Les Kepons du Canal",
       "color_hex": "#d93b6a",
       "portrait": "res://assets/portraits/zoe.png",
-      "pawn": "res://assets/pawns/zoe_pawn.png",
+      "appearance": {
+        "head": "res://assets/modular/heads/zoe.png",
+        "default_top": "res://assets/modular/tops/cuir_kepon.png",
+        "default_bottom": "res://assets/modular/bottoms/pantalon_tartan_docs.png"
+      },
       "attitude": 62,
       "aura": 4,
       "moral_start": 62,
@@ -275,7 +311,7 @@
       "arc_summary": "Décider jusqu'où couper les ponts sans laisser le squat devenir une autre cage.",
       "characteristics": { "esprit": 4, "corps": 2, "energie": 3 },
       "skills": { "systeme_d": 3, "tchatche": 3, "jeux_culture": 2, "mecanique_mob": -1, "sang_froid_nerfs": -2 },
-      "default_equipment": { "look": "cuir_kepon", "tool": "bombe_pochoir", "fetish": "" },
+      "default_equipment": { "look_top": "cuir_kepon", "look_bottom": "pantalon_tartan_docs", "tool": "bombe_pochoir", "fetish": "" },
       "relations": {
         "leader": { "status": "complementaires", "label": "Complicité directe sur le terrain" },
         "manu": { "status": "friction", "label": "Paire explosive : squat punk vs Perfecto Bananes" },

@@ -9,3 +9,4 @@ res://scripts/ui/hud_overlay.gd
 res://scripts/ui/new_game_panel.gd
 res://scripts/ui/dialogue_panel.gd
 res://scripts/world/pawn_actor.gd
+res://scripts/ui/character_sheet_panel.gd
