@@ -407,13 +407,31 @@ func _select_archetype(arch_id: String, play_sfx: bool = true) -> void:
 	_lbl_arch_sub.text = str(adef.get("subtitle", ""))
 	_lbl_arch_story.text = str(adef.get("story", ""))
 	_lbl_arch_stakes.text = "Enjeu intime : " + str(adef.get("stakes", ""))
-	_lbl_arch_stats.text = "Attitude %d  |  Aura %d  |  Moral %d / %d  |  Seuil Stress %d (%s)" % [
+	var ch_var: Variant = adef.get("characteristics", {})
+	var ch_d: Dictionary = ch_var as Dictionary if ch_var is Dictionary else {}
+	var sk_var: Variant = adef.get("skills", {})
+	var sk_parts: Array[String] = []
+	if sk_var is Dictionary:
+		var sk_d: Dictionary = sk_var as Dictionary
+		for sk_k in sk_d.keys():
+			var sname: String = str(DataLoader.get_skill_def(str(sk_k)).get("name", str(sk_k))).split(" ")[0]
+			sk_parts.append("%s %+d" % [sname, int(sk_d.get(sk_k, 0))])
+	_lbl_arch_stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_lbl_arch_stats.text = (
+		"Esprit %d  ·  Corps %d  ·  Énergie %d\n" +
+		"Attitude %d  |  Aura %d  |  Moral %d / %d  |  Seuil Stress %d (%s)\n" +
+		"Compétences : %s"
+	) % [
+		int(ch_d.get("esprit", 3)),
+		int(ch_d.get("corps", 3)),
+		int(ch_d.get("energie", 3)),
 		int(adef.get("attitude", 60)),
 		int(adef.get("aura", 3)),
 		int(adef.get("moral_start", 70)),
 		int(adef.get("moral_max", 100)),
 		int(adef.get("stress_threshold", 30)),
-		str(adef.get("stress_name", "Stress"))
+		str(adef.get("stress_name", "Stress")),
+		", ".join(sk_parts)
 	]
 	_lbl_arch_spec.text = "Spécialité Frise [%s] : %s" % [
 		str(adef.get("specialty_name", "")),

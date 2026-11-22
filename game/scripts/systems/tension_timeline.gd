@@ -114,6 +114,14 @@ func start_encounter(enc_id: String) -> void:
 		_push_log("Ludo fait le guet sur l'avenue : les CRS gagnent +1 cran de retard.")
 	if GameState.has_flag("ludo_bluffed_cousin"):
 		_push_log("Le baratin de Ludo a déjà semé le doute chez son cousin S.O. (-1 Résolution).")
+	for a_item in allies:
+		if bool(a_item.get("present", false)):
+			var acid: String = str(a_item.get("char_id", ""))
+			for act_d in GameState.get_unlocked_equipment_actions(acid):
+				if str(act_d.get("id", "")) == "act_equip_caves":
+					escape_progress += 1
+					_push_log("Passe des chaufferies équipé (%s) : +1 progression Échappée !" % str(a_item.get("name", acid)))
+					break
 
 	_ensure_valid_target()
 	_check_crisis_triggers()
@@ -649,11 +657,11 @@ func get_ordered_rail_entries() -> Array[Dictionary]:
 		var cdef: Dictionary = DataLoader.get_character(cid)
 		var st: Dictionary = GameState.get_member_state(cid)
 		var portrait_p: String = str(cdef.get("portrait", ""))
-		var att_val: int = int(cdef.get("attitude", 60))
-		var aura_val: int = int(cdef.get("aura", 3))
+		var att_val: int = GameState.get_effective_attitude_for(cid)
+		var aura_val: int = GameState.get_effective_aura_for(cid)
 		var moral_val: int = int(st.get("moral", 60))
-		var moral_max_val: int = maxi(1, int(st.get("moral_max", 100)))
-		var stress_thr: int = int(cdef.get("stress_threshold", 35))
+		var moral_max_val: int = GameState.get_effective_moral_max(cid)
+		var stress_thr: int = GameState.get_effective_stress_threshold(cid)
 		if bool(a.get("present", false)):
 			var nt: int = int(a.get("next_tick", 0))
 			var r_ready: bool = bool(a.get("reaction_ready", false))
@@ -848,7 +856,7 @@ func _check_crisis_triggers() -> void:
 		var st: Dictionary = GameState.get_member_state(cid)
 		var cdef: Dictionary = DataLoader.get_character(cid)
 		var moral: int = int(st.get("moral", 60))
-		var threshold: int = int(cdef.get("stress_threshold", 35))
+		var threshold: int = GameState.get_effective_stress_threshold(cid)
 		if moral <= threshold and not _is_in_crisis_queue(cid) and not GameState.has_flag("crisis_done_" + cid):
 			GameState.set_flag("crisis_done_" + cid, true)
 			crisis_queue.append({
@@ -1017,6 +1025,10 @@ func _finish(outcome_id: String, summary: String) -> void:
 	_pending_crisis_ids.clear()
 	GameState.last_encounter_outcome = outcome_id
 	GameState.set_flag("encounter_gare_done", true)
+	var xp_reward: int = 35 if outcome_id == "social_win" else (30 if outcome_id == "escaped" else 15)
+	GameState.add_xp("all", xp_reward)
+	if outcome_id == "social_win" or outcome_id == "escaped":
+		GameState.add_trait("leader", "Sang-froid du Quai Y")
 	GameState.add_log(summary)
 	timeline_updated.emit()
 	encounter_finished.emit(outcome_id, summary)

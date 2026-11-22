@@ -1,0 +1,324 @@
+{
+  "skills_catalog": [
+    {
+      "id": "tchatche",
+      "name": "Tchatche & Baratin",
+      "charac": "esprit",
+      "desc": "Argot, mensonge à chaud, bluff municipal et moquerie sèche face au S.O."
+    },
+    {
+      "id": "systeme_d",
+      "name": "Système D & Débrouille",
+      "charac": "esprit",
+      "desc": "Crochetage sommaire, fausse panne, faux laissez-passer et récup de terrain."
+    },
+    {
+      "id": "ondes_radio",
+      "name": "Ondes & Électronique",
+      "charac": "esprit",
+      "desc": "Tuner FM, magnétos à cassettes, bornes d'arcade et tableaux électriques."
+    },
+    {
+      "id": "lecture_rue",
+      "name": "Flair & Connaissance du milieu",
+      "charac": "esprit",
+      "desc": "Sentir l'embrouille avant qu'elle pète, réseaux d'anciens et filatures."
+    },
+    {
+      "id": "mecanique_mob",
+      "name": "Mécanique & 103 SP",
+      "charac": "corps",
+      "desc": "Réglage 2-temps, dépannage express d'atelier et mobilité motorisée de bande."
+    },
+    {
+      "id": "baston_pression",
+      "name": "Caisse & Coup de pression",
+      "charac": "corps",
+      "desc": "Bras de fer, tenue d'un barrage de trottoir, parade et encaissement S.O."
+    },
+    {
+      "id": "caves_esquive",
+      "name": "Caves, Toits & Esquive",
+      "charac": "corps",
+      "desc": "Filer par les chaufferies, escalader les grilles et semer les CRS."
+    },
+    {
+      "id": "sang_froid_nerfs",
+      "name": "Nerfs & Tenue nocturne",
+      "charac": "energie",
+      "desc": "Contenir le Stress et garder la tête froide face à l'étrange nocturne."
+    },
+    {
+      "id": "solidarite_bande",
+      "name": "Entraide & Moral de groupe",
+      "charac": "energie",
+      "desc": "Tenir la cohésion au Box-Garage et apaiser les frictions de bande."
+    },
+    {
+      "id": "jeux_culture",
+      "name": "Flipper, Baby & Culture 80s",
+      "charac": "energie",
+      "desc": "Bornes d'arcade du Galaxian, smurf, rock, fanzines et codes tribaux."
+    }
+  ],
+  "equipment": [
+    {
+      "id": "parka_dalle",
+      "name": "Parka passe-partout",
+      "slot": "look",
+      "desc": "Coupe-vent gris anthracite doublé polaire usée, idéal pour se fondre dans les halls.",
+      "stat_mods": {},
+      "skill_mods": { "caves_esquive": 1 },
+      "unlocks_skills": [],
+      "unlocks_actions": []
+    },
+    {
+      "id": "trousseau_caves",
+      "name": "Trousseau des caves",
+      "slot": "tool",
+      "desc": "Vieilles clés triangle de gaines techniques et cadenas de parking de la Tour B.",
+      "stat_mods": {},
+      "skill_mods": { "systeme_d": 1 },
+      "unlocks_skills": ["caves_esquive"],
+      "unlocks_actions": [
+        { "id": "act_equip_pass_tour", "label": "Gaine Tour B", "desc": "Ouvre les trappes d'entretien en ville." }
+      ]
+    },
+    {
+      "id": "blouson_jean",
+      "name": "Blouson jean élimé",
+      "slot": "look",
+      "desc": "Veste en denim délavée du Vieux Bourg, badges de troquet sur le revers.",
+      "stat_mods": { "attitude": 2 },
+      "skill_mods": { "tchatche": 1 },
+      "unlocks_skills": [],
+      "unlocks_actions": []
+    },
+    {
+      "id": "carnet_balto",
+      "name": "Carnet de dettes du Balto",
+      "slot": "fetish",
+      "desc": "Petit calepin plié recensant qui doit une tournée ou un service dans le Bourg.",
+      "stat_mods": {},
+      "skill_mods": { "lecture_rue": 1 },
+      "unlocks_skills": ["tchatche"],
+      "unlocks_actions": []
+    },
+    {
+      "id": "bleu_atelier",
+      "name": "Bleu & Perfecto d'atelier",
+      "slot": "look",
+      "desc": "Veste de cuir râpé sur bleu de travail Citroën taché de graisse 2-temps.",
+      "stat_mods": { "aura": 1 },
+      "skill_mods": { "baston_pression": 1 },
+      "unlocks_skills": [],
+      "unlocks_actions": []
+    },
+    {
+      "id": "cle_molette",
+      "name": "Clé à molette 12–14",
+      "slot": "tool",
+      "desc": "Acier chrome-vanadium lourd au fond de la poche pour resserrer un carbu ou calmer un excité.",
+      "stat_mods": {},
+      "skill_mods": { "mecanique_mob": 1 },
+      "unlocks_skills": ["mecanique_mob"],
+      "unlocks_actions": []
+    },
+    {
+      "id": "coupe_vent_lycee",
+      "name": "Coupe-vent de lycée",
+      "slot": "look",
+      "desc": "Nylon bleu marine rangé le jour, suffisamment sobre pour franchir les grilles sans contrôle.",
+      "stat_mods": { "attitude": 2 },
+      "skill_mods": { "sang_froid_nerfs": 1 },
+      "unlocks_skills": [],
+      "unlocks_actions": []
+    },
+    {
+      "id": "badge_mjc",
+      "name": "Badge MJC / Pass Mairie",
+      "slot": "fetish",
+      "desc": "Carte d'atelier photo de la MJC et vieux laisser-passer du Relais Municipal.",
+      "stat_mods": { "stress_threshold": -2 },
+      "skill_mods": { "lecture_rue": 1 },
+      "unlocks_skills": [],
+      "unlocks_actions": [
+        { "id": "act_equip_pass_mjc", "label": "Carte MJC", "desc": "Lève les soupçons devant les notables." }
+      ]
+    },
+    {
+      "id": "survet_baskets",
+      "name": "Survêtement & Baskets",
+      "slot": "look",
+      "desc": "Ensemble nylon trois bandes taillé pour le smurf sur carton et les sprints en cité.",
+      "stat_mods": {},
+      "skill_mods": { "caves_esquive": 1 },
+      "unlocks_skills": [],
+      "unlocks_actions": []
+    },
+    {
+      "id": "ghetto_blaster",
+      "name": "Ghetto-blaster K7",
+      "slot": "fetish",
+      "desc": "Gros poste stéréo gris à piles R20 qui tient le moral de toute la Dalle.",
+      "stat_mods": { "moral_max": 5 },
+      "skill_mods": { "solidarite_bande": 1 },
+      "unlocks_skills": [],
+      "unlocks_actions": [
+        { "id": "act_equip_boombox", "label": "Son de Dalle", "desc": "Donne la niaque à la bande au Box-Garage." }
+      ]
+    },
+    {
+      "id": "duffle_coat",
+      "name": "Duffle-coat à poches",
+      "slot": "look",
+      "desc": "Laine épaisse bourrée de piles, tournevis et carnets d'écoute nocturne.",
+      "stat_mods": {},
+      "skill_mods": { "systeme_d": 1 },
+      "unlocks_skills": [],
+      "unlocks_actions": []
+    },
+    {
+      "id": "walkman_bricole",
+      "name": "Walkman Sony bricolé FM",
+      "slot": "tool",
+      "desc": "Boîtier modifié par Nadia avec bobinage élargi pour capter au-delà de la bande FM ordinaire.",
+      "stat_mods": {},
+      "skill_mods": { "ondes_radio": 2 },
+      "unlocks_skills": ["ondes_radio"],
+      "unlocks_actions": [
+        { "id": "act_equip_record_fm", "label": "Enregistrer la Fréquence", "desc": "Capte et analyse la Fréquence Fantôme de nuit." }
+      ]
+    },
+    {
+      "id": "perfecto_manu",
+      "name": "Perfecto graisseux de Manu",
+      "slot": "look",
+      "desc": "Cuir noir marqué par l'asphalte et l'odeur d'essence 2-temps des Bananes.",
+      "stat_mods": { "aura": 1 },
+      "skill_mods": { "baston_pression": 1 },
+      "unlocks_skills": [],
+      "unlocks_actions": []
+    },
+    {
+      "id": "kit_103sp",
+      "name": "Trousse 103 SP préparée",
+      "slot": "tool",
+      "desc": "Gicleurs percés, bougies NGK et clé à bougie prêts pour pousser la mob à fond.",
+      "stat_mods": {},
+      "skill_mods": { "mecanique_mob": 2 },
+      "unlocks_skills": ["mecanique_mob"],
+      "unlocks_actions": []
+    },
+    {
+      "id": "cuir_kepon",
+      "name": "Cuir clouté & badges Kepons",
+      "slot": "look",
+      "desc": "Blouson peint à la main (« Pas de couvre-feu à Cradon ») et épingles de concert.",
+      "stat_mods": { "attitude": 4 },
+      "skill_mods": { "tchatche": 1 },
+      "unlocks_skills": [],
+      "unlocks_actions": []
+    },
+    {
+      "id": "bombe_pochoir",
+      "name": "Bombe de peinture & pochoir",
+      "slot": "tool",
+      "desc": "Aérosol rouge fanzine et pochoirs découpés au cutter pour retourner la rue.",
+      "stat_mods": {},
+      "skill_mods": { "systeme_d": 1 },
+      "unlocks_skills": ["systeme_d"],
+      "unlocks_actions": [
+        { "id": "act_equip_pochoir", "label": "Bomber un mot d'ordre", "desc": "Fait passer un slogan kepon sur les murs de Cradon." }
+      ]
+    },
+    {
+      "id": "veste_citroen",
+      "name": "Veste de chantier Citroën",
+      "slot": "look",
+      "desc": "Veste épaisse usée de l'usine d'Aulnay qui impose le respect aux anciens et patrouilles.",
+      "stat_mods": { "attitude": 4, "aura": 1 },
+      "skill_mods": { "lecture_rue": 1 },
+      "unlocks_skills": [],
+      "unlocks_actions": []
+    },
+    {
+      "id": "plan_ratp_1979",
+      "name": "Vieux plan RATP 1979",
+      "slot": "fetish",
+      "desc": "Carte pliée annotée au bic rouge où la gare de Cradon apparaît déjà avant 1981.",
+      "stat_mods": { "stress_threshold": -2 },
+      "skill_mods": { "lecture_rue": 1 },
+      "unlocks_skills": [],
+      "unlocks_actions": []
+    },
+    {
+      "id": "blouson_college",
+      "name": "Blouson collège à revers",
+      "slot": "look",
+      "desc": "Look caméléon entre le LEP du Bourg et les habitués de la MJC.",
+      "stat_mods": {},
+      "skill_mods": { "tchatche": 1 },
+      "unlocks_skills": [],
+      "unlocks_actions": []
+    },
+    {
+      "id": "piece_flipper",
+      "name": "Pièce porte-bonheur flipper",
+      "slot": "fetish",
+      "desc": "Vieille pièce de 1 F limée qui claque les parties gratuites sur le Space Invader.",
+      "stat_mods": {},
+      "skill_mods": { "jeux_culture": 1 },
+      "unlocks_skills": [],
+      "unlocks_actions": []
+    },
+    {
+      "id": "perfecto_cloute",
+      "name": "Perfecto clouté 1982",
+      "slot": "look",
+      "desc": "Cuir lourd aux épaulettes cloutées récupéré au coffre du Box-Garage.",
+      "stat_mods": { "aura": 1 },
+      "skill_mods": { "baston_pression": 1 },
+      "unlocks_skills": [],
+      "unlocks_actions": [
+        { "id": "act_equip_intimidation_look", "label": "Intimidation Look", "desc": "Ouvre les répliques de pression d'Aura face aux Skins / S.O." }
+      ]
+    },
+    {
+      "id": "parka_anonyme",
+      "name": "Parka anonyme à capuche",
+      "slot": "look",
+      "desc": "Imperméable terne sans badge ni marque tribale pour couper sous les projecteurs.",
+      "stat_mods": {},
+      "skill_mods": { "caves_esquive": 1 },
+      "unlocks_skills": [],
+      "unlocks_actions": [
+        { "id": "act_equip_infiltration", "label": "Infiltration discrète", "desc": "Permet de raser les murs face aux patrouilles CRS." }
+      ]
+    },
+    {
+      "id": "cle_chaufferies",
+      "name": "Clé passe-partout des chaufferies",
+      "slot": "tool",
+      "desc": "Passe technique de la Tour B ouvrant les soupiraux et issues souterraines vers la gare RER.",
+      "stat_mods": {},
+      "skill_mods": { "caves_esquive": 2 },
+      "unlocks_skills": ["caves_esquive"],
+      "unlocks_actions": [
+        { "id": "act_equip_caves", "label": "Couper par les caves", "desc": "+1 progression Échappée dès le début de confrontation en ville." }
+      ]
+    },
+    {
+      "id": "cassettes_tdk",
+      "name": "Cassettes Radio Lucien / TDK",
+      "slot": "fetish",
+      "desc": "Compilations punk/rockabilly/cold-wave annotées au feutre pour souffler entre deux virées.",
+      "stat_mods": { "moral_max": 8, "stress_threshold": -3 },
+      "skill_mods": { "solidarite_bande": 1 },
+      "unlocks_skills": [],
+      "unlocks_actions": [
+        { "id": "act_equip_pause_musique", "label": "Pause musique au Box", "desc": "Apaise la tension nerveuse de la bande." }
+      ]
+    }
+  ]
+}

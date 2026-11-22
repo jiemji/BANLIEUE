@@ -1,6 +1,6 @@
 # *Banlieue* — Architecture Technique
 
-> **Version courante : 0.4.2** — Mise à jour : 2026-11-22
+> **Version courante : 0.5.0** — Mise à jour : 2026-11-22
 
 *Spécification technique de référence et socle des Jalons 0 & 1 (Option C & D + UX Frise Combat v0.4) — Phase Technique (🛠️ Léo & 🎯 Agent Combat UX).*
 
@@ -32,7 +32,7 @@ BANLIEUE/
 ├── .agents/                             # Capitalisation locale : agents dédiés & pipeline assets 2D
 │   ├── agents/                          # banlieue-asset-artist.md (2D) & banlieue-combat-ux.md (UX Frise/Combat)
 │   └── skills/banlieue-asset-pipeline/  # Skill + script Python de détourage RGBA & validation Godot
-├── docs/                                # Bible, chantiers créatifs et doc technique
+├── docs/                                # Bible, chantiers créatifs, UX combat (ux_combat_frise.md), Fiches PJ (fiches_personnages_pj.md) et doc technique
 ├── Références/                          # Sources JDR Zone (hors indexation Godot)
 └── game/                                # Racine du projet Godot 4 (ouvrir game/project.godot)
     ├── project.godot                    # Configuration Godot 4.4+ (GL Compatibility) & Autoloads
@@ -59,7 +59,8 @@ BANLIEUE/
     │   │   ├── garage_bananes.json      # 8×8 (backdrop — garage_bananes.png)
     │   │   ├── squat_kepons.json        # 8×8 (backdrop — squat_kepons.png)
     │   │   └── lisiere_poudrerie.json   # 8×8 (backdrop — lisiere_poudrerie.png)
-    │   ├── dialogues.json               # Nœuds narratifs, conditions et effets (Francs/Faveurs/Flags/Recrutement)
+    │   ├── dialogues.json               # Nœuds narratifs, conditions (min_skill, require_item) et effets (XP/Objets/Traits/Recrutement)
+    │   ├── equipment.json               # Catalogue des 10 compétences (-3..+5) et des 24 équipements Look/Outil/Fétiche
     │   ├── timeline_encounters.json     # Rencontre Gare RER « du Y », ennemis, CRS, Train Fantôme & interruptions
     │   └── radio_fm.json                # 5 fréquences FM (92.4, 95.8, 98.6, 101.2, 104.7 nuit)
     ├── shaders/
@@ -88,6 +89,7 @@ BANLIEUE/
             ├── hud_overlay.gd           # Bandeau 1982, fil d'Ariane N1-N4, bouton Menu, bande 1–6 & Tuner Radio FM
             ├── dialogue_panel.gd        # Boîte de dialogue BD/fanzine avec portraits et choix annotés
             ├── timeline_panel.gd        # Frise-Cartes Unifiée (Option A : fiches portraits/stats/hors-frise + barre timing)
+            ├── character_sheet_panel.gd # Carnet de Bande [F] : fiches PJ (Esprit/Corps/Énergie, -3..+5, XP, coffre, relations)
             ├── title_menu_panel.gd      # Menu Principal / Pause unifié sur fond vivant du Box-Garage
             ├── new_game_panel.gd        # Écran « Nouvelle partie » (prénom, 6 portraits/pions libres, 4 archétypes)
             ├── save_load_panel.gd       # Modale 3 cassettes TDK 1982 (sauver, charger, effacer + confirmations)
@@ -131,7 +133,7 @@ BANLIEUE/
 ### Séquences livrées et testables dès le Jalon 0
 1. **Box-Garage de la Cité *(Jour)*** : Accueil du trio de départ (**Leader, Karim, Nadia**), briefing, choix d'équipement (blouson *Aura +1* ou bricole *103 SP*) et test du tuner **5 stations FM**.
 2. **Le Galaxian *(Jour)*** : Découverte de l'avis de fermeture du S.O., discussion avec **Ludo** et déblocage des 3 pistes de ville.
-3. **Enquête scindée en bascule libre (`1/2/3`)** : Répartition entre **Tour B** (ruse électrique de Nadia face à la loge de la Concierge), **Chez Bébert** (négociation de Faveur avec **Franck** et coup de chaud sur le Moral de Karim) et **Ruelle du Relais Municipal** (dilemme familial de **Ludo** avec son cousin S.O.).
+3. **Enquête scindée en bascule libre (`1–6`)** : Répartition entre **Tour B** (ruse électrique de Nadia face à la loge de la Concierge), **Chez Bébert** (négociation de Faveur avec **Franck** et coup de chaud sur le Moral de Karim) et **Ruelle du Relais Municipal** (dilemme familial de **Ludo** avec son cousin S.O.), complétée par le **Garage des Bananes** (**Manu**) et le **Squat des Kepons** (**Zoé**).
 4. **Sas Sensoriel Crépusculaire** : Transition physique Jour → Nuit déclenchée par le crépuscule (grondement Boeing, secousse de cadre, passage au rendu N&B + 4 couleurs-signaux et basse Cold Wave).
 5. **Frise Chronologique Nocturne — Gare RER « du Y »** : Confrontation sur le quai contre Skin nerveux, cousin S.O. et S.O. vétéran, gestion des **Interruptions hors-tour**, préavis et arbitrage de la **Crise d'autonomie de Karim**, arrivée des CRS et apparition du **Train Fantôme du RER B**.
 6. **Retour au Box-Garage & Bilan** : Résolution humaine de la crise, choix d'ouvrir ou non la porte à **Ludo** (recrutement), bref signal sur la **104.7 FM** et récapitulatif du Jalon 0.
@@ -143,5 +145,5 @@ Conformément à la spécification validée dans [structure_menus_et_ecrans.md](
 * **Écrans UI** : `scripts/ui/title_menu_panel.gd` (menu unifié Accueil/Pause sur fond vivant du Box-Garage piloté par `AppState` dans `main.gd`), `scripts/ui/save_load_panel.gd`, `scripts/ui/options_panel.gd` et `scripts/ui/new_game_panel.gd`.
 
 ### Jalons ultérieurs
-* **Jalon 1 *(Production Visuelle & Audio)*** : Remplacement progressif du greybox isométrique par tuiles peintes/encrées, portraits BD expressifs et vrais stems musicaux Cold Wave / FM.
+* **Jalon 1 *(Fiches PJ, Équipements & Audio — socle `v0.5.0` livré)*** : Implémentation du **Carnet de Bande `[F]`** ([fiches_personnages_pj.md](file:///e:/JDR/BANLIEUE/docs/fiches_personnages_pj.md) — `Esprit/Corps/Énergie`, 10 compétences `-3..+5`, XP et `equipment.json` à effets actifs) ; reste l'enrichissement des stems audio Cold Wave / FM (les 9 décors isométriques N4 et 3 cartes IGN N1–N3 étant déjà illustrés).
 * **Jalon 2 *(Chantier D — Campagne Complète)*** : Ouverture du **Chantier D** dans `docs/` pour injecter le scénario principal, les 4 autres compagnons recrutables et les 4 fins directement via de nouveaux fichiers JSON sans refondre le moteur.

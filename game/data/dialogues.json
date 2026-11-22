@@ -170,6 +170,8 @@
             "set_flag": { "tour_b_done": true, "has_caves_key": true },
             "faveurs": 1,
             "moral": { "leader": 4 },
+            "grant_item": "cle_chaufferies",
+            "add_xp": { "target": "all", "amount": 20 },
             "unlock_clue": "Raccourci des chaufferies connu par cœur : double de l'arrêté & clé subtilisés incognito."
           },
           "next": "tour_b_success"
@@ -181,6 +183,8 @@
           "effects": {
             "set_flag": { "tour_b_done": true, "has_caves_key": true },
             "faveurs": 1,
+            "grant_item": "cle_chaufferies",
+            "add_xp": { "target": "all", "amount": 20 },
             "unlock_clue": "Clé des chaufferies + double de l'arrêté récupérés sans alerter la tante de Nadia."
           },
           "next": "tour_b_success"
@@ -193,6 +197,7 @@
             "set_flag": { "tour_b_done": true, "has_caves_key": true },
             "notoriete": 1,
             "moral": { "nadia": -10, "leader": -5 },
+            "add_xp": { "target": "all", "amount": 10 },
             "unlock_clue": "Double de l'arrêté récupéré dans le hall — mais la concierge a prévenu sa tante."
           },
           "next": "tour_b_success"
@@ -231,6 +236,7 @@
             "faveurs": 1,
             "set_flag": { "bebert_done": true },
             "moral": { "karim": -10, "leader": 4 },
+            "add_xp": { "target": "all", "amount": 20 },
             "unlock_clue": "Ardoise chez Bébert honorée : Faveur gratuite avec les cheminots et moral préservé."
           },
           "next": "chez_bebert_so_pass"
@@ -244,6 +250,7 @@
             "faveurs": 1,
             "set_flag": { "bebert_done": true },
             "moral": { "karim": -18 },
+            "add_xp": { "target": "all", "amount": 20 },
             "unlock_clue": "Faveur obtenue chez Bébert auprès de Franck & des cheminots. Le S.O. a chauffé Karim."
           },
           "next": "chez_bebert_so_pass"
@@ -257,6 +264,7 @@
             "notoriete": 1,
             "set_flag": { "bebert_done": true, "promised_citroen": true },
             "moral": { "karim": -18, "leader": 4 },
+            "add_xp": { "target": "all", "amount": 20 },
             "unlock_clue": "Faveur scellée avec Franck contre relais des tracts Citroën."
           },
           "next": "chez_bebert_so_pass"
@@ -427,6 +435,7 @@
             "aura_bonus": 1,
             "notoriete": 1,
             "moral": { "zoe": -6, "manu": 6 },
+            "add_xp": { "target": "all", "amount": 20 },
             "set_flag": { "manu_recruited": true },
             "unlock_clue": "Manu des Bananes rejoint la bande (+1 Aura, affinité atelier)."
           },
@@ -440,6 +449,7 @@
             "recruit": "manu",
             "notoriete": 1,
             "moral": { "zoe": -6 },
+            "add_xp": { "target": "all", "amount": 20 },
             "set_flag": { "manu_recruited": true },
             "unlock_clue": "Manu rejoint la bande après avoir vu vos 103 SP tournées."
           },
@@ -454,6 +464,7 @@
             "recruit": "manu",
             "notoriete": 1,
             "moral": { "zoe": -6 },
+            "add_xp": { "target": "all", "amount": 20 },
             "set_flag": { "manu_recruited": true },
             "unlock_clue": "Manu des Bananes rejoint la bande au Box-Garage."
           },
@@ -519,6 +530,8 @@
             "faveurs": 1,
             "notoriete": 1,
             "moral": { "manu": -6, "zoe": 6 },
+            "grant_item": "bombe_pochoir",
+            "add_xp": { "target": "all", "amount": 20 },
             "set_flag": { "zoe_recruited": true },
             "unlock_clue": "Zoé des Kepons rejoint la bande (complicité anti-pavillons)."
           },
@@ -532,6 +545,8 @@
             "recruit": "zoe",
             "notoriete": 1,
             "moral": { "manu": -6 },
+            "grant_item": "bombe_pochoir",
+            "add_xp": { "target": "all", "amount": 20 },
             "set_flag": { "zoe_recruited": true },
             "unlock_clue": "Zoé rejoint la bande pour pilonner le S.O. à coups de tracts !"
           },
@@ -546,6 +561,8 @@
             "recruit": "zoe",
             "notoriete": 1,
             "moral": { "manu": -6 },
+            "grant_item": "bombe_pochoir",
+            "add_xp": { "target": "all", "amount": 20 },
             "set_flag": { "zoe_recruited": true },
             "unlock_clue": "Alliance canal scellée : Zoé rejoint la bande."
           },
@@ -639,12 +656,26 @@
       "text": "Un vieux blockhaus de brique cadenassé s'enfonce dans la mousse. Devant la porte en fer, une large flaque boueuse renvoie une lueur pâle bleutée — simple reflet d'hydrocarbures… à moins que l'air ne bourdonne.",
       "choices": [
         {
+          "label": "[Ondes & Électronique 2+] Régler le Walkman sur la fréquence fantôme devant le bunker",
+          "tag": "Compétence Ondes 2+ · Nuit • +1 Faveur / +25 XP",
+          "conditions": { "min_skill": { "id": "ondes_radio", "val": 2 }, "require_phase": "night", "require_not_flag": "poudrerie_bunker_checked" },
+          "effects": {
+            "faveurs": 1,
+            "add_xp": { "target": "all", "amount": 25 },
+            "grant_item": "cassettes_tdk",
+            "set_flag": { "poudrerie_bunker_checked": true, "poudrerie_done": true },
+            "unlock_clue": "Bande magnétique captée au pied du bunker de la Poudrerie (voix claire sur 104.7 FM)."
+          },
+          "next": ""
+        },
+        {
           "label": "[Nuit · Nadia] Approcher le walkman et caler la bande sur 104.7 FM",
           "tag": "Nadia & Nuit • +1 Faveur / Fréquence",
           "conditions": { "require_phase": "night", "require_member": "nadia", "require_not_flag": "poudrerie_bunker_checked" },
           "effects": {
             "faveurs": 1,
             "moral": { "nadia": -8, "all": -4 },
+            "add_xp": { "target": "all", "amount": 20 },
             "set_flag": { "poudrerie_bunker_checked": true, "poudrerie_done": true },
             "unlock_clue": "Poudrerie de nuit : la montre à quartz de Nadia dérive de 4 min devant le bunker."
           },
@@ -657,6 +688,7 @@
           "effects": {
             "faveurs": 1,
             "notoriete": 1,
+            "add_xp": { "target": "all", "amount": 20 },
             "set_flag": { "poudrerie_bunker_checked": true, "poudrerie_done": true },
             "unlock_clue": "Ancien plan des galeries de service relevé sur la porte du bunker."
           },

@@ -12,7 +12,7 @@
 * **Frontières naturelles & contexte d'époque** : Bordée par le **canal de l'Ourcq**, l'ancienne **Poudrerie nationale de Sevran-Livry** (140 hectares militaires clôturés depuis 1973, dont le musée ouvre en 1982), tout près de l'usine **Citroën d'Aulnay** en pleines grèves ouvrières (1982–1984) et directement sous les couloirs aériens de **Roissy-CDG**.
 
 ### Échelle de jeu : 85 % local + 15 % échappées ciblées en RER B
-* **Cradon-lès-Gonesse (85 %)** : Ville-archipel dense structurée en **4 secteurs** contrastés qui changent de visage entre le jour et la nuit.
+* **Cradon-lès-Gonesse (85 %)** : Ville-archipel dense structurée en **5 secteurs** et **9 lieux clés** contrastés qui changent de visage entre le jour et la nuit.
 * **Échappées ciblées en RER B (15 %)** :
   1. **Paris — Gare du Nord / Châtelet–Les Halles** : la capitale brillante et intimidante au bout de la ligne (disquaires, fripes, halles interlopes, choc social).
   2. **Aulnay — Grilles de Citroën** : le piquet de grève ouvrier, braseros, syndicalistes, tensions avec les CRS et les « jaunes ».
@@ -31,7 +31,7 @@
 ### Les 3 Ressources de Poche
 1. **Les Francs** *(pièces de 1 F, 5 F, 10 F et billets froissés)* : toujours comptés au plus juste — flipper à *Le Galaxian*, demi au comptoir, mélange 2-temps à la pompe, clopes, cassettes vierges TDK pour capter la FM, pièces à la casse auto, ticket de RER.
 2. **Les Faveurs & Dettes** *(capital social de rue)* : le vrai nerf de la guerre à Cradon-lès-Gonesse — qui vous doit un service ou à qui vous devez une tournée (tauliers de bistrots, mécanos, grands frères de la Dalle, animatrice de la MJC, délégué syndical d'Aulnay). Une faveur pèse plus lourd qu'un billet face à un barrage tribal.
-3. **La Bricole & les Fringues** *(matos Système D)* : outils de fortune, chaînes et clés de chaufferie/caves, bombes de peinture, pièces de mob, mais aussi **blousons, badges, pompes et coupes** (Perfecto, bomber, Doc Martens, survêtement/coupe-vent, parka) qui modifient directement l'**Aura** (allure menaçante/respectée) et l'accueil reçu dans chaque territoire.
+3. **La Bricole, les Fringues & l'Équipement PJ** *(matos Système D)* : outils de fortune, chaînes et clés de chaufferie/caves, bombes de peinture, pièces de mob, mais aussi **blousons, badges, pompes et coupes** (Perfecto, bomber, Doc Martens, survêtement/coupe-vent, parka) équipables sur les 3 emplacements de chaque fiche PJ (*Look / Outil / Fétiche*) qui apportent des **bonus de stats/compétences (`Aura`, `Moral`)** ou **débloquent de nouvelles compétences et actions jouables** (voir [fiches_personnages_pj.md](file:///e:/JDR/BANLIEUE/docs/fiches_personnages_pj.md)).
 
 ### Le QG Évolutif — Le Box-Garage de la Cité
 * **Le lieu de départ** : Un vieux box en béton situé dans le parking semi-enterré au pied des tours de la Dalle. Rideau métallique rouillé qui grince, établi bancal, **deux 103 SP à retaper**, un canapé en skaï éventré et un gros radiocassette mono à antenne télescopique.
@@ -57,19 +57,21 @@
 * **Réseau des Caves & Chaufferies** : labyrinthe de tuyaux chauds reliant plusieurs immeubles — raccourci vital pour fuir les patrouilles, mais dédaléen la nuit quand le Moral baisse.
 * **Les Toits-Terrasses** : vue dégagée sur toute la plaine, antennes TV en râteau, et avions de Roissy qui rasent les têtes ; refuge silencieux au crépuscule.
 
-### 2. Le Vieux Bourg & la Gare RER *(Centre nerveux & zones de frottement)*
-* **La Gare RER « du Y »** : quai surélevé entre deux voies qui bifurquent ; foule pressée des travailleurs à l'aube, déserte et battue par le vent et les trains qui ne s'arrêtent pas après 22 h.
+### 2. Le Vieux Bourg *(Centre nerveux & zones de frottement)*
 * **Troquet neutre — *Chez Bébert / Le Balto*** : comptoir en formica, baby-foot usé, zone franche tacite où les tribus boivent un coup sans sortir les battes (de jour du moins).
 * **Troquet clanique — *Le Relais Municipal*** : fief du maire, de ses courtiers et du S.O. ; hostile aux jeunes de la Dalle et aux Kepons, source précieuse d'infos politiques et immobilières pour qui sait bluffer ou se déguiser.
 * **Salle de Jeux — *Le Galaxian*** : flippers, baby-foot, borne *Space Invader* capricieuse ; lieu de détente (Moral +), d'échanges d'infos et de défis de rue entre ados de toutes tribus.
 * **La MJC & le Lycée / LEP** : entrepôt de culture (atelier photo, répétitions de rock/smurf, fanzines), surveillé par un éducateur dépassé et disputé par les jeunes de gauche et les Skins.
 
-### 3. Le Canal de l'Ourcq & la Zone Industrielle *(Métal, squats & débrouille)*
+### 3. La Bifurcation RER B Nord *(Secteur de la Gare « du Y »)*
+* **La Gare RER « du Y »** : quai surélevé entre deux voies qui bifurquent ; foule pressée des travailleurs à l'aube, déserte et battue par le vent et les trains qui ne s'arrêtent pas après 22 h.
+
+### 4. Le Canal de l'Ourcq & la Zone Industrielle *(Métal, squats & débrouille)*
 * **Le Garage des Bananes** : atelier graisseux tenu par des Rockers/Loubards trentenaires et jeunes ; pièces de mob, cuir, musique 50s/rockabilly, terrain d'embrouilles à la vanne ou au bras de fer.
 * **L'Entrepôt-Squat des Kepons** : ancien dock désaffecté au bord du canal ; répètes punk assourdissantes, sérigraphie, concerts clandestins la nuit et méfiance absolue envers les « bouffons » extérieurs.
 * **La Casse Auto & l'Écluse du Canal** : mine de pièces *Système D* de jour ; point de passage isolé, brumeux et dangereux la nuit pour les règlements de comptes ou les échanges discrets.
 
-### 4. La Lisière Pavillonnaire & l'Ancienne Poudrerie *(Banlieue douce & marge interdite)*
+### 5. La Lisière de la Poudrerie & les Pavillons *(Hors-Plan — Banlieue douce & marge interdite)*
 * **Le Lotissement Pavillonnaire** : maisonnettes ouvrières avec nains de jardin, potagers, chiens qui aboient et pères qui bricolent la Simca — calme apparent de jour, paranoïa des volets tirés dès 21 h.
 * **Les Grilles & Bunkers de la Poudrerie** : lisière des 140 hectares boisés et grillagés fermés depuis 1973 (le petit musée n'occupe qu'un coin d'entrée depuis 1982) ; sentiers interdits, anciens bâtiments en brique envahis par les ronces, terrain idéal des rumeurs nocturnes.
 * **Les Champs sous les Couloirs Aériens** : bout de terre agricole résiduel coincé avant Villepinte ; grondement périodique des Boeing qui couvre toute conversation.

@@ -19,6 +19,8 @@ var activity_log: Array[String] = []
 
 var squad_members: Array[String] = []
 var member_states: Dictionary = {} # char_id -> {moral, moral_max, location_id, group_id, order_label, stress_active}
+var member_progression: Dictionary = {} # char_id -> {xp, skills, equipment, traits}
+var box_stash: Array[String] = []
 var active_group_id: int = 0
 var current_station_idx: int = 0
 var last_encounter_outcome: String = ""
@@ -48,6 +50,8 @@ func reset_new_slice(profile: Dictionary = {}) -> void:
 	activity_log.clear()
 	squad_members.clear()
 	member_states.clear()
+	member_progression.clear()
+	box_stash = ["perfecto_cloute", "parka_anonyme", "cassettes_tdk"]
 	active_group_id = 0
 	current_station_idx = 0
 	last_encounter_outcome = ""
@@ -104,11 +108,12 @@ func reset_new_slice(profile: Dictionary = {}) -> void:
 		var cid: String = str(cid_var)
 		var cdef: Dictionary = DataLoader.get_character(cid)
 		var in_default: bool = bool(cdef.get("in_squad_default", false))
+		_ensure_progression_entry(cid, 40 if cid == "leader" else (20 if in_default else 0))
 		var m_start: int = int(cdef.get("moral_start", 60))
-		var m_max: int = int(cdef.get("moral_max", 100))
-		var threshold: int = int(cdef.get("stress_threshold", 35))
+		var m_max: int = get_effective_moral_max(cid)
+		var threshold: int = get_effective_stress_threshold(cid)
 		member_states[cid] = {
-			"moral": m_start,
+			"moral": clampi(m_start, 0, m_max),
 			"moral_max": m_max,
 			"location_id": "box_garage",
 			"grid_x": sp_x,
@@ -211,12 +216,290 @@ func get_total_aura() -> int:
 	var best_aura: int = 0
 	var active_ids: Array[String] = get_active_group_members()
 	for cid in active_ids:
-		var cdef: Dictionary = DataLoader.get_character(cid)
-		var cf: int = int(cdef.get("aura", 2))
+		var cf: int = get_effective_aura_for(cid)
 		if cf > best_aura:
 			best_aura = cf
 	var size_bonus: int = max(0, active_ids.size() - 1)
 	return best_aura + aura_bonus + size_bonus
+
+func _ensure_progression_entry(char_id: String, initial_xp: int = 0) -> void:
+	if member_progression.has(char_id):
+		return
+	var cdef: Dictionary = DataLoader.get_character(char_id)
+	var base_skills: Dictionary = {}
+	var raw_sk: Variant = cdef.get("skills", {})
+	if raw_sk is Dictionary:
+		var skd: Dictionary = raw_sk as Dictionary
+		for sk_k in skd.keys():
+			base_skills[str(sk_k)] = int(skd.get(sk_k, 0))
+	var base_eq: Dictionary = {"look": "", "tool": "", "fetish": ""}
+	var raw_eq: Variant = cdef.get("default_equipment", {})
+	if raw_eq is Dictionary:
+		var eqd: Dictionary = raw_eq as Dictionary
+		for sl_k in ["look", "tool", "fetish"]:
+			base_eq[sl_k] = str(eqd.get(sl_k, ""))
+	var empty_traits: Array[String] = []
+	member_progression[char_id] = {
+		"xp": initial_xp,
+		"skills": base_skills,
+		"equipment": base_eq,
+		"traits": empty_traits
+	}
+
+func get_member_progression(char_id: String) -> Dictionary:
+	if not member_progression.has(char_id):
+		_ensure_progression_entry(char_id, 0)
+	var val: Variant = member_progression.get(char_id, {})
+	if val is Dictionary:
+		return val as Dictionary
+	return {}
+
+func _get_equipped_item_ids(char_id: String) -> Array[String]:
+	var res: Array[String] = []
+	var prog: Dictionary = get_member_progression(char_id)
+	var eq_var: Variant = prog.get("equipment", {})
+	if eq_var is Dictionary:
+		var eq_d: Dictionary = eq_var as Dictionary
+		for slot_k in ["look", "tool", "fetish"]:
+			var iid: String = str(eq_d.get(slot_k, ""))
+			if iid != "":
+				res.append(iid)
+	return res
+
+func _sum_equipment_stat_mod(char_id: String, stat_key: String) -> int:
+	var total: int = 0
+	for iid in _get_equipped_item_ids(char_id):
+		var idef: Dictionary = DataLoader.get_equipment_def(iid)
+		var sm_var: Variant = idef.get("stat_mods", {})
+		if sm_var is Dictionary:
+			total += int((sm_var as Dictionary).get(stat_key, 0))
+	return total
+
+func get_effective_characteristic(char_id: String, charac_id: String) -> int:
+	var cdef: Dictionary = DataLoader.get_character(char_id)
+	var ch_var: Variant = cdef.get("characteristics", {})
+	var base: int = 3
+	if ch_var is Dictionary:
+		base = int((ch_var as Dictionary).get(charac_id, 3))
+	return clampi(base + _sum_equipment_stat_mod(char_id, charac_id), 1, 5)
+
+func get_base_skill(char_id: String, skill_id: String) -> int:
+	var prog: Dictionary = get_member_progression(char_id)
+	var sk_var: Variant = prog.get("skills", {})
+	if sk_var is Dictionary:
+		return clampi(int((sk_var as Dictionary).get(skill_id, 0)), -3, 5)
+	return 0
+
+func get_equipment_skill_bonus(char_id: String, skill_id: String) -> int:
+	var bonus: int = 0
+	for iid in _get_equipped_item_ids(char_id):
+		var idef: Dictionary = DataLoader.get_equipment_def(iid)
+		var mods_var: Variant = idef.get("skill_mods", {})
+		if mods_var is Dictionary:
+			bonus += int((mods_var as Dictionary).get(skill_id, 0))
+	return bonus
+
+func get_effective_skill(char_id: String, skill_id: String) -> int:
+	var base: int = get_base_skill(char_id, skill_id)
+	var bonus: int = get_equipment_skill_bonus(char_id, skill_id)
+	var total: int = base + bonus
+	var unlocked_by_item: bool = false
+	for iid in _get_equipped_item_ids(char_id):
+		var idef: Dictionary = DataLoader.get_equipment_def(iid)
+		var unl_var: Variant = idef.get("unlocks_skills", [])
+		if unl_var is Array:
+			for u_v in (unl_var as Array):
+				if str(u_v) == skill_id:
+					unlocked_by_item = true
+					break
+	if unlocked_by_item and total < 1:
+		total = 1
+	return clampi(total, -3, 5)
+
+func get_best_active_group_skill(skill_id: String) -> int:
+	var best: int = -3
+	var active_ids: Array[String] = get_active_group_members()
+	if active_ids.is_empty():
+		return 0
+	for cid in active_ids:
+		var val: int = get_effective_skill(cid, skill_id)
+		if val > best:
+			best = val
+	return best
+
+func get_effective_attitude_for(char_id: String) -> int:
+	var cdef: Dictionary = DataLoader.get_character(char_id)
+	return maxi(0, int(cdef.get("attitude", 60)) + _sum_equipment_stat_mod(char_id, "attitude"))
+
+func get_effective_aura_for(char_id: String) -> int:
+	var cdef: Dictionary = DataLoader.get_character(char_id)
+	return maxi(0, int(cdef.get("aura", 2)) + _sum_equipment_stat_mod(char_id, "aura"))
+
+func get_effective_moral_max(char_id: String) -> int:
+	var cdef: Dictionary = DataLoader.get_character(char_id)
+	return maxi(20, int(cdef.get("moral_max", 100)) + _sum_equipment_stat_mod(char_id, "moral_max"))
+
+func get_effective_stress_threshold(char_id: String) -> int:
+	var cdef: Dictionary = DataLoader.get_character(char_id)
+	return clampi(int(cdef.get("stress_threshold", 35)) + _sum_equipment_stat_mod(char_id, "stress_threshold"), 5, 90)
+
+func get_unlocked_equipment_actions(char_id: String) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var seen: Dictionary = {}
+	for iid in _get_equipped_item_ids(char_id):
+		var idef: Dictionary = DataLoader.get_equipment_def(iid)
+		var acts_var: Variant = idef.get("unlocks_actions", [])
+		if acts_var is Array:
+			for av in (acts_var as Array):
+				if av is Dictionary:
+					var ad: Dictionary = av as Dictionary
+					var aid: String = str(ad.get("id", ""))
+					if aid != "" and not seen.has(aid):
+						seen[aid] = true
+						out.append(ad.duplicate(true))
+	return out
+
+func get_skill_upgrade_cost(current_val: int, is_new_learn: bool = false) -> int:
+	if current_val >= 5:
+		return -1
+	if current_val < 0:
+		return 30
+	if current_val == 0:
+		return 50 if is_new_learn else 40
+	if current_val == 1:
+		return 60
+	if current_val == 2:
+		return 90
+	if current_val == 3:
+		return 130
+	return 180
+
+func add_xp(char_id: String, amount: int) -> void:
+	if amount <= 0:
+		return
+	if char_id == "all":
+		for cid in squad_members:
+			add_xp(cid, amount)
+		return
+	var prog: Dictionary = get_member_progression(char_id)
+	prog["xp"] = int(prog.get("xp", 0)) + amount
+	member_progression[char_id] = prog
+	var cname: String = str(DataLoader.get_character(char_id).get("name", char_id))
+	add_log("XP %s : +%d XP" % [cname, amount])
+	state_changed.emit()
+
+func upgrade_member_skill(char_id: String, skill_id: String) -> bool:
+	var prog: Dictionary = get_member_progression(char_id)
+	var sk_var: Variant = prog.get("skills", {})
+	var sk_d: Dictionary = sk_var as Dictionary if sk_var is Dictionary else {}
+	var cur_val: int = clampi(int(sk_d.get(skill_id, 0)), -3, 5)
+	if cur_val >= 5:
+		return false
+	var cdef: Dictionary = DataLoader.get_character(char_id)
+	var profile_sk_var: Variant = cdef.get("skills", {})
+	var in_profile: bool = (profile_sk_var is Dictionary) and (profile_sk_var as Dictionary).has(skill_id)
+	var is_new_learn: bool = (cur_val == 0) and (not in_profile) and (not sk_d.has(skill_id))
+	var cost: int = get_skill_upgrade_cost(cur_val, is_new_learn)
+	var xp_avail: int = int(prog.get("xp", 0))
+	if cost < 0 or xp_avail < cost:
+		return false
+	prog["xp"] = xp_avail - cost
+	sk_d[skill_id] = cur_val + 1
+	prog["skills"] = sk_d
+	member_progression[char_id] = prog
+	var sname: String = str(DataLoader.get_skill_def(skill_id).get("name", skill_id))
+	var cname: String = str(cdef.get("name", char_id))
+	add_log("%s progresse en %s (%+d)" % [cname, sname, cur_val + 1])
+	state_changed.emit()
+	return true
+
+func add_trait(char_id: String, trait_label: String) -> void:
+	if trait_label == "":
+		return
+	var prog: Dictionary = get_member_progression(char_id)
+	var tr_var: Variant = prog.get("traits", [])
+	var tr_list: Array[String] = []
+	if tr_var is Array:
+		for tv in (tr_var as Array):
+			tr_list.append(str(tv))
+	if not tr_list.has(trait_label):
+		tr_list.append(trait_label)
+		prog["traits"] = tr_list
+		member_progression[char_id] = prog
+		var cname: String = str(DataLoader.get_character(char_id).get("name", char_id))
+		add_log("Trait acquis (%s) : %s" % [cname, trait_label])
+		state_changed.emit()
+
+func add_to_box_stash(item_id: String) -> void:
+	if item_id == "" or DataLoader.get_equipment_def(item_id).is_empty():
+		return
+	if not box_stash.has(item_id):
+		box_stash.append(item_id)
+		var iname: String = str(DataLoader.get_equipment_def(item_id).get("name", item_id))
+		add_log("Coffre Box-Garage : +%s" % iname)
+		state_changed.emit()
+
+func has_item_in_active_group_or_stash(item_id: String) -> bool:
+	if box_stash.has(item_id):
+		return true
+	for cid in get_active_group_members():
+		if _get_equipped_item_ids(cid).has(item_id):
+			return true
+	return false
+
+func equip_item(char_id: String, item_id: String) -> bool:
+	var idef: Dictionary = DataLoader.get_equipment_def(item_id)
+	if idef.is_empty() or not box_stash.has(item_id):
+		return false
+	var slot_name: String = str(idef.get("slot", ""))
+	if slot_name != "look" and slot_name != "tool" and slot_name != "fetish":
+		return false
+	var prog: Dictionary = get_member_progression(char_id)
+	var eq_var: Variant = prog.get("equipment", {})
+	var eq_d: Dictionary = (eq_var as Dictionary).duplicate(true) if eq_var is Dictionary else {"look": "", "tool": "", "fetish": ""}
+	var idx: int = box_stash.find(item_id)
+	if idx >= 0:
+		box_stash.remove_at(idx)
+	var prev_id: String = str(eq_d.get(slot_name, ""))
+	if prev_id != "":
+		box_stash.append(prev_id)
+	eq_d[slot_name] = item_id
+	prog["equipment"] = eq_d
+	member_progression[char_id] = prog
+	_sync_moral_bounds_for(char_id)
+	var cname: String = str(DataLoader.get_character(char_id).get("name", char_id))
+	add_log("%s équipe : %s" % [cname, str(idef.get("name", item_id))])
+	state_changed.emit()
+	return true
+
+func unequip_slot(char_id: String, slot_name: String) -> bool:
+	var prog: Dictionary = get_member_progression(char_id)
+	var eq_var: Variant = prog.get("equipment", {})
+	if not (eq_var is Dictionary):
+		return false
+	var eq_d: Dictionary = (eq_var as Dictionary).duplicate(true)
+	var cur_id: String = str(eq_d.get(slot_name, ""))
+	if cur_id == "":
+		return false
+	eq_d[slot_name] = ""
+	prog["equipment"] = eq_d
+	member_progression[char_id] = prog
+	box_stash.append(cur_id)
+	_sync_moral_bounds_for(char_id)
+	state_changed.emit()
+	return true
+
+func _sync_moral_bounds_for(char_id: String) -> void:
+	if not member_states.has(char_id):
+		return
+	var st: Dictionary = get_member_state(char_id)
+	var m_max: int = get_effective_moral_max(char_id)
+	var threshold: int = get_effective_stress_threshold(char_id)
+	var cur_m: int = clampi(int(st.get("moral", 60)), 0, m_max)
+	st["moral"] = cur_m
+	st["moral_max"] = m_max
+	st["stress_active"] = cur_m <= threshold
+	member_states[char_id] = st
 
 func get_lowest_moral() -> int:
 	var low: int = 100
@@ -236,11 +519,12 @@ func modify_moral(char_id: String, delta: int) -> void:
 		return
 	var st: Dictionary = get_member_state(char_id)
 	var cdef: Dictionary = DataLoader.get_character(char_id)
-	var m_max: int = int(st.get("moral_max", 100))
+	var m_max: int = get_effective_moral_max(char_id)
 	var old_m: int = int(st.get("moral", 60))
 	var new_m: int = clampi(old_m + delta, 0, m_max)
-	var threshold: int = int(cdef.get("stress_threshold", 35))
+	var threshold: int = get_effective_stress_threshold(char_id)
 	st["moral"] = new_m
+	st["moral_max"] = m_max
 	st["stress_active"] = new_m <= threshold
 	member_states[char_id] = st
 	if delta != 0 and squad_members.has(char_id):
@@ -340,6 +624,9 @@ func to_save_dict() -> Dictionary:
 	var squad_copy: Array[String] = []
 	for sid in squad_members:
 		squad_copy.append(sid)
+	var stash_copy: Array[String] = []
+	for iid in box_stash:
+		stash_copy.append(iid)
 	return {
 		"phase": phase,
 		"clock_minutes": clock_minutes,
@@ -352,6 +639,8 @@ func to_save_dict() -> Dictionary:
 		"activity_log": log_copy,
 		"squad_members": squad_copy,
 		"member_states": member_states.duplicate(true),
+		"member_progression": member_progression.duplicate(true),
+		"box_stash": stash_copy,
 		"active_group_id": active_group_id,
 		"current_station_idx": current_station_idx,
 		"last_encounter_outcome": last_encounter_outcome,
@@ -413,6 +702,26 @@ func load_from_save_dict(profile_data: Dictionary, state_data: Dictionary) -> vo
 			var st_v: Variant = ms_d.get(cid_k, {})
 			if st_v is Dictionary:
 				member_states[str(cid_k)] = (st_v as Dictionary).duplicate(true)
+
+	member_progression.clear()
+	var mp_var: Variant = state_data.get("member_progression", {})
+	if mp_var is Dictionary:
+		var mp_d: Dictionary = mp_var as Dictionary
+		for pid_k in mp_d.keys():
+			var p_v: Variant = mp_d.get(pid_k, {})
+			if p_v is Dictionary:
+				member_progression[str(pid_k)] = (p_v as Dictionary).duplicate(true)
+	for cid_var in DataLoader.characters.keys():
+		_ensure_progression_entry(str(cid_var), 0)
+
+	box_stash.clear()
+	if state_data.has("box_stash"):
+		var bs_var: Variant = state_data.get("box_stash", [])
+		if bs_var is Array:
+			for iv in (bs_var as Array):
+				box_stash.append(str(iv))
+	else:
+		box_stash = ["perfecto_cloute", "parka_anonyme", "cassettes_tdk"]
 
 	active_group_id = int(state_data.get("active_group_id", 0))
 	current_station_idx = int(state_data.get("current_station_idx", 0))

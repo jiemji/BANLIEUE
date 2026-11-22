@@ -18,7 +18,22 @@
       "specialty_id": "interposition",
       "specialty_name": "Menace / Interposition",
       "specialty_desc": "S'interpose devant un pote fragile pour absorber la pression Aura/Attitude ou recadrer un S.O.",
-      "in_squad_default": true
+      "in_squad_default": true,
+      "age": 18,
+      "home_location": "box_garage",
+      "bio": "Meneur de la petite bande du Box-Garage sous la Dalle.",
+      "arc_summary": "Tenir la cohésion du groupe entre débrouille de jour et pression policière de nuit.",
+      "characteristics": { "esprit": 3, "corps": 3, "energie": 4 },
+      "skills": { "caves_esquive": 2, "systeme_d": 2, "tchatche": 1, "baston_pression": 0 },
+      "default_equipment": { "look": "bleu_atelier", "tool": "cle_molette", "fetish": "" },
+      "relations": {
+        "karim": { "status": "soudes", "label": "Pote d'enfance de la Dalle" },
+        "nadia": { "status": "soudes", "label": "Complémentaires en ville" },
+        "manu": { "status": "complementaires", "label": "Respect mutuel autour des 103 SP" },
+        "zoe": { "status": "complementaires", "label": "Respect pour son culot au canal" },
+        "franck": { "status": "soudes", "label": "Frère d'atelier & Vieux de la Rouge" },
+        "ludo": { "status": "complementaires", "label": "Tchatche utile mais à surveiller" }
+      }
     },
     {
       "id": "karim",
@@ -38,7 +53,22 @@
       "specialty_id": "moquerie",
       "specialty_name": "Moquerie / Déconcentration",
       "specialty_desc": "Casse une charge d'intimidation adverse par une vanne sèche et fait reculer l'adversaire de 2 crans.",
-      "in_squad_default": true
+      "in_squad_default": true,
+      "age": 19,
+      "home_location": "box_garage",
+      "bio": "Figure solaire du bitume en bas des tours, pionnier local du smurf et du ghetto-blaster (1983-84), cousin d'un militant syndical de Citroën Aulnay.",
+      "arc_summary": "Transformer sa colère légitime contre la matraque en force collective avant qu'une nuit électrique ne lui coûte la bande.",
+      "characteristics": { "esprit": 2, "corps": 4, "energie": 3 },
+      "skills": { "caves_esquive": 3, "solidarite_bande": 3, "tchatche": 2, "jeux_culture": 1, "ondes_radio": -1, "sang_froid_nerfs": -2 },
+      "default_equipment": { "look": "survet_baskets", "tool": "", "fetish": "ghetto_blaster" },
+      "relations": {
+        "leader": { "status": "soudes", "label": "Pote d'enfance de la Dalle" },
+        "nadia": { "status": "soudes", "label": "Trio inséparable du Box-Garage" },
+        "ludo": { "status": "friction", "label": "Paire explosive : colère face au S.O. vs cousin skin" },
+        "franck": { "status": "friction", "label": "Paire explosive : impatience contre fatalisme d'aîné" },
+        "manu": { "status": "complementaires", "label": "Respect brut de cité" },
+        "zoe": { "status": "complementaires", "label": "Complicité anti-mairie" }
+      }
     },
     {
       "id": "nadia",
@@ -58,7 +88,22 @@
       "specialty_id": "reflexe_rue",
       "specialty_name": "Réflexe de rue",
       "specialty_desc": "Repère les trappes, ralentit la patrouille CRS (+2 crans) et ouvre les passages vers les caves ou le quai.",
-      "in_squad_default": true
+      "in_squad_default": true,
+      "age": 18,
+      "home_location": "tour_b",
+      "bio": "Enfant de la Tour B élevée entre un walkman bricolé et l'atelier photo/radio de la MJC ; surveillée de près par la concierge.",
+      "arc_summary": "Comprendre si les ondes nocturnes cachent un jeu dangereux d'adultes ou une vraie faille sous la Dalle.",
+      "characteristics": { "esprit": 4, "corps": 2, "energie": 3 },
+      "skills": { "ondes_radio": 4, "systeme_d": 3, "caves_esquive": 2, "solidarite_bande": -1, "baston_pression": -2 },
+      "default_equipment": { "look": "duffle_coat", "tool": "walkman_bricole", "fetish": "" },
+      "relations": {
+        "leader": { "status": "soudes", "label": "Regard clair et fidélité de palier" },
+        "karim": { "status": "soudes", "label": "Trio inséparable du Box-Garage" },
+        "manu": { "status": "friction", "label": "Paire explosive : prudence nocturne vs impulsivité à mob" },
+        "zoe": { "status": "complementaires", "label": "Alliées sur les radios pirates & fanzines" },
+        "franck": { "status": "complementaires", "label": "Mémoire ouvrière & écoute attentive" },
+        "ludo": { "status": "complementaires", "label": "Réseau MJC partagé" }
+      }
     },
     {
       "id": "ludo",
@@ -78,7 +123,22 @@
       "specialty_id": "moquerie",
       "specialty_name": "Baratin / Déconcentration",
       "specialty_desc": "Embrouille le discours d'un adversaire ou retourne le cousin S.O. sur la Frise.",
-      "in_squad_default": false
+      "in_squad_default": false,
+      "age": 18,
+      "home_location": "galaxian",
+      "bio": "Roi du baratin, des flippers au Galaxian et des tuyaux de lycée ; fréquente la MJC tout en ayant un cousin dans le S.O. municipal.",
+      "arc_summary": "Choisir enfin son camp quand la guerre froide de Cradon-lès-Gonesse exige un engagement sans filet.",
+      "characteristics": { "esprit": 3, "corps": 2, "energie": 3 },
+      "skills": { "tchatche": 3, "jeux_culture": 3, "lecture_rue": 2, "sang_froid_nerfs": -1, "baston_pression": -2 },
+      "default_equipment": { "look": "blouson_college", "tool": "", "fetish": "piece_flipper" },
+      "relations": {
+        "leader": { "status": "complementaires", "label": "Pivot du Galaxian & du Bourg" },
+        "karim": { "status": "friction", "label": "Paire explosive : méfiance viscérale envers le S.O." },
+        "nadia": { "status": "complementaires", "label": "Camarades à la MJC" },
+        "franck": { "status": "complementaires", "label": "Se croisent Chez Bébert" },
+        "manu": { "status": "complementaires", "label": "Vannes de comptoir" },
+        "zoe": { "status": "complementaires", "label": "Indics MJC ↔ Canal" }
+      }
     },
     {
       "id": "franck",
@@ -98,7 +158,22 @@
       "specialty_id": "interposition",
       "specialty_name": "Carrure d'aîné",
       "specialty_desc": "Impose le respect aux anciens et tempère les patrouilles.",
-      "in_squad_default": false
+      "in_squad_default": false,
+      "age": 24,
+      "home_location": "chez_bebert",
+      "bio": "Revenu du service militaire et licencié de l'usine ; pilier fatigué mais solide de Chez Bébert et des piquets de grève d'Aulnay.",
+      "arc_summary": "Retrouver une raison de croire que les jeunes de la Dalle peuvent encore gagner une manche.",
+      "characteristics": { "esprit": 3, "corps": 4, "energie": 2 },
+      "skills": { "lecture_rue": 4, "baston_pression": 3, "solidarite_bande": 2, "sang_froid_nerfs": -1, "caves_esquive": -2 },
+      "default_equipment": { "look": "veste_citroen", "tool": "", "fetish": "plan_ratp_1979" },
+      "relations": {
+        "leader": { "status": "soudes", "label": "Mentor de rue & mémoire d'Aulnay" },
+        "karim": { "status": "friction", "label": "Paire explosive : fatalisme usé vs sang chaud" },
+        "zoe": { "status": "friction", "label": "Paire explosive : lassitude d'aîné vs provocation punk" },
+        "nadia": { "status": "complementaires", "label": "Partage de vieux plans & tuyaux" },
+        "manu": { "status": "soudes", "label": "Fraternité Citroën & cambouis" },
+        "ludo": { "status": "complementaires", "label": "Conseils prudents au troquet" }
+      }
     },
     {
       "id": "concierge",
@@ -158,7 +233,22 @@
       "specialty_id": "interposition",
       "specialty_name": "Coup de clé / Carrure",
       "specialty_desc": "Pose le poids mécanique des Bananes et encaisse la pression face au S.O.",
-      "in_squad_default": false
+      "in_squad_default": false,
+      "age": 19,
+      "home_location": "garage_bananes",
+      "bio": "Lui qui a récupéré la clé du Box-Garage ; père ouvrier gréviste à Citroën Aulnay, héraut gouailleur des Bananes du Garage.",
+      "arc_summary": "Tenir sa promesse faite à son père sans glisser dans les combines troubles de son grand frère.",
+      "characteristics": { "esprit": 2, "corps": 5, "energie": 3 },
+      "skills": { "mecanique_mob": 4, "baston_pression": 3, "lecture_rue": 1, "caves_esquive": -1, "ondes_radio": -3 },
+      "default_equipment": { "look": "perfecto_manu", "tool": "kit_103sp", "fetish": "" },
+      "relations": {
+        "leader": { "status": "complementaires", "label": "Respect mutuel autour des 103 SP" },
+        "zoe": { "status": "friction", "label": "Paire explosive : fierté rocker vs squat punk" },
+        "nadia": { "status": "friction", "label": "Paire explosive : impulsivité à mob vs prudence FM" },
+        "franck": { "status": "soudes", "label": "Fraternité Citroën & cambouis" },
+        "karim": { "status": "complementaires", "label": "Solidarité de bitume" },
+        "ludo": { "status": "complementaires", "label": "Chambreur bienveillant" }
+      }
     },
     {
       "id": "zoe",
@@ -178,7 +268,22 @@
       "specialty_id": "moquerie",
       "specialty_name": "Provocation Punk",
       "specialty_desc": "Ridiculise un adversaire sur la Frise et casse son élan d'intimidation.",
-      "in_squad_default": false
+      "in_squad_default": false,
+      "age": 18,
+      "home_location": "squat_kepons",
+      "bio": "Pilier de l'Entrepôt-Squat sur le canal de l'Ourcq (fanzines, sérigraphie, concerts pirates), en rupture avec sa famille pavillonnaire.",
+      "arc_summary": "Décider jusqu'où couper les ponts sans laisser le squat devenir une autre cage.",
+      "characteristics": { "esprit": 4, "corps": 2, "energie": 3 },
+      "skills": { "systeme_d": 3, "tchatche": 3, "jeux_culture": 2, "mecanique_mob": -1, "sang_froid_nerfs": -2 },
+      "default_equipment": { "look": "cuir_kepon", "tool": "bombe_pochoir", "fetish": "" },
+      "relations": {
+        "leader": { "status": "complementaires", "label": "Complicité directe sur le terrain" },
+        "manu": { "status": "friction", "label": "Paire explosive : squat punk vs Perfecto Bananes" },
+        "franck": { "status": "friction", "label": "Paire explosive : provocation vs lassitude d'aîné" },
+        "nadia": { "status": "complementaires", "label": "Alliées sur les radios pirates & fanzines" },
+        "karim": { "status": "complementaires", "label": "Front commun contre le S.O." },
+        "ludo": { "status": "complementaires", "label": "Échanges de tracts & rumeurs" }
+      }
     }
   ]
 }

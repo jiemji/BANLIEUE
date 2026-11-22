@@ -67,6 +67,11 @@
       "francs_bonus": 10,
       "faveurs_bonus": 0,
       "aura_bonus": 0,
+      "age": 18,
+      "home_location": "box_garage",
+      "characteristics": { "esprit": 3, "corps": 3, "energie": 4 },
+      "skills": { "caves_esquive": 3, "systeme_d": 2, "lecture_rue": 1, "baston_pression": -1, "ondes_radio": -1 },
+      "default_equipment": { "look": "parka_dalle", "tool": "trousseau_caves", "fetish": "" },
       "start_flags": [
         "bg_dalle"
       ]
@@ -92,6 +97,11 @@
       "francs_bonus": 0,
       "faveurs_bonus": 1,
       "aura_bonus": 0,
+      "age": 18,
+      "home_location": "galaxian",
+      "characteristics": { "esprit": 4, "corps": 2, "energie": 3 },
+      "skills": { "tchatche": 4, "jeux_culture": 2, "lecture_rue": 1, "caves_esquive": -1, "mecanique_mob": -2 },
+      "default_equipment": { "look": "blouson_jean", "tool": "", "fetish": "carnet_balto" },
       "start_flags": [
         "bg_bourg"
       ]
@@ -117,6 +127,11 @@
       "francs_bonus": 0,
       "faveurs_bonus": 0,
       "aura_bonus": 1,
+      "age": 18,
+      "home_location": "box_garage",
+      "characteristics": { "esprit": 2, "corps": 4, "energie": 4 },
+      "skills": { "mecanique_mob": 3, "baston_pression": 3, "sang_froid_nerfs": 2, "tchatche": -1, "ondes_radio": -2 },
+      "default_equipment": { "look": "bleu_atelier", "tool": "cle_molette", "fetish": "" },
       "start_flags": [
         "bg_atelier"
       ]
@@ -142,6 +157,11 @@
       "francs_bonus": 15,
       "faveurs_bonus": 0,
       "aura_bonus": 0,
+      "age": 18,
+      "home_location": "lisiere_poudrerie",
+      "characteristics": { "esprit": 4, "corps": 2, "energie": 3 },
+      "skills": { "sang_froid_nerfs": 3, "lecture_rue": 3, "tchatche": 2, "mecanique_mob": -1, "baston_pression": -2 },
+      "default_equipment": { "look": "coupe_vent_lycee", "tool": "", "fetish": "badge_mjc" },
       "start_flags": [
         "bg_pavillons"
       ]

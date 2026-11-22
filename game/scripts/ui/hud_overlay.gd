@@ -12,6 +12,7 @@ signal twilight_requested
 signal radio_zapped(station_idx: int)
 signal restart_slice_requested
 signal menu_requested
+signal character_sheet_requested
 
 var _lbl_loc: Label = null
 var _lbl_phase: Label = null
@@ -95,6 +96,12 @@ func _build_ui() -> void:
 	_lbl_stats.add_theme_font_size_override("font_size", 13)
 	_lbl_stats.add_theme_color_override("font_color", Color(0.86, 0.88, 0.92))
 	top_hbox.add_child(_lbl_stats)
+
+	var btn_sheets: Button = Button.new()
+	btn_sheets.text = "Fiches [F]"
+	btn_sheets.tooltip_text = "Carnet de Bande / Fiches PJ (F)"
+	btn_sheets.pressed.connect(func() -> void: character_sheet_requested.emit())
+	top_hbox.add_child(btn_sheets)
 
 	_btn_mute = Button.new()
 	_btn_mute.text = "Son: ON"

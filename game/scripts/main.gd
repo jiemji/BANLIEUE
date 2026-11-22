@@ -17,6 +17,7 @@ const IsoDistrictViewScript: GDScript = preload("res://scripts/world/iso_distric
 const HudOverlayScript: GDScript = preload("res://scripts/ui/hud_overlay.gd")
 const DialoguePanelScript: GDScript = preload("res://scripts/ui/dialogue_panel.gd")
 const TimelinePanelScript: GDScript = preload("res://scripts/ui/timeline_panel.gd")
+const CharacterSheetPanelScript: GDScript = preload("res://scripts/ui/character_sheet_panel.gd")
 const TitleMenuPanelScript: GDScript = preload("res://scripts/ui/title_menu_panel.gd")
 const SaveLoadPanelScript: GDScript = preload("res://scripts/ui/save_load_panel.gd")
 const OptionsPanelScript: GDScript = preload("res://scripts/ui/options_panel.gd")
@@ -32,6 +33,7 @@ var _iso_view: Node2D = null
 var _hud: Control = null
 var _dlg_panel: Control = null
 var _tl_panel: Control = null
+var _char_sheet_panel: Control = null
 
 var _title_menu: Control = null
 var _new_game_panel: Control = null
@@ -101,6 +103,9 @@ func _ready() -> void:
 	_tl_panel = TimelinePanelScript.new()
 	_tl_panel.call("bind_timeline", _timeline)
 	ui_layer.add_child(_tl_panel)
+
+	_char_sheet_panel = CharacterSheetPanelScript.new()
+	ui_layer.add_child(_char_sheet_panel)
 
 	_build_sas_overlay(ui_layer)
 	_build_end_overlay(ui_layer)
@@ -245,6 +250,8 @@ func _wire_signals() -> void:
 	_hud.twilight_requested.connect(_start_twilight_sas)
 	_hud.restart_slice_requested.connect(_restart_slice)
 	_hud.menu_requested.connect(_open_pause_menu)
+	_hud.character_sheet_requested.connect(func() -> void: _toggle_character_sheet())
+	_char_sheet_panel.closed.connect(_update_input_lock)
 
 	_dlg_panel.choice_selected.connect(func(idx: int) -> void: _dialogue_runner.call("pick_choice", idx))
 	_dialogue_runner.node_updated.connect(func(_id: String, node_data: Dictionary, choices: Array) -> void:
@@ -258,6 +265,7 @@ func _wire_signals() -> void:
 	_dialogue_runner.twilight_requested.connect(_start_twilight_sas)
 	_dialogue_runner.encounter_requested.connect(func(eid: String) -> void:
 		GameState.set_zoom_view(4, GameState.get_active_location_id())
+		_char_sheet_panel.visible = false
 		_hud.visible = false
 		_iso_view.call("set_combat_stage_mode", true)
 		_timeline.call("start_encounter", eid)
@@ -306,6 +314,7 @@ func _enter_title_menu() -> void:
 	_end_overlay.visible = false
 	_timeline.set("active", false)
 	_tl_panel.visible = false
+	_char_sheet_panel.visible = false
 	_dialogue_runner.call("close_dialogue")
 	_dlg_panel.visible = false
 	_combat_shake_timer = 0.0
@@ -381,6 +390,7 @@ func _start_new_game(profile: Dictionary) -> void:
 	_end_overlay.visible = false
 	_timeline.set("active", false)
 	_tl_panel.visible = false
+	_char_sheet_panel.visible = false
 	_dlg_panel.visible = false
 	_combat_shake_timer = 0.0
 	_iso_view.set("train_fantome_active", false)
@@ -411,6 +421,7 @@ func _on_slot_loaded(slot_idx: int) -> void:
 	_end_overlay.visible = false
 	_timeline.set("active", false)
 	_tl_panel.visible = false
+	_char_sheet_panel.visible = false
 	_dialogue_runner.call("close_dialogue")
 	_dlg_panel.visible = false
 	_combat_shake_timer = 0.0
@@ -493,6 +504,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				_on_new_game_cancelled()
 				get_viewport().set_input_as_handled()
 				return
+			if _char_sheet_panel.visible:
+				_char_sheet_panel.call("close_panel")
+				get_viewport().set_input_as_handled()
+				return
 			if _app_state == AppState.PAUSE_MENU:
 				if bool(_title_menu.call("has_confirm_open")):
 					_title_menu.call("close_confirm")
@@ -505,7 +520,17 @@ func _unhandled_input(event: InputEvent) -> void:
 				get_viewport().set_input_as_handled()
 				return
 
-	if _app_state != AppState.IN_GAME or _sas_active or _end_overlay.visible or _tl_panel.visible or _dlg_panel.visible:
+	if _app_state != AppState.IN_GAME or _sas_active or _end_overlay.visible or _tl_panel.visible or _dlg_panel.visible or _new_game_panel.visible or _save_load_panel.visible or _options_panel.visible:
+		return
+
+	if event is InputEventKey:
+		var kev_f: InputEventKey = event as InputEventKey
+		if kev_f.pressed and not kev_f.echo and kev_f.keycode == KEY_F:
+			_toggle_character_sheet()
+			get_viewport().set_input_as_handled()
+			return
+
+	if _char_sheet_panel.visible:
 		return
 
 	if event is InputEventKey:
@@ -638,9 +663,19 @@ func _restart_slice() -> void:
 	var kept_profile: Dictionary = GameState.leader_profile.duplicate(true)
 	_start_new_game(kept_profile)
 
+func _toggle_character_sheet(char_id: String = "") -> void:
+	if _app_state != AppState.IN_GAME or _sas_active or _end_overlay.visible or _tl_panel.visible or _dlg_panel.visible:
+		return
+	if _char_sheet_panel.visible:
+		_char_sheet_panel.call("close_panel")
+	else:
+		_char_sheet_panel.call("open_panel", char_id)
+	AudioRadio.play_cassette_click()
+	_update_input_lock()
+
 func _update_input_lock() -> void:
 	var menu_open: bool = (_app_state != AppState.IN_GAME) or _new_game_panel.visible or _save_load_panel.visible or _options_panel.visible
-	var blocked: bool = menu_open or _sas_active or _end_overlay.visible or _tl_panel.visible or _dlg_panel.visible
+	var blocked: bool = menu_open or _sas_active or _end_overlay.visible or _tl_panel.visible or _dlg_panel.visible or _char_sheet_panel.visible
 	_iso_view.set("input_blocked", blocked)
 	_world_map_view.set("input_blocked", blocked)
 	_tl_panel.set("input_blocked", menu_open or _sas_active or _end_overlay.visible)

@@ -1,6 +1,6 @@
 # Synthèse du Projet — *Banlieue*
 
-> **Version courante : 0.4.2** — Dernière mise à jour : 2026-11-22
+> **Version courante : 0.5.0** — Dernière mise à jour : 2026-11-22
 
 ## 1. Identité & Stack
 * **Titre** : *Banlieue* — *Cradon-lès-Gonesse (1980–1984)*
@@ -22,14 +22,14 @@
 * **Autoloads (5)** : `DataLoader`, `SettingsManager`, `GameState`, `AudioRadio`, `SaveManager`.
 * **Systèmes (`systems/`)** : `SquadManager` (`3+` / `2+1` / `1+1+1` + renforts), `TensionTimeline` (Frise à Interruptions dont `sang_froid` + préavis de Crises), `DialogueRunner`.
 * **Monde (`world/`)** : `WorldMapView` (N1–N3), `IsoDistrictView` (N4 + mode fond vivant d'accueil + `set_combat_stage_mode` cinémascope), `IsoPropNode`, `PawnActor`.
-* **Interface (`ui/`)** : `TitleMenuPanel` (Accueil/Pause unifié), `NewGamePanel` (4 archétypes + 6 portraits découplés), `SaveLoadPanel` (3 cassettes manuelles), `OptionsPanel`, `HudOverlay`, `DialoguePanel`, `TimelinePanel` (**Option A Unifiée** : barre d'état fine haut, Frise-Cartes unifiée avec portraits/stats/actions hors-frise et barre actions timing `1–4` / `Tab` / `Espace`).
-* **Orchestrateur** : `main.gd` (machine d'états `AppState`, raccourcis `Échap`/`Backspace`/`M`/`1-6`, masquage `_hud` en combat & micro-secousse caméra, Sas Boeing).
+* **Interface (`ui/`)** : `TitleMenuPanel`, `NewGamePanel`, `SaveLoadPanel`, `OptionsPanel`, `HudOverlay` (avec bouton `Fiches [F]`), `DialoguePanel`, `TimelinePanel` (**Option A Unifiée**), `CharacterSheetPanel` (**Carnet de Bande `[F]`**).
+* **Orchestrateur** : `main.gd` (machine d'états `AppState`, raccourcis `Échap`/`F`/`Backspace`/`M`/`1-6`, masquage `_hud` en combat & micro-secousse caméra, Sas Boeing).
 
-## 5. Dernières Améliorations *(v0.4.2 — 2026-11-22)*
-* **Refonte UX Combat — « Option A : Frise-Cartes Unifiée » ([ux_combat_frise.md](file:///e:/JDR/BANLIEUE/docs/ux_combat_frise.md))** :
-  * Suppression des doublons entre frise haute, portraits bas et colonne ennemie droite : toute la bande isométrique supérieure reste dégagée (`zoom 0.85`), surmontée d'une barre d'état fine + tiroir `Journal` repliable.
-  * Chaque protagoniste figure une seule fois sur la **Frise-Cartes Unifiée** (`get_ordered_rail_entries`) avec portrait BD, stats (`Moral/Attitude/Aura` ou `Résolution/Intention/Contre`) et boutons hors-frise (`⚡ Interruption` + `🛡 Retenir`), au-dessus d'une rangée dédiée aux actions du timing `[1–4]` et à l'aperçu au survol.
-* **Acquis précédents *(v0.4.0 / v0.4.1)*** : Renommage complet `FAVE → Attitude` & `FASA → Aura`, ciblage libre, prévisualisation non destructive et pas-à-pas strict `awaiting_step` / `step_next_beat()`.
+## 5. Dernières Améliorations *(v0.5.0 — 2026-11-22)*
+* **Fiches de Personnages PJ & Carnet de Bande `[F]` ([fiches_personnages_pj.md](file:///e:/JDR/BANLIEUE/docs/fiches_personnages_pj.md))** :
+  * **3 Caractéristiques & 10 Compétences bipolaires (`-3..+5`)** dans [equipment.json](file:///e:/JDR/BANLIEUE/game/data/equipment.json), `characters.json` et `player_profiles.json`, évolutives par **XP** et **24 équipements actifs** (`Look`, `Outil`, `Fétiche` + `box_stash`), sauvegardées dans `member_progression` / `box_stash`.
+  * **UI Double-Page `[F]` (`character_sheet_panel.gd`)** : portraits/pion, barres `Esprit/Corps/Énergie`, compétences `-3..+5` avec dépense XP, échange coffre en 1 clic, actions débloquées, traits et thermomètre relationnel (`DialogueRunner` & `TensionTimeline` câblés).
+* **Acquis précédents *(v0.4.0 → v0.4.2)*** : Frise-Cartes Unifiée Option A (`ux_combat_frise.md`), renommage complet `FAVE → Attitude` & `FASA → Aura`, pas-à-pas strict `step_next_beat()`.
 
 ## Statut du Code
 * **Validation statique & assets** : `process_banlieue_assets.py --mode validate` → **0 erreur** (**0 pending graphic assets**).

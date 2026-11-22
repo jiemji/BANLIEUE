@@ -35,7 +35,9 @@
 
 | Touche / Action | En jeu (`IN_GAME`) | Dans un menu / une modale (`TITLE_MENU`, `PAUSE_MENU`, `SAVE_LOAD`, `OPTIONS`, `NEW_GAME_SETUP`) |
 |---|---|---|
-| **`Échap`** | Ouvre le **Menu Pause** (`PAUSE_MENU`). *(Si un sous-panneau ou une popup d'alerte est ouverte, l'arbitrage ferme d'abord la surcouche active.)* | Ferme la modale active (`SAVE_LOAD` / `OPTIONS` / confirmation) ou referme `PAUSE_MENU` pour reprendre la partie. Sur `NEW_GAME_SETUP`, revient au menu appelant. |
+| **`Échap`** | Ferme le **Carnet de Bande** s'il est ouvert, sinon ouvre le **Menu Pause** (`PAUSE_MENU`). *(Si un sous-panneau ou une popup d'alerte est ouverte, l'arbitrage ferme d'abord la surcouche active.)* | Ferme la modale active (`SAVE_LOAD` / `OPTIONS` / confirmation) ou referme `PAUSE_MENU` pour reprendre la partie. Sur `NEW_GAME_SETUP`, revient au menu appelant. |
+| **`F`** | Ouvre / referme le **Carnet de Bande (Fiches PJ)** ([fiches_personnages_pj.md](file:///e:/JDR/BANLIEUE/docs/fiches_personnages_pj.md)). | Verrouillé. |
+| **`1` – `6`** | Bascule librement entre les sous-groupes de la bande (jusqu'à 6 membres). *(En confrontation sur la Frise, `1–4`, `Tab` et `Espace` pilotent le combat — voir [ux_combat_frise.md](file:///e:/JDR/BANLIEUE/docs/ux_combat_frise.md).)* | Verrouillé. |
 | **`Retour arrière` (`Backspace`)** | Dézoome d'un niveau cartographique (`N4 → N3 → N2 → N1`) — remplace l'ancien usage d'`Échap`. | Navigation standard / édition du champ texte. |
 | **Bouton `▲` / Molette** | Dézoom cartographique `N4 → N3 → N2 → N1` et navigation atlas. | Inactif sur les vues monde (verrouillées pendant le menu). |
 | **`M`** | Bascule rapide entre l'intérieur actif (`N4`) et le plan de Cradon (`N3`). | Verrouillé. |
@@ -103,7 +105,7 @@ Chaque cassette présente :
     "leader_name": "Sam",
     "archetype_id": "mains_noires",
     "archetype_title": "Les Mains-Noires",
-    "portrait_id": "portrait_03",
+    "portrait_id": "player_03",
     "location_id": "chez_bebert",
     "location_name": "Chez Bébert",
     "phase": "day",
@@ -114,7 +116,7 @@ Chaque cassette présente :
   "leader_profile": {
     "name": "Sam",
     "archetype_id": "mains_noires",
-    "portrait_id": "portrait_03",
+    "portrait_id": "player_03",
     "portrait_path": "res://assets/portraits/player_03.png",
     "pawn_path": "res://assets/pawns/player_03_pawn.png"
   },
@@ -130,6 +132,7 @@ Chaque cassette présente :
     "activity_log": [],
     "squad_members": ["leader", "karim", "nadia"],
     "member_states": {},
+    "member_progression": {},
     "active_group_id": 0,
     "current_station_idx": 0,
     "last_encounter_outcome": "",
@@ -174,8 +177,8 @@ Tous les réglages sont persistés automatiquement dans `user://settings.cfg` vi
 │  ┌────┐ ┌────┐ ┌────┐ ┌────┐ │  TITRE DE L'ARCHÉTYPE                     │
 │  │ P1 │ │ P2 │ │ P3 │ │ P4 │ │  Sous-titre social                        │
 │  └────┘ └────┘ └────┘ └────┘ │                                           │
-│  ┌────┐ ┌────┐ ┌────┐ ┌────┐ │  Histoire personnelle (ancrage social) :  │
-│  │ P5 │ │ P6 │ │ P7 │ │ P8 │ │  foyer, lien à Cradon, tension intime...  │
+│  ┌────┐ ┌────┐ ┌────┐ ┌────┐ │  Esprit · Corps · Énergie                 │
+│  │ P5 │ │ P6 │ │ P7 │ │ P8 │ │  Compétences & Failles (-3..+5)           │
 │  └────┘ └────┘ └────┘ └────┘ │                                           │
 │                              │  Attitude · Aura · Moral · Seuil Stress   │
 │  [Aperçu grand portrait      │  Spécialité Frise : ...                   │
@@ -197,10 +200,10 @@ Tous les réglages sont persistés automatiquement dans `user://settings.cfg` vi
 
 | ID & Titre | Histoire personnelle *(ancrage social pur)* | Profil & Gameplay |
 |---|---|---|
-| **`enfant_dalle`**<br>**L'Enfant de la Dalle**<br>*(Débrouillard·e du Parking)* | Tu as grandi entre les cages d'escalier de la Tour B et les boxes en sous-sol, clés autour du cou dès l'école primaire pendant que chez toi on enchaînait les horaires décalés. Tu connais chaque chaufferie, chaque interphone cassé et chaque combine de palier pour tenir jusqu'à la fin du mois sans rien devoir à la Concierge. | `Attitude 62 · Aura 3 · Moral 72` *(Seuil Stress `28`)*<br>**Spécialité Frise** : *Réflexe de rue* (`reflexe_rue` — esquive / retarde les patrouilles de +2 crans)<br>**Atout de départ** : `+10 F` (`35 F` au total), aisance dans les caves & la Dalle (`flag: bg_dalle`). |
-| **`grande_gueule`**<br>**La Grande Gueule du Bourg**<br>*(Habitué·e du Comptoir)* | Viré·e ou décrocheur·se du lycée/LEP, tu tiens tes quartiers entre le baby-foot de *Chez Bébert* et les flippers du *Galaxian*. Tout le Vieux Bourg connaît ta tchatche — et deux ou trois tauliers te doivent déjà une tournée ou un service pour un coup de main passé. | `Attitude 70 · Aura 3 · Moral 68` *(Seuil Stress `30`)*<br>**Spécialité Frise** : *Baratin / Déconcentration* (`moquerie` — casse une charge d'intimidation adverse, `-2 crans`)<br>**Atout de départ** : `+1 Faveur`, portes ouvertes côté troquets & MJC (`flag: bg_bourg`). |
-| **`mains_noires`**<br>**Les Mains-Noires**<br>*(Enfant de l'Atelier & de la Chaîne)* | Un proche gréviste à Citroën Aulnay ou cheminot sur le RER B, des dimanches entiers les mains dans le cambouis d'une 103 SP et d'un vieux poste à souder. Tu parles peu, tu ne recules pas quand ça pousse, et tu refuses que le fatalisme des licenciements décide de ton avenir. | `Attitude 60 · Aura 4 · Moral 74` *(Seuil Stress `26`)*<br>**Spécialité Frise** : *Menace / Interposition* (`interposition` — encaisse la pression `Aura` pour couvrir un pote fragile sur la Frise)<br>**Atout de départ** : `+1 Aura` (`aura_bonus: 1`), affinité *Bananes* & *Vieux de la Rouge* (`flag: bg_atelier`). |
-| **`echappe_pavillons`**<br>**L'Échappé·e des Pavillons**<br>*(La Fissure du Lotissement)* | Tu viens du lotissement calme aux volets tirés dès 21 h — un foyer rangé qui vote bien, craint les tours et ne comprend rien à tes nuits au Box-Garage ni à tes cassettes pirates. Coincé·e entre couvre-feu domestique et envie d'air, tu connais de l'intérieur les petits arrangements des notables du *Relais Municipal*. | `Attitude 66 · Aura 2 · Moral 64` *(Seuil Stress `32`)*<br>**Spécialité Frise** : *Sang-froid / Coup d'avance* (`sang_froid` — calme un pote en préavis de Crise d'autonomie ou perce un bluff du S.O.)<br>**Atout de départ** : `+15 F` (`40 F` au total), flair politique côté *Relais Municipal* & *MJC* (`flag: bg_pavillons`). |
+| **`enfant_dalle`**<br>**L'Enfant de la Dalle**<br>*(Débrouillard·e du Parking)* | Tu as grandi entre les cages d'escalier de la Tour B et les boxes en sous-sol, clés autour du cou dès l'école primaire pendant que chez toi on enchaînait les horaires décalés. Tu connais chaque chaufferie, chaque interphone cassé et chaque combine de palier pour tenir jusqu'à la fin du mois sans rien devoir à la Concierge. | `Esprit 3 · Corps 3 · Énergie 4`<br>`Attitude 62 · Aura 3 · Moral 72` *(Seuil Stress `28`)*<br>**Compétences** : `caves_esquive +3`, `systeme_d +2`, `baston_pression -1`<br>**Spécialité Frise** : *Réflexe de rue* (`reflexe_rue` — retarde les patrouilles de +2 crans)<br>**Atout de départ** : `+10 F` (`35 F` au total), `flag: bg_dalle`. |
+| **`grande_gueule`**<br>**La Grande Gueule du Bourg**<br>*(Habitué·e du Comptoir)* | Viré·e ou décrocheur·se du lycée/LEP, tu tiens tes quartiers entre le baby-foot de *Chez Bébert* et les flippers du *Galaxian*. Tout le Vieux Bourg connaît ta tchatche — et deux ou trois tauliers te doivent déjà une tournée ou un service pour un coup de main passé. | `Esprit 4 · Corps 2 · Énergie 3`<br>`Attitude 70 · Aura 3 · Moral 68` *(Seuil Stress `30`)*<br>**Compétences** : `tchatche +4`, `jeux_culture +2`, `mecanique_mob -2`<br>**Spécialité Frise** : *Baratin / Déconcentration* (`moquerie` — casse une intimidation, `-2 crans`)<br>**Atout de départ** : `+1 Faveur`, `flag: bg_bourg`. |
+| **`mains_noires`**<br>**Les Mains-Noires**<br>*(Enfant de l'Atelier & de la Chaîne)* | Un proche gréviste à Citroën Aulnay ou cheminot sur le RER B, des dimanches entiers les mains dans le cambouis d'une 103 SP et d'un vieux poste à souder. Tu parles peu, tu ne recules pas quand ça pousse, et tu refuses que le fatalisme des licenciements décide de ton avenir. | `Esprit 2 · Corps 4 · Énergie 4`<br>`Attitude 60 · Aura 4 · Moral 74` *(Seuil Stress `26`)*<br>**Compétences** : `mecanique_mob +3`, `baston_pression +3`, `ondes_radio -2`<br>**Spécialité Frise** : *Menace / Interposition* (`interposition` — amortit le prochain coup moral)<br>**Atout de départ** : `+1 Aura` (`aura_bonus: 1`), `flag: bg_atelier`. |
+| **`echappe_pavillons`**<br>**L'Échappé·e des Pavillons**<br>*(La Fissure du Lotissement)* | Tu viens du lotissement calme aux volets tirés dès 21 h — un foyer rangé qui vote bien, craint les tours et ne comprend rien à tes nuits au Box-Garage ni à tes cassettes pirates. Coincé·e entre couvre-feu domestique et envie d'air, tu connais de l'intérieur les petits arrangements des notables du *Relais Municipal*. | `Esprit 4 · Corps 2 · Énergie 3`<br>`Attitude 66 · Aura 2 · Moral 64` *(Seuil Stress `32`)*<br>**Compétences** : `sang_froid_nerfs +3`, `lecture_rue +3`, `baston_pression -2`<br>**Spécialité Frise** : *Sang-froid / Coup d'avance* (`sang_froid` — calme une Crise ou perce un bluff)<br>**Atout de départ** : `+15 F` (`40 F` au total), `flag: bg_pavillons`. |
 
 ### Lancement de la partie
 

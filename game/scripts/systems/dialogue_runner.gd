@@ -97,6 +97,20 @@ func _check_conditions(cond_var: Variant) -> Dictionary:
 		var req_fa: int = int(cond.get("min_aura", 0))
 		if GameState.get_total_aura() < req_fa:
 			return {"ok": false, "reason": "Aura %d requis" % req_fa}
+	if cond.has("min_skill"):
+		var ms_var: Variant = cond.get("min_skill", {})
+		if ms_var is Dictionary:
+			var msd: Dictionary = ms_var as Dictionary
+			var sk_id: String = str(msd.get("id", ""))
+			var req_v: int = int(msd.get("val", 1))
+			if GameState.get_best_active_group_skill(sk_id) < req_v:
+				var sk_name: String = str(DataLoader.get_skill_def(sk_id).get("name", sk_id))
+				return {"ok": false, "reason": "%s %d+ requis" % [sk_name, req_v]}
+	if cond.has("require_item"):
+		var req_item: String = str(cond.get("require_item", ""))
+		if req_item != "" and not GameState.has_item_in_active_group_or_stash(req_item):
+			var iname: String = str(DataLoader.get_equipment_def(req_item).get("name", req_item))
+			return {"ok": false, "reason": "Objet requis : %s" % iname}
 	if cond.has("require_member"):
 		var req_m: String = str(cond.get("require_member", ""))
 		if not GameState.is_member_in_active_group(req_m):
@@ -151,6 +165,18 @@ func _apply_effects(eff_var: Variant) -> Dictionary:
 
 	if eff.has("recruit"):
 		GameState.recruit_member(str(eff.get("recruit", "")))
+	if eff.has("add_xp"):
+		var xp_var: Variant = eff.get("add_xp", {})
+		if xp_var is Dictionary:
+			var xpd: Dictionary = xp_var as Dictionary
+			GameState.add_xp(str(xpd.get("target", "all")), int(xpd.get("amount", 0)))
+	if eff.has("grant_item"):
+		GameState.add_to_box_stash(str(eff.get("grant_item", "")))
+	if eff.has("add_trait"):
+		var tr_var: Variant = eff.get("add_trait", {})
+		if tr_var is Dictionary:
+			var trd: Dictionary = tr_var as Dictionary
+			GameState.add_trait(str(trd.get("char_id", "leader")), str(trd.get("trait", "")))
 
 	if eff.has("move_to"):
 		triggers["move_to"] = str(eff.get("move_to", ""))

@@ -8,9 +8,10 @@
 
 * **La fusion des deux pôles** : Un trait encré vivant et gouailleur hérité de **Frank Margerin**, tendu par le noir-et-rouge brut de fanzine photocopié du [ZoneScreen](file:///e:/JDR/BANLIEUE/Références/%5BScreen%5D%204%20feuilles.pdf) et filtré par un **grain argentique 1982** et des textures picturales rugueuses (béton humide, rouille du canal, affiches syndicales déchirées, visages cabossés expressifs façon *La Haine × Disco Elysium*).
 * **Silhouettes & lecture de l'*Aura* à vue d'œil** : Chaque membre de la bande et des 5 tribus est identifiable au premier regard par sa dégaine (banane gominée et Perfecto, crête et badges, parka ou survêtement de la Dalle, blouson de chantier de Franck, Docs). Changer de blouson ou d'accessoire au **Box-Garage** modifie visiblement la silhouette du personnage et les réactions qu'il attire dans la rue.
-* **Signature plastique des 4 secteurs** :
+* **Signature plastique des 5 secteurs** :
   * *La Dalle & la Cité* : verticalité de béton beige-gris, cages d'escalier froides, linge aux fenêtres, contre-plongées écrasantes et chaleur bricolée du **Box-Garage** sous son néon.
-  * *Le Vieux Bourg & la Gare RER* : formica jaune et chrome *Chez Bébert*, bleu et blanc RATP/SNCF de la gare « du Y », reflets électriques des bornes de *Le Galaxian*.
+  * *Le Vieux Bourg* : formica jaune et chrome *Chez Bébert*, façades municipales et reflets électriques des bornes de *Le Galaxian*.
+  * *La Bifurcation RER B Nord* : bleu et blanc RATP/SNCF de la gare « du Y », quais surélevés battus par le vent et signaux de voie nocturnes.
   * *Le Canal de l'Ourcq & la Zone Industrielle* : briques sombres, tôles ondulées, tags punk au pochoir, flaques huileuses et eau opaque du halage.
   * *La Lisière Pavillonnaire & l'Ancienne Poudrerie* : crépis modestes, grillages rongés de lierre, vieilles briques militaires et sous-bois humide sous le passage des avions.
 

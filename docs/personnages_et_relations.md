@@ -1,6 +1,6 @@
 # *Banlieue* — Personnages, Relations & Fins
 
-*Document de casting, dynamiques de bande et dénouements — Chantier A.*
+*Document de casting, dynamiques de bande et dénouements — Chantier A. Pour les caractéristiques détaillées (`Esprit / Corps / Énergie`), la grille de compétences (`-3..+5`), l'équipement et la maquette du **Carnet de Bande `[F]`**, voir [fiches_personnages_pj.md](file:///e:/JDR/BANLIEUE/docs/fiches_personnages_pj.md).*
 
 ---
 
@@ -11,10 +11,10 @@ La création du protagoniste s'effectue dès l'écran **« Nouvelle partie »** 
 
 * **Identité & Apparence 100 % libres** : Saisie du **Prénom / Surnom** et choix libre dans une galerie de **6 à 8 portraits** diversifiés (ethnies, cultures, genres et styles 1980–1984 variés), chacun relié à son **pion en pied assorti**. **Aucune statistique ni contrainte narrative n'est liée au portrait.**
 * **Choix parmi 4 Archétypes & Histoires Personnelles** *(ancrage purement social et territorial à Cradon-lès-Gonesse, sans aucune caractérisation ethnique ou culturelle)* :
-  1. **L'Enfant de la Dalle** *(Débrouillard·e du Parking)* — Clés autour du cou, horaires décalés, maîtrise des caves, chaufferies et combines de palier (`Attitude 62 · Aura 3 · Moral 72`, spécialité *Réflexe de rue*, `+10 F`).
-  2. **La Grande Gueule du Bourg** *(Habitué·e du Comptoir)* — Décrocheur·se du LEP, pilier de *Chez Bébert* et du *Galaxian*, tchatche et tournées d'avance (`Attitude 70 · Aura 3 · Moral 68`, spécialité *Baratin / Déconcentration*, `+1 Faveur`).
-  3. **Les Mains-Noires** *(Enfant de l'Atelier & de la Chaîne)* — Proche gréviste à Citroën Aulnay ou cheminot RER B, dimanches dans le cambouis de la 103 SP, calme têtu (`Attitude 60 · Aura 4 · Moral 74`, spécialité *Menace / Interposition*, `+1 Aura`).
-  4. **L'Échappé·e des Pavillons** *(La Fissure du Lotissement)* — Foyer rangé aux volets tirés dès 21 h qui craint les tours, fuite nocturne vers le Box-Garage et lecture lucide du *Relais Municipal* (`Attitude 66 · Aura 2 · Moral 64`, spécialité *Sang-froid / Coup d'avance*, `+15 F`).
+  1. **L'Enfant de la Dalle** *(Débrouillard·e du Parking)* — Clés autour du cou, horaires décalés, maîtrise des caves, chaufferies et combines de palier (`Esprit 3 · Corps 3 · Énergie 4` | `Attitude 62 · Aura 3 · Moral 72`, `caves_esquive +3`, `systeme_d +2` / `baston_pression -1`, spécialité *Réflexe de rue*, `+10 F`).
+  2. **La Grande Gueule du Bourg** *(Habitué·e du Comptoir)* — Décrocheur·se du LEP, pilier de *Chez Bébert* et du *Galaxian*, tchatche et tournées d'avance (`Esprit 4 · Corps 2 · Énergie 3` | `Attitude 70 · Aura 3 · Moral 68`, `tchatche +4`, `jeux_culture +2` / `mecanique_mob -2`, spécialité *Baratin / Déconcentration*, `+1 Faveur`).
+  3. **Les Mains-Noires** *(Enfant de l'Atelier & de la Chaîne)* — Proche gréviste à Citroën Aulnay ou cheminot RER B, dimanches dans le cambouis de la 103 SP, calme têtu (`Esprit 2 · Corps 4 · Énergie 4` | `Attitude 60 · Aura 4 · Moral 74`, `mecanique_mob +3`, `baston_pression +3` / `ondes_radio -2`, spécialité *Menace / Interposition*, `+1 Aura`).
+  4. **L'Échappé·e des Pavillons** *(La Fissure du Lotissement)* — Foyer rangé aux volets tirés dès 21 h qui craint les tours, fuite nocturne vers le Box-Garage et lecture lucide du *Relais Municipal* (`Esprit 4 · Corps 2 · Énergie 3` | `Attitude 66 · Aura 2 · Moral 64`, `sang_froid_nerfs +3`, `lecture_rue +3` / `baston_pression -2`, spécialité *Sang-froid / Coup d'avance*, `+15 F`).
 * **Bande de départ** : Le Leader façonné par le joueur démarre au **Box-Garage** avec **Karim & Nadia** pour le niveau-pilote *« Couvre-Feu au Galaxian »*. Les **4 autres compagnons** du vivier des 6 (**Manu, Zoé, Franck, Ludo**) mènent leur propre vie dans Cradon-lès-Gonesse et deviennent recrutables au fil des rencontres, des besoins et de la **Notoriété** (jusqu'à **5–6 membres max**).
 
 ---
@@ -22,42 +22,42 @@ La création du protagoniste s'effectue dès l'écran **« Nouvelle partie »** 
 ### Manu — *Le Mécano (19 ans — Bananes du Garage)*
 * **Origine / Fonction** : C'est lui qui a récupéré la clé du **Box-Garage** sous la Dalle ; père ouvrier gréviste à Citroën Aulnay, grand frère embarqué dans des plans douteux côté casse auto. Héraut naturel des *Bananes du Garage*.
 * **Personnalité & faille** : Cœur immense, tchatche gouailleuse à la *Lucien* et fidélité de chien de garde ; mais sanguin, orgueilleux dès qu'on touche à sa 103 SP ou aux siens, et prompt à mépriser les « bobos » ou les punks « sans respect ».
-* **Rôle en gameplay (exploration / dialogue / conflit)** : Répare et améliore les mobylettes au QG (*Système D* mécanique), ouvre les portes du Garage des Bananes et de la casse auto ; fort score d'**Aura** en tête-à-tête pour intimider ou négocier entre mecs de rue ; bon encaisseur en rixe d'urgence.
+* **Rôle en gameplay (exploration / dialogue / conflit)** : Répare et améliore les mobylettes au QG (*Système D* mécanique, `mecanique_mob +4`, `Corps 5`), ouvre les portes du Garage des Bananes et de la casse auto ; fort score d'**Aura** en tête-à-tête pour intimider ou négocier entre mecs de rue ; bon encaisseur en rixe d'urgence (mais faille `ondes_radio -3`).
 * **Stress & Crise d'autonomie** : **Sauvagerie / Fierté** — sous Stress aigu, refuse un repli pourtant vital, démarre au quart de tour sur une vanne de travers ou fonce à mobylette sans attendre son binôme.
 * **Arc personnel** : Tenir la promesse faite à son père sans basculer dans les combines sales de son grand frère — ni laisser la guerre froide de Cradon briser son garage.
 
 ### Nadia — *La Fréquence (18 ans — La Dalle / Tour B & MJC)*
 * **Origine / Fonction** : Enfant de la Tour B élevée entre un walkman bricolé et l'atelier photo/radio de la MJC ; sa tante est amie avec la **Concierge-Cerbère**, ce qui lui vaut autant d'informations que de surveillance.
 * **Personnalité & faille** : Lucide, débrouillarde, passionnée d'ondes libres FM et de cassettes enregistrées la nuit ; mais insomniaque, rongeant ses nerfs en silence et hypersensible aux bizarreries nocturnes de Cradon-lès-Gonesse.
-* **Rôle en gameplay (exploration / dialogue / conflit)** : Reine des **caves, chaufferies et toits** pour contourner les patrouilles ; bricole antennes et magnétos au Box-Garage pour capter et analyser la **Fréquence Fantôme** ; excellente en écoute, filature discrète et décryptage d'indices.
+* **Rôle en gameplay (exploration / dialogue / conflit)** : Reine des **caves, chaufferies et toits** pour contourner les patrouilles (`Esprit 4`, `ondes_radio +4`, `systeme_d +3`) ; bricole antennes et magnétos au Box-Garage pour capter et analyser la **Fréquence Fantôme** ; excellente en écoute et décryptage d'indices (faille `baston_pression -2`).
 * **Stress & Crise d'autonomie** : **Paranoïa / Lunatisme** — sous Stress aigu la nuit, décroche soudain du groupe pour suivre un grésillement ou un bruit dans les caves, ou se fige face à un glissement étrange du béton.
 * **Arc personnel** : Comprendre si les ondes nocturnes cachent un jeu dangereux d'adultes ou une vraie faille sous la Dalle, sans se brûler les ailes dans l'obsession.
 
 ### Karim — *L'Étincelle (19 ans — La Dalle & Premiers B-Boys / Smurf)*
 * **Origine / Fonction** : Figure solaire du bitume en bas des tours, pionnier local du smurf et du ghetto-blaster (1983–84), cousin d'un militant syndical de Citroën Aulnay.
 * **Personnalité & faille** : Drôle, généreux et fédérateur le jour (capable de désamorcer un hall tendu par l'humour) ; mais cocotte-minute électrique face aux contrôles au faciès des CRS et aux provocations du **S.O. municipal** (*effet Vinz* dans *La Haine*).
-* **Rôle en gameplay (exploration / dialogue / conflit)** : Mobilise instantanément les réseaux de la **Dalle** (guetteurs, gamins des escaliers, caches dans les halls), redonne du **Moral** à la bande le jour par son humour et sa danse, rapide et agile pour filer en poursuite urbaine.
+* **Rôle en gameplay (exploration / dialogue / conflit)** : Mobilise instantanément les réseaux de la **Dalle** (`Corps 4`, `caves_esquive +3`, `solidarite_bande +3`), redonne du **Moral** à la bande le jour par son humour et sa danse, rapide et agile pour filer en poursuite urbaine (faille `sang_froid_nerfs -2`).
 * **Stress & Crise d'autonomie** : **Haine / Embrasement** — en Stress aigu devant la police ou le S.O., balance la vanne ou le geste de trop qui fait sauter le bluff, refuse de battre en retraite ou veut régler ses comptes seul de nuit.
 * **Arc personnel** : Transformer sa colère légitime contre la matraque et l'ennui en force collective, avant qu'une nuit électrique ne lui coûte son avenir — ou la bande.
 
 ### Zoé — *La Keponne (18 ans — Les Kepons du Canal / Pavillons)*
 * **Origine / Fonction** : Pilier de l'Entrepôt-Squat sur le canal de l'Ourcq (fanzines photocopiés, sérigraphie, concerts pirates), mais fille unique de **parents pavillonnaires fervents soutiens du maire clientéliste**.
 * **Personnalité & faille** : Cynique, mordante, créative et sans peur du ridicule ; cache sous ses badges et sa crête une vraie blessure face au gouffre familial et une tendance au sabotage par provocation.
-* **Rôle en gameplay (exploration / dialogue / conflit)** : Clé d'accès au squat punk, aux concerts nocturnes et aux planques du canal ; as du **Système D** (crochetage sommaire, faux tracts/laissez-passer, fumigènes et bricoles improvisées) ; redoutable en duel verbal/insultes à la *Zone*.
+* **Rôle en gameplay (exploration / dialogue / conflit)** : Clé d'accès au squat punk, aux concerts nocturnes et aux planques du canal (`Esprit 4`, `systeme_d +3`, `tchatche +3`, `jeux_culture +2`) ; as du crochetage sommaire, faux tracts/laissez-passer et bricoles improvisées ; redoutable en duel verbal à la *Zone* (faille `sang_froid_nerfs -2`).
 * **Stress & Crise d'autonomie** : **Inconscience / Provocation** — sous Stress aigu, nargue ouvertement un notable, un vigile ou un rival armé pour tester ses limites, ou claque une ressource commune sur un coup de tête.
 * **Arc personnel** : Décider jusqu'où elle veut couper les ponts avec sa famille de pavillon sans laisser les Kepons ou le Box-Garage devenir une autre cage.
 
 ### Franck — *Le Grand (24 ans — L'Aîné cabossé, pont vers Les Vieux de la Rouge)*
 * **Origine / Fonction** : Revenu du service militaire et tout juste licencié de l'usine ; traîne entre le bistrot *Chez Bébert*, les piquets de grève d'Aulnay et le Box-Garage où les plus jeunes l'écoutent malgré lui.
 * **Personnalité & faille** : Humour grave et tendre à la *Renaud*, protecteur et solide dans les tempêtes ; mais rongé par le désenchantement post-1981, l'usure du chômage et un penchant pour le demi de trop au comptoir.
-* **Rôle en gameplay (exploration / dialogue / conflit)** : Ouvre la porte des **Vieux de la Rouge**, des cheminots du RER B et de la mémoire ouvrière (vieux plans de la bifurcation et de la Poudrerie) ; calme les patrouilles par son **Attitude** posée d'adulte ; solide pilier défensif quand une situation dégénère.
+* **Rôle en gameplay (exploration / dialogue / conflit)** : Ouvre la porte des **Vieux de la Rouge**, des cheminots du RER B et de la mémoire ouvrière (`Corps 4 · Énergie 2`, `lecture_rue +4`, `baston_pression +3`) ; calme les patrouilles par son **Attitude** posée d'adulte ; solide pilier défensif quand une situation dégénère (faille `caves_esquive -2`).
 * **Stress & Crise d'autonomie** : **Défaitisme / Alcoolisme** — sous Stress aigu, refuse net de suivre un plan qu'il juge suicidaire, part noyer sa déprime chez Bébert en laissant le groupe à découvert, ou plombe le **Moral** collectif par son cynisme amer.
 * **Arc personnel** : Retrouver une raison de croire que la génération d'après peut encore gagner une manche, au lieu de rejouer ses propres défaites.
 
 ### Ludo — *Le Caméléon (18 ans — La Fracture MJC / LEP)*
 * **Origine / Fonction** : Roi du baratin, des tables de flipper à *Le Galaxian* et des petits tuyaux de lycée ; il fréquente les **Redskins & Babas de la MJC** tout en ayant un **cousin proche engagé chez les Skins et le S.O. municipal**.
 * **Personnalité & faille** : Agile socialement, drôle, indispensable pour lire les humeurs de la ville et obtenir des rendez-vous impossibles ; mais tiraillé par une double loyauté permanente qui le rend fuyant quand il faut choisir un camp.
-* **Rôle en gameplay (exploration / dialogue / conflit)** : Spécialiste de l'infiltration sociale, du **bluff / baratin** (*Chez Bébert* comme au *Relais Municipal*), de l'échange de **Faveurs** et de l'obtention d'infos politiques locales.
+* **Rôle en gameplay (exploration / dialogue / conflit)** : Spécialiste de l'infiltration sociale (`Esprit 3`, `tchatche +3`, `jeux_culture +3`), du **bluff / baratin** (*Chez Bébert* comme au *Relais Municipal*), de l'échange de **Faveurs** et de l'obtention d'infos politiques locales (faille `baston_pression -2`).
 * **Stress & Crise d'autonomie** : **Peur / Fuite en avant** — sous Stress aigu, improvise un mensonge qui enferre la bande, couvre ou prévient discrètement son cousin au pire moment, ou décroche d'un binôme sous forte pression.
 * **Arc personnel** : Assumer enfin de quel côté de la ligne de fracture il se tient quand la guerre froide de Cradon-lès-Gonesse exige un choix sans filet.
 
