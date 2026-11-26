@@ -11,6 +11,7 @@ signal quit_requested
 
 var _mode: String = "title" # "title" | "pause"
 var _dimmer: ColorRect = null
+var _lbl_sub: Label = null
 var _lbl_mode_tag: Label = null
 var _btn_resume: Button = null
 var _btn_new_game: Button = null
@@ -65,11 +66,12 @@ func _build_ui() -> void:
 	lbl_title.add_theme_color_override("font_color", Color(0.96, 0.94, 0.88))
 	vb.add_child(lbl_title)
 
-	var lbl_sub: Label = Label.new()
-	lbl_sub.text = "CRADON-LÈS-GONESSE · 1980–1984"
-	lbl_sub.add_theme_font_size_override("font_size", 13)
-	lbl_sub.add_theme_color_override("font_color", Color(0.95, 0.55, 0.16))
-	vb.add_child(lbl_sub)
+	_lbl_sub = Label.new()
+	_lbl_sub.text = "JDR TACTIQUE & CHRONIQUES DE RUE"
+	_lbl_sub.clip_text = true
+	_lbl_sub.add_theme_font_size_override("font_size", 13)
+	_lbl_sub.add_theme_color_override("font_color", Color(0.95, 0.55, 0.16))
+	vb.add_child(_lbl_sub)
 
 	_lbl_mode_tag = Label.new()
 	_lbl_mode_tag.text = "ÉCRAN D'ACCUEIL"
@@ -129,14 +131,14 @@ func _build_ui() -> void:
 	vb.add_child(HSeparator.new())
 
 	_lbl_fm = Label.new()
-	_lbl_fm.text = "[FM 92.4 · Radio Béton Libre]"
+	_lbl_fm.text = "[FM]"
 	_lbl_fm.add_theme_font_size_override("font_size", 12)
 	_lbl_fm.add_theme_color_override("font_color", Color(0.32, 0.68, 0.95))
 	vb.add_child(_lbl_fm)
 
 	_lbl_ambient = Label.new()
 	_lbl_ambient.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_lbl_ambient.text = "Box-Garage sous la Dalle · Cycle Jour / Nuit"
+	_lbl_ambient.text = "Cycle Jour / Nuit"
 	_lbl_ambient.add_theme_font_size_override("font_size", 11)
 	_lbl_ambient.add_theme_color_override("font_color", Color(0.76, 0.78, 0.82))
 	vb.add_child(_lbl_ambient)
@@ -209,11 +211,15 @@ func close_menu() -> void:
 	_pending_action = ""
 	visible = false
 
-## Actualise la disponibilité des actions (Charger, Sauvegarder, Reprendre) et la ligne d'état.
+## Actualise la disponibilité des actions (Charger, Sauvegarder, Reprendre) et la ligne d'état du scénario actif.
 func refresh_state() -> void:
 	var is_pause: bool = (_mode == "pause")
 	_dimmer.visible = is_pause
-	_lbl_mode_tag.text = "PAUSE — PARTIE EN COURS" if is_pause else "ÉCRAN D'ACCUEIL"
+	var scen_sub: String = str(DataLoader.scenario_manifest.get("subtitle", ""))
+	if scen_sub != "" and _lbl_sub != null:
+		_lbl_sub.text = scen_sub
+	var scen_title: String = str(DataLoader.scenario_manifest.get("title", ""))
+	_lbl_mode_tag.text = ("PAUSE — %s" % scen_title) if (is_pause and scen_title != "") else ("PAUSE — PARTIE EN COURS" if is_pause else "ÉCRAN D'ACCUEIL")
 	_btn_resume.visible = is_pause
 	_btn_return_title.visible = is_pause
 
@@ -227,11 +233,12 @@ func refresh_state() -> void:
 	if not DataLoader.radio_stations.is_empty():
 		var st_idx: int = GameState.current_station_idx % DataLoader.radio_stations.size()
 		var st_dict: Dictionary = DataLoader.radio_stations[st_idx]
-		_lbl_fm.text = "[FM %s · %s]" % [str(st_dict.get("freq", "92.4")), str(st_dict.get("name", "Radio Béton Libre"))]
+		_lbl_fm.text = "[FM %s · %s]" % [str(st_dict.get("freq", "")), str(st_dict.get("name", ""))]
 
 	if is_pause:
 		var lp_name: String = str(GameState.leader_profile.get("name", "Alex"))
-		var loc_name: String = str(DataLoader.get_location(GameState.get_active_location_id()).get("name", "Box-Garage"))
+		var loc_id: String = GameState.get_active_location_id()
+		var loc_name: String = str(DataLoader.get_location(loc_id).get("name", loc_id))
 		_lbl_ambient.text = "%s · %s (%s)" % [lp_name, loc_name, GameState.format_clock()]
 
 ## Met à jour le libellé de phase du fond vivant lorsque le menu est en mode accueil.

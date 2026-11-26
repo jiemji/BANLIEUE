@@ -1,0 +1,197 @@
+{
+  "specialties": [
+    {
+      "id": "moquerie",
+      "name": "Moquerie",
+      "has_interruption": true,
+      "intercept_skills": [
+        "caves_esquive",
+        "tchatche"
+      ],
+      "modes": [
+        {
+          "when": "has_enemy",
+          "target_kind": "enemy",
+          "shake": true,
+          "skill_scaling": {
+            "skill": "tchatche",
+            "min_val": 3,
+            "bonus": 1
+          },
+          "effects": [
+            {
+              "op": "damage_resolve",
+              "amount": 1,
+              "scaled_bonus": 1,
+              "scope": "target"
+            },
+            {
+              "op": "push_ticks",
+              "amount": 2
+            }
+          ],
+          "log": "INTERRUPTION [Moquerie] — {actor} casse la charge de {target} (-{dmg} résol, +{push} crans) !",
+          "preview_summary": "{target} : -{dmg} Résol · recule Cran {from_tick} → {to_tick}"
+        }
+      ]
+    },
+    {
+      "id": "interposition",
+      "name": "Interposition",
+      "has_interruption": true,
+      "intercept_skills": [
+        "baston_pression"
+      ],
+      "modes": [
+        {
+          "when": "always",
+          "target_kind": "none",
+          "shake": false,
+          "absorb_scaling": {
+            "skill": "baston_pression",
+            "min_skill": 3,
+            "charac": "corps",
+            "min_charac": 4,
+            "base_absorb": 6,
+            "boosted_absorb": 8
+          },
+          "effects": [
+            {
+              "op": "add_shield",
+              "amount": 1,
+              "absorb": 6
+            },
+            {
+              "op": "modify_moral",
+              "target": "self",
+              "amount": 4,
+              "use_shield": false
+            }
+          ],
+          "log": "INTERRUPTION [Interposition] — {actor} fait bloc sous le réverbère (+4 Moral, prochain coup -{absorb}) !",
+          "preview_summary": "Bouclier Interposition +1 (-{absorb} dégâts au prochain coup) · +4 Moral"
+        }
+      ]
+    },
+    {
+      "id": "reflexe_rue",
+      "name": "Réflexe de rue",
+      "has_interruption": true,
+      "intercept_skills": [
+        "caves_esquive"
+      ],
+      "modes": [
+        {
+          "when": "always",
+          "target_kind": "none",
+          "preview_target_id": "crs",
+          "shake": false,
+          "skill_scaling": {
+            "skill": "caves_esquive",
+            "min_val": 3,
+            "bonus": 1
+          },
+          "effects": [
+            {
+              "op": "modify_escalation_clock",
+              "amount": 2,
+              "scaled_bonus": 1
+            },
+            {
+              "op": "advance_escape",
+              "amount": 1
+            }
+          ],
+          "log": "INTERRUPTION [Réflexe de rue] — {actor} pousse une grille métallique (+{clock} crans {clock_short}, accès ouvert) !",
+          "preview_summary": "{clock_short} Cran {from_tick} → {to_tick} · Échappée +1"
+        }
+      ]
+    },
+    {
+      "id": "sang_froid",
+      "name": "Sang-froid",
+      "has_interruption": true,
+      "intercept_skills": [
+        "sang_froid_nerfs",
+        "lecture_rue"
+      ],
+      "modes": [
+        {
+          "when": "has_crisis",
+          "target_kind": "ally_crisis",
+          "shake": false,
+          "skill_scaling": {
+            "skill": "sang_froid_nerfs",
+            "min_val": 3,
+            "bonus": 2
+          },
+          "effects": [
+            {
+              "op": "cancel_crisis"
+            },
+            {
+              "op": "modify_moral",
+              "target": "crisis_ally",
+              "amount": 10,
+              "scaled_bonus": 2,
+              "use_shield": false
+            }
+          ],
+          "log": "INTERRUPTION [Sang-froid] — {actor} reprend la main et calme {target} à temps (+{moral} Moral) !",
+          "preview_summary": "Annule la crise de {target} · +{moral} Moral"
+        },
+        {
+          "when": "has_enemy",
+          "target_kind": "enemy",
+          "shake": true,
+          "effects": [
+            {
+              "op": "damage_resolve",
+              "amount": 1,
+              "scope": "target"
+            },
+            {
+              "op": "push_ticks",
+              "amount": 1
+            }
+          ],
+          "log": "INTERRUPTION [Sang-froid] — {actor} perce le bluff de {target} (-1 résol, +1 cran) !",
+          "preview_summary": "{target} : -1 Résol · recule Cran {from_tick} → {to_tick}"
+        },
+        {
+          "when": "always",
+          "target_kind": "none",
+          "shake": false,
+          "effects": [
+            {
+              "op": "modify_moral",
+              "target": "self",
+              "amount": 6,
+              "use_shield": false
+            }
+          ],
+          "log": "INTERRUPTION [Sang-froid] — {actor} garde la tête froide (+6 Moral).",
+          "preview_summary": "Recentrage (+6 Moral)"
+        }
+      ]
+    },
+    {
+      "id": "trousseau",
+      "name": "Trousseau & Veille",
+      "has_interruption": false,
+      "intercept_skills": [
+        "lecture_rue"
+      ],
+      "modes": []
+    },
+    {
+      "id": "barrage",
+      "name": "Barrage S.O.",
+      "has_interruption": false,
+      "intercept_skills": [
+        "baston_pression"
+      ],
+      "modes": []
+    }
+  ]
+}

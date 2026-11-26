@@ -7,7 +7,6 @@ signal frise_actor_hovered(kind: String, entity_id: String)
 var input_blocked: bool = false
 
 var _timeline: Node = null
-var _tex_cache: Dictionary = {}
 
 # Zone 1 : Frise Chronologique en haut (cartes rectangulaires verticales)
 var _top_panel: PanelContainer = null
@@ -360,12 +359,19 @@ func select_restrain() -> void:
 		return
 	_start_targeting("restrain", "restrain", "ally_crisis")
 
-## Reçoit un clic sur une case vide de la grille isométrique pour déplacer le PJ actif (PM restants).
+## Reçoit un clic sur une case vide de la grille isométrique (interactif à portée ou déplacement PM).
 func on_stage_cell_clicked(gx: int, gy: int) -> void:
 	if input_blocked or _timeline == null or not bool(_timeline.get("active")):
 		return
 	if _pending_kind != "" or bool(_timeline.get("awaiting_step")) or bool(_timeline.call("is_charge_window_active")):
 		return
+	var inter_v: Variant = _timeline.call("get_combat_interactable_at", gx, gy)
+	if inter_v is Dictionary and not (inter_v as Dictionary).is_empty():
+		var prop_id: String = str((inter_v as Dictionary).get("id", ""))
+		if prop_id != "":
+			var trig_v: Variant = _timeline.call("trigger_combat_interactable", prop_id)
+			if trig_v is Dictionary and bool((trig_v as Dictionary).get("executed", false)):
+				return
 	_timeline.call("move_active_ally_to", gx, gy)
 
 ## Reçoit le survol d'un pion depuis le quadrillage isométrique central.
@@ -579,16 +585,22 @@ func refresh() -> void:
 
 	var turn_c: int = int(_timeline.get("turn_count"))
 	var crs_t: int = int(_timeline.get("crs_ticks"))
-	var esc_p: int = int(_timeline.get("escape_progress"))
 	var shield_p: int = int(_timeline.get("interposition_shield"))
-	var tf_arrived: bool = bool(_timeline.get("train_fantome_arrived"))
 	var is_waiting: bool = bool(_timeline.get("awaiting_step"))
 	var step_lbl: String = str(_timeline.get("pending_beat_label"))
+	var esc_enabled: bool = bool(_timeline.call("is_escalation_enabled"))
+	var esc_short: String = str(_timeline.call("get_escalation_short_label"))
+	var escape_on: bool = bool(_timeline.call("is_escape_enabled"))
+	var escape_lbl: String = str(_timeline.call("get_escape_status_label"))
 
 	_lbl_header.text = "TOUR %d\n%s" % [turn_c, str(_timeline.get("encounter_title"))]
-	_lbl_crs.text = "CRS : %d cran(s)" % maxi(0, crs_t)
-	_lbl_crs.add_theme_color_override("font_color", Color(1.0, 0.36, 0.34) if crs_t <= 2 else Color(0.38, 0.72, 0.98))
-	_lbl_escape.text = "TRAIN FANTÔME À QUAI !" if tf_arrived else ("Échappée : %d/2" % esc_p)
+	_lbl_crs.visible = esc_enabled
+	if esc_enabled:
+		_lbl_crs.text = "%s : %d cran(s)" % [esc_short, maxi(0, crs_t)]
+		_lbl_crs.add_theme_color_override("font_color", Color(1.0, 0.36, 0.34) if crs_t <= 2 else Color(0.38, 0.72, 0.98))
+	_lbl_escape.visible = escape_on
+	if escape_on:
+		_lbl_escape.text = escape_lbl
 	_lbl_shield.visible = shield_p > 0
 	_lbl_shield.text = "Bouclier Interp. x%d" % shield_p
 
@@ -675,9 +687,10 @@ func _build_frise_vertical_card(ed: Dictionary) -> Control:
 		gauge.max_value = rmax
 		gauge.value = clampi(int(ed.get("resolve", 1)), 0, rmax)
 		gauge.modulate = Color(0.95, 0.28, 0.26)
-	elif kind == "crs":
-		gauge.max_value = 6
-		gauge.value = clampi(int(ed.get("tick", 0)), 0, 6)
+	elif kind == "crs" or kind == "clock":
+		var cmax: int = maxi(4, int(ed.get("clock_max", 6)))
+		gauge.max_value = cmax
+		gauge.value = clampi(int(ed.get("tick", 0)), 0, cmax)
 		gauge.modulate = Color(0.32, 0.68, 1.0)
 	else:
 		var mmax: int = maxi(1, int(ed.get("moral_max", 100)))
@@ -792,19 +805,21 @@ func _populate_character_sheet_into(parent: VBoxContainer, sheet: Dictionary, mo
 		var mp_l: int = int(sheet.get("move_points_left", 0))
 		var mp_m: int = int(sheet.get("move_points_max", 2))
 		var stun_s: String = "  ·  💫 ASSOMMÉ" if bool(sheet.get("stunned", false)) else ""
+		var cov_s: String = ("  ·  🛡 %s" % str(sheet.get("cover_label", "Abri"))) if bool(sheet.get("in_cover", false)) else ""
 		var l_st1: Label = Label.new()
 		l_st1.clip_text = true
-		l_st1.text = "Mor %d/%d · PM %d/%d · Att %d · Aura %d%s" % [
+		l_st1.text = "Mor %d/%d · PM %d/%d · Att %d · Aura %d%s%s" % [
 			int(sheet.get("moral", 60)),
 			int(sheet.get("moral_max", 100)),
 			mp_l,
 			mp_m,
 			int(sheet.get("attitude", 60)),
 			int(sheet.get("aura", 3)),
-			stun_s
+			stun_s,
+			cov_s
 		]
 		l_st1.add_theme_font_size_override("font_size", 10)
-		l_st1.add_theme_color_override("font_color", Color(0.86, 0.90, 0.94))
+		l_st1.add_theme_color_override("font_color", Color(0.68, 0.96, 0.78) if bool(sheet.get("in_cover", false)) else Color(0.86, 0.90, 0.94))
 		info_v.add_child(l_st1)
 
 		var sk_var: Variant = sheet.get("top_skills", [])
@@ -824,10 +839,11 @@ func _populate_character_sheet_into(parent: VBoxContainer, sheet: Dictionary, mo
 		var rmax_e: int = maxi(1, int(sheet.get("resolve_max", 1)))
 		var rcur_e: int = int(sheet.get("resolve", 1))
 		var stun_es: String = " · 💫 ASSOMMÉ" if bool(sheet.get("stunned", false)) else ""
+		var cov_es: String = (" · 🛡 +%d dist" % int(sheet.get("cover_defense", 1))) if bool(sheet.get("in_cover", false)) else ""
 		var l_es1: Label = Label.new()
 		l_es1.clip_text = true
-		l_es1.text = "Résol. %d/%d · DD Soc %d · DD Pres %d%s" % [
-			rcur_e, rmax_e, int(sheet.get("dc_social", 11)), int(sheet.get("dc_pression", 11)), stun_es
+		l_es1.text = "Résol. %d/%d · DD Soc %d · DD Pres %d%s%s" % [
+			rcur_e, rmax_e, int(sheet.get("dc_social", 11)), int(sheet.get("dc_pression", 11)), stun_es, cov_es
 		]
 		l_es1.add_theme_font_size_override("font_size", 10)
 		l_es1.add_theme_color_override("font_color", Color(1.0, 0.68, 0.64))
@@ -902,7 +918,7 @@ func _populate_character_sheet_into(parent: VBoxContainer, sheet: Dictionary, mo
 						btn.text = "[%d] ★ %s%s%s · %d%%%s" % [slot_num, slbl, r_suffix, tgt_mark, pct, (" ⚠" if is_fl else "")]
 						btn.add_theme_stylebox_override("normal", _make_box(Color(0.18, 0.14, 0.08), Color(0.92, 0.70, 0.24), 1, 4))
 				elif not usable:
-					var lock_short: String = "Outil tir" if aid == "act_tir" and "Outil" in lock_r else "H.P."
+					var lock_short: String = "Outil tir" if "Outil" in lock_r else "H.P."
 					btn.text = "[%d] 🔒 %s%s · %s" % [slot_num, slbl, r_suffix, lock_short]
 				else:
 					btn.text = "[%d] %s%s%s · %d%%%s" % [slot_num, slbl, r_suffix, tgt_mark, pct, (" ⚠" if is_fl else "")]
@@ -914,6 +930,40 @@ func _populate_character_sheet_into(parent: VBoxContainer, sheet: Dictionary, mo
 				btn.pressed.connect(func() -> void: select_action(aid_cap))
 				_actions_box.add_child(btn)
 				slot_num += 1
+
+			var inter_list_v: Variant = _timeline.call("get_available_combat_interactables")
+			if inter_list_v is Array:
+				for iv_b in (inter_list_v as Array):
+					if not (iv_b is Dictionary):
+						continue
+					var ibd: Dictionary = iv_b as Dictionary
+					if bool(ibd.get("used", false)):
+						continue
+					var ibid: String = str(ibd.get("id", ""))
+					var iblbl: String = str(ibd.get("label", ibid))
+					var in_r_ib: bool = bool(ibd.get("in_range", false))
+					var pct_ib: int = int(ibd.get("chance_pct", 50))
+					var btn_ib: Button = Button.new()
+					btn_ib.custom_minimum_size = Vector2(0, 29)
+					btn_ib.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+					btn_ib.clip_text = true
+					btn_ib.focus_mode = Control.FOCUS_NONE
+					btn_ib.disabled = not in_r_ib
+					btn_ib.add_theme_font_size_override("font_size", 10)
+					if in_r_ib:
+						btn_ib.text = "⚙ %s · %d%%" % [iblbl, pct_ib]
+						btn_ib.add_theme_stylebox_override("normal", _make_box(Color(0.14, 0.22, 0.14), Color(0.42, 0.88, 0.56), 1, 4))
+					else:
+						btn_ib.text = "⚙ %s (%d/%dc)" % [iblbl, int(ibd.get("distance", 0)), int(ibd.get("max_range", 2))]
+					btn_ib.tooltip_text = "%s (%s vs DD %d)\nCase (%d,%d)" % [iblbl, str(ibd.get("skill_name", "")), int(ibd.get("dc", 9)), int(ibd.get("x", 0)), int(ibd.get("y", 1))]
+					var ibid_cap: String = ibid
+					btn_ib.pressed.connect(func() -> void:
+						if _timeline != null:
+							_clear_pending_targeting()
+							targeting_state_changed.emit("", [], "")
+							_timeline.call("trigger_combat_interactable", ibid_cap)
+					)
+					_actions_box.add_child(btn_ib)
 		else:
 			var desc_panel: PanelContainer = PanelContainer.new()
 			desc_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -1118,23 +1168,4 @@ func _make_box(bg: Color, border: Color, bw: int, pad: int) -> StyleBoxFlat:
 	return sb
 
 func _load_texture_safe(res_path: String) -> Texture2D:
-	if res_path == "":
-		return null
-	if _tex_cache.has(res_path):
-		var cached: Variant = _tex_cache.get(res_path, null)
-		if cached is Texture2D:
-			return cached as Texture2D
-		return null
-	var tex: Texture2D = null
-	if ResourceLoader.exists(res_path):
-		var loaded: Resource = load(res_path)
-		if loaded is Texture2D:
-			tex = loaded as Texture2D
-	if tex == null:
-		var abs_path: String = ProjectSettings.globalize_path(res_path)
-		if FileAccess.file_exists(abs_path):
-			var img: Image = Image.load_from_file(abs_path)
-			if img != null and not img.is_empty():
-				tex = ImageTexture.create_from_image(img)
-	_tex_cache[res_path] = tex
-	return tex
+	return DataLoader.load_texture_safe(res_path)

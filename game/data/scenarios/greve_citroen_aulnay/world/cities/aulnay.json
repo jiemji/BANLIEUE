@@ -1,0 +1,232 @@
+{
+  "id": "aulnay",
+  "parent_id": "dept_93",
+  "zoom_level": 3,
+  "type": "city",
+  "name": "Aulnay-sous-Bois",
+  "short_name": "Aulnay",
+  "subtitle": "Plan 1983 — Complexe Citroën, Rose-des-Vents & Fret RER B",
+  "map_width": 1040,
+  "map_height": 760,
+  "backdrop": "res://assets/maps/map_aulnay.png",
+  "paper_tint": "#ded3bc",
+  "night_tint": "#181c24",
+  "sectors": [
+    {
+      "id": "usine_citroen",
+      "name": "Complexe Citroën Aulnay",
+      "color_hex": "#d96b27",
+      "polygon": [
+        [
+          445,
+          42
+        ],
+        [
+          995,
+          42
+        ],
+        [
+          995,
+          355
+        ],
+        [
+          445,
+          355
+        ]
+      ]
+    },
+    {
+      "id": "rose_des_vents",
+      "name": "Cité de la Rose-des-Vents (3000)",
+      "color_hex": "#4aa3df",
+      "polygon": [
+        [
+          52,
+          110
+        ],
+        [
+          420,
+          110
+        ],
+        [
+          420,
+          520
+        ],
+        [
+          52,
+          520
+        ]
+      ]
+    },
+    {
+      "id": "fret_rer_b",
+      "name": "Embranchement Fret RER B",
+      "color_hex": "#d9c252",
+      "polygon": [
+        [
+          445,
+          365
+        ],
+        [
+          995,
+          365
+        ],
+        [
+          995,
+          500
+        ],
+        [
+          445,
+          500
+        ]
+      ]
+    }
+  ],
+  "roads": [
+    {
+      "label": "RER B — Gare d'Aulnay",
+      "kind": "rail",
+      "points": [
+        [
+          24,
+          456
+        ],
+        [
+          516,
+          438
+        ],
+        [
+          1016,
+          420
+        ]
+      ]
+    },
+    {
+      "label": "Embranchement Fret Citroën",
+      "kind": "rail",
+      "points": [
+        [
+          605,
+          435
+        ],
+        [
+          716,
+          352
+        ],
+        [
+          872,
+          325
+        ]
+      ]
+    },
+    {
+      "label": "Boulevard Industriel",
+      "kind": "road",
+      "points": [
+        [
+          432,
+          24
+        ],
+        [
+          432,
+          736
+        ]
+      ]
+    }
+  ],
+  "locations_order": [
+    "piquet_porte_nord",
+    "toit_rose_des_vents",
+    "quai_fret_citroen",
+    "parking_emboutissage"
+  ],
+  "children": [
+    {
+      "id": "piquet_porte_nord",
+      "name": "Piquet Porte Nord (Citroën)",
+      "sector": "Complexe Citroën Aulnay",
+      "pos": [
+        575,
+        292
+      ],
+      "footprint": [
+        172,
+        72
+      ],
+      "color_hex": "#f28c28",
+      "status": "playable",
+      "interior_file": "maps/interiors/piquet_porte_nord.json",
+      "neighbors": {
+        "toit_rose_des_vents": 1,
+        "quai_fret_citroen": 1,
+        "parking_emboutissage": 1
+      }
+    },
+    {
+      "id": "toit_rose_des_vents",
+      "name": "Toits de la Rose-des-Vents",
+      "sector": "Cité de la Rose-des-Vents (3000)",
+      "pos": [
+        240,
+        265
+      ],
+      "footprint": [
+        172,
+        72
+      ],
+      "color_hex": "#4aa3df",
+      "status": "playable",
+      "completed_if_flag": "antenne_calee",
+      "interior_file": "maps/interiors/toit_rose_des_vents.json",
+      "neighbors": {
+        "piquet_porte_nord": 1,
+        "quai_fret_citroen": 2,
+        "parking_emboutissage": 2
+      }
+    },
+    {
+      "id": "quai_fret_citroen",
+      "name": "Quai Fret & Voie de Triage",
+      "sector": "Embranchement Fret RER B",
+      "pos": [
+        715,
+        392
+      ],
+      "footprint": [
+        172,
+        72
+      ],
+      "color_hex": "#d9c252",
+      "status": "playable",
+      "completed_if_flag": "fourgon_sabote",
+      "interior_file": "maps/interiors/quai_fret_citroen.json",
+      "neighbors": {
+        "piquet_porte_nord": 1,
+        "parking_emboutissage": 1,
+        "toit_rose_des_vents": 2
+      }
+    },
+    {
+      "id": "parking_emboutissage",
+      "name": "Parking d'Emboutissage (Barrage)",
+      "sector": "Complexe Citroën Aulnay",
+      "pos": [
+        820,
+        190
+      ],
+      "footprint": [
+        178,
+        72
+      ],
+      "color_hex": "#e03e36",
+      "status": "playable",
+      "completed_if_flag": "aulnay_encounter_done",
+      "interior_file": "maps/interiors/parking_emboutissage.json",
+      "neighbors": {
+        "piquet_porte_nord": 1,
+        "quai_fret_citroen": 1,
+        "toit_rose_des_vents": 2
+      }
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "skills_catalog": [
+    {
+      "id": "tchatche",
+      "name": "Tchatche & Baratin",
+      "charac": "esprit",
+      "desc": "Argot, mensonge à chaud, bluff municipal et moquerie sèche face au S.O."
+    },
+    {
+      "id": "systeme_d",
+      "name": "Système D & Débrouille",
+      "charac": "esprit",
+      "desc": "Crochetage sommaire, fausse panne, faux laissez-passer et récup de terrain."
+    },
+    {
+      "id": "ondes_radio",
+      "name": "Ondes & Électronique",
+      "charac": "esprit",
+      "desc": "Tuner FM, magnétos à cassettes, bornes d'arcade et tableaux électriques."
+    },
+    {
+      "id": "lecture_rue",
+      "name": "Flair & Connaissance du milieu",
+      "charac": "esprit",
+      "desc": "Sentir l'embrouille avant qu'elle pète, réseaux d'anciens et filatures."
+    },
+    {
+      "id": "mecanique_mob",
+      "name": "Mécanique & 103 SP",
+      "charac": "corps",
+      "desc": "Réglage 2-temps, dépannage express d'atelier et mobilité motorisée de bande."
+    },
+    {
+      "id": "baston_pression",
+      "name": "Caisse & Coup de pression",
+      "charac": "corps",
+      "desc": "Bras de fer, tenue d'un barrage de trottoir, parade et encaissement S.O."
+    },
+    {
+      "id": "caves_esquive",
+      "name": "Caves, Toits & Esquive",
+      "charac": "corps",
+      "desc": "Filer par les chaufferies, escalader les grilles et semer les CRS."
+    },
+    {
+      "id": "sang_froid_nerfs",
+      "name": "Nerfs & Tenue nocturne",
+      "charac": "energie",
+      "desc": "Contenir le Stress et garder la tête froide face à l'étrange nocturne."
+    },
+    {
+      "id": "solidarite_bande",
+      "name": "Entraide & Moral de groupe",
+      "charac": "energie",
+      "desc": "Tenir la cohésion au Box-Garage et apaiser les frictions de bande."
+    },
+    {
+      "id": "jeux_culture",
+      "name": "Flipper, Baby & Culture 80s",
+      "charac": "energie",
+      "desc": "Bornes d'arcade du Galaxian, smurf, rock, fanzines et codes tribaux."
+    }
+  ]
+}

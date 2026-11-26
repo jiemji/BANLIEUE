@@ -1,4 +1,4 @@
-## Interpréteur Data-Driven des dialogues : prérequis, Jets de rue (skill_check) et effets sur GameState.
+## Interpréteur Data-Driven des dialogues : prérequis, Jets de rue (skill_check), déblocages dynamiques et effets sur GameState.
 extends Node
 
 signal node_updated(dialogue_id: String, node_data: Dictionary, choices: Array)
@@ -7,6 +7,7 @@ signal move_requested(location_id: String)
 signal twilight_requested
 signal encounter_requested(encounter_id: String)
 signal slice_completed
+signal ending_requested(ending_id: String)
 signal skill_roll_resolved(roll_result: Dictionary)
 
 var current_dialogue_id: String = ""
@@ -66,6 +67,7 @@ func pick_choice(choice_index: int) -> void:
 	if not bool(check.get("ok", true)):
 		return
 
+	var leader_cid: String = DataLoader.get_leader_char_id()
 	var triggers: Dictionary = {}
 	var next_id: String = str(choice.get("next", ""))
 	if choice.has("skill_check") and choice.get("skill_check") is Dictionary:
@@ -76,7 +78,7 @@ func pick_choice(choice_index: int) -> void:
 			return
 		var rp: Dictionary = _get_choice_roll_params(choice)
 		var roll_res: Dictionary = GameState.perform_street_roll(
-			str(rp.get("char_id", "leader")),
+			str(rp.get("char_id", leader_cid)),
 			str(rp.get("skill_id", "")),
 			int(rp.get("dc", 10)),
 			int(rp.get("bonus", 0)),
@@ -88,7 +90,7 @@ func pick_choice(choice_index: int) -> void:
 		if bool(roll_res.get("success", false)):
 			AudioRadio.play_cassette_click()
 			if bool(roll_res.get("is_brilliant", false)):
-				GameState.add_xp(str(roll_res.get("char_id", "leader")), 10)
+				GameState.add_xp(str(roll_res.get("char_id", leader_cid)), 10)
 				last_roll_result["brilliant_xp"] = 10
 			triggers = _apply_effects(choice.get("effects", {}))
 		else:
@@ -103,7 +105,7 @@ func pick_choice(choice_index: int) -> void:
 					for tk in ex_tr.keys():
 						triggers[tk] = ex_tr.get(tk)
 				else:
-					GameState.modify_moral(str(roll_res.get("char_id", "leader")), -4)
+					GameState.modify_moral(str(roll_res.get("char_id", leader_cid)), -4)
 			var fnext: String = str(choice.get("fail_next", ""))
 			if fnext != "":
 				next_id = fnext
@@ -112,8 +114,15 @@ func pick_choice(choice_index: int) -> void:
 		var eff: Variant = choice.get("effects", {})
 		triggers = _apply_effects(eff)
 
+	var end_id: String = str(triggers.get("trigger_ending", ""))
+	if end_id != "":
+		close_dialogue()
+		ending_requested.emit(end_id)
+		slice_completed.emit()
+		return
 	if bool(triggers.get("finish_slice", false)):
 		close_dialogue()
+		ending_requested.emit("")
 		slice_completed.emit()
 		return
 	if bool(triggers.get("trigger_twilight", false)):
@@ -167,8 +176,9 @@ func _get_choice_roll_params(choice: Dictionary) -> Dictionary:
 		var b_iname: String = str(DataLoader.get_equipment_def(bi).get("name", "Objet"))
 		bonus_parts.append(b_iname.split(" ")[0])
 
+	var leader_cid: String = DataLoader.get_leader_char_id()
 	var roller: Dictionary = GameState.get_best_active_group_roller(sk_id, spec_char)
-	var roller_id: String = str(roller.get("char_id", "leader"))
+	var roller_id: String = str(roller.get("char_id", leader_cid))
 	if ba != "":
 		var carrier_id: String = GameState.get_active_group_member_with_action(ba)
 		if carrier_id != "":
@@ -191,14 +201,14 @@ func _evaluate_choice_roll(choice: Dictionary) -> Dictionary:
 	if rp.is_empty():
 		return {}
 	return GameState.preview_street_roll(
-		str(rp.get("char_id", "leader")),
+		str(rp.get("char_id", DataLoader.get_leader_char_id())),
 		str(rp.get("skill_id", "")),
 		int(rp.get("dc", 10)),
 		int(rp.get("bonus", 0)),
 		str(rp.get("bonus_label", ""))
 	)
 
-## Évalue l'ensemble des prérequis d'un choix (ressources, compétences, objets, actions équipées, flags, phase).
+## Évalue l'ensemble des prérequis d'un choix (ressources, compétences, objets, actions équipées, flags, phase, notoriété).
 func _check_conditions(cond_var: Variant) -> Dictionary:
 	if not (cond_var is Dictionary):
 		return {"ok": true, "reason": ""}
@@ -218,6 +228,18 @@ func _check_conditions(cond_var: Variant) -> Dictionary:
 		var req_fa: int = int(cond.get("min_aura", 0))
 		if GameState.get_total_aura() < req_fa:
 			return {"ok": false, "reason": "Aura %d requis" % req_fa}
+	if cond.has("min_notoriete"):
+		var req_not: int = int(cond.get("min_notoriete", 0))
+		if GameState.notoriete < req_not:
+			return {"ok": false, "reason": "Notoriété %d+ requise" % req_not}
+	if cond.has("max_notoriete"):
+		var max_not: int = int(cond.get("max_notoriete", 99))
+		if GameState.notoriete > max_not:
+			return {"ok": false, "reason": "Trop de Notoriété (%d max)" % max_not}
+	if cond.has("min_moral"):
+		var req_mor: int = int(cond.get("min_moral", 0))
+		if GameState.get_lowest_moral() < req_mor:
+			return {"ok": false, "reason": "Moral %d+ requis" % req_mor}
 	if cond.has("min_skill"):
 		var ms_var: Variant = cond.get("min_skill", {})
 		if ms_var is Dictionary:
@@ -239,7 +261,8 @@ func _check_conditions(cond_var: Variant) -> Dictionary:
 	if cond.has("require_member"):
 		var req_m: String = str(cond.get("require_member", ""))
 		if not GameState.is_member_in_active_group(req_m):
-			return {"ok": false, "reason": "%s doit être dans ce groupe" % req_m.capitalize()}
+			var m_name: String = str(DataLoader.get_character(req_m).get("name", req_m.capitalize()))
+			return {"ok": false, "reason": "%s doit être dans ce groupe" % m_name}
 	if cond.has("require_flag"):
 		var rf: String = str(cond.get("require_flag", ""))
 		if not GameState.has_flag(rf):
@@ -248,6 +271,14 @@ func _check_conditions(cond_var: Variant) -> Dictionary:
 		var rnf: String = str(cond.get("require_not_flag", ""))
 		if GameState.has_flag(rnf):
 			return {"ok": false, "reason": "Déjà fait"}
+	if cond.has("has_clue"):
+		var hc: String = str(cond.get("has_clue", ""))
+		if hc != "" and not GameState.clues.has(hc):
+			return {"ok": false, "reason": "Piste manquante"}
+	if cond.has("require_outcome"):
+		var ro: String = str(cond.get("require_outcome", ""))
+		if ro != "" and GameState.last_encounter_outcome != ro:
+			return {"ok": false, "reason": "Issue différente"}
 	if cond.has("require_phase"):
 		var rp: String = str(cond.get("require_phase", ""))
 		if GameState.phase != rp:
@@ -255,7 +286,7 @@ func _check_conditions(cond_var: Variant) -> Dictionary:
 			return {"ok": false, "reason": label_p}
 	return {"ok": true, "reason": ""}
 
-## Applique les effets d'un nœud sur GameState et retourne les déclencheurs spéciaux (move_to, rencontre, crépuscule).
+## Applique les effets d'un nœud sur GameState et retourne les déclencheurs spéciaux (move_to, rencontre, crépuscule, fin).
 func _apply_effects(eff_var: Variant) -> Dictionary:
 	var triggers: Dictionary = {}
 	if not (eff_var is Dictionary):
@@ -271,6 +302,10 @@ func _apply_effects(eff_var: Variant) -> Dictionary:
 		GameState.notoriete += int(eff.get("notoriete", 0))
 	if eff.has("aura_bonus"):
 		GameState.aura_bonus += int(eff.get("aura_bonus", 0))
+	if eff.has("advance_clock"):
+		GameState.advance_clock(int(eff.get("advance_clock", 0)))
+	if eff.has("set_phase"):
+		GameState.set_phase(str(eff.get("set_phase", GameState.phase)))
 
 	if eff.has("set_flag"):
 		var sf_var: Variant = eff.get("set_flag", {})
@@ -288,6 +323,13 @@ func _apply_effects(eff_var: Variant) -> Dictionary:
 
 	if eff.has("unlock_clue"):
 		GameState.unlock_clue(str(eff.get("unlock_clue", "")))
+	if eff.has("unlock_location"):
+		var unl_v: Variant = eff.get("unlock_location")
+		if unl_v is Array:
+			for uv in (unl_v as Array):
+				GameState.unlock_node(str(uv))
+		else:
+			GameState.unlock_node(str(unl_v))
 
 	if eff.has("recruit"):
 		GameState.recruit_member(str(eff.get("recruit", "")))
@@ -298,11 +340,13 @@ func _apply_effects(eff_var: Variant) -> Dictionary:
 			GameState.add_xp(str(xpd.get("target", "all")), int(xpd.get("amount", 0)))
 	if eff.has("grant_item"):
 		GameState.add_to_box_stash(str(eff.get("grant_item", "")))
+	if eff.has("remove_item"):
+		GameState.remove_item_from_group_or_stash(str(eff.get("remove_item", "")))
 	if eff.has("add_trait"):
 		var tr_var: Variant = eff.get("add_trait", {})
 		if tr_var is Dictionary:
 			var trd: Dictionary = tr_var as Dictionary
-			GameState.add_trait(str(trd.get("char_id", "leader")), str(trd.get("trait", "")))
+			GameState.add_trait(str(trd.get("char_id", DataLoader.get_leader_char_id())), str(trd.get("trait", "")))
 
 	if eff.has("move_to"):
 		triggers["move_to"] = str(eff.get("move_to", ""))
@@ -310,6 +354,8 @@ func _apply_effects(eff_var: Variant) -> Dictionary:
 		triggers["trigger_twilight"] = bool(eff.get("trigger_twilight", false))
 	if eff.has("start_encounter"):
 		triggers["start_encounter"] = str(eff.get("start_encounter", ""))
+	if eff.has("trigger_ending"):
+		triggers["trigger_ending"] = str(eff.get("trigger_ending", ""))
 	if eff.has("finish_slice"):
 		triggers["finish_slice"] = bool(eff.get("finish_slice", false))
 

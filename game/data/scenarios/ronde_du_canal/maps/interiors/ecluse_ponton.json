@@ -1,0 +1,180 @@
+{
+  "id": "ecluse_ponton",
+  "parent_city_id": "berges_ourcq",
+  "zoom_level": 4,
+  "type": "interior",
+  "name": "Écluse & Ponton des Docks",
+  "sector": "Quais de l'Ourcq & Docks",
+  "day_desc": "Vantaux métalliques de l'écluse, bollards d'amarrage en fonte et piles de palettes au bord de l'eau verte.",
+  "night_desc": "La brume monte du bassin des docks sous un brasero de quai ; c'est ici que débarque la ronde privée.",
+  "day_tint": "#a8b4bd",
+  "night_tint": "#141c24",
+  "render_mode": "modular",
+  "tile_w": 84,
+  "tile_h": 42,
+  "grid_w": 10,
+  "grid_h": 8,
+  "camera": {
+    "default_zoom": 1.0,
+    "min_zoom": 0.85,
+    "max_zoom": 1.45,
+    "follow_squad": false
+  },
+  "spawn": [
+    3.5,
+    6.0
+  ],
+  "blocked_cells": [
+    [
+      0,
+      0
+    ],
+    [
+      1,
+      0
+    ],
+    [
+      2,
+      0
+    ],
+    [
+      3,
+      0
+    ],
+    [
+      4,
+      0
+    ],
+    [
+      5,
+      0
+    ],
+    [
+      6,
+      0
+    ],
+    [
+      7,
+      0
+    ],
+    [
+      8,
+      0
+    ],
+    [
+      9,
+      0
+    ],
+    [
+      1,
+      3
+    ],
+    [
+      7,
+      3
+    ],
+    [
+      8,
+      1
+    ],
+    [
+      9,
+      1
+    ]
+  ],
+  "zones": [],
+  "exits": [
+    {
+      "id": "exit_ourcq_map",
+      "label": "Carte des Berges de l'Ourcq",
+      "grid_x": 8.5,
+      "grid_y": 6.4,
+      "target_level": 3,
+      "target_id": "berges_ourcq",
+      "color_hex": "#4aa3df"
+    }
+  ],
+  "lights": [
+    {
+      "grid_x": 4.5,
+      "grid_y": 4.2,
+      "radius": 280.0,
+      "strength": 0.95
+    },
+    {
+      "grid_x": 8.0,
+      "grid_y": 2.2,
+      "radius": 200.0,
+      "strength": 0.55
+    }
+  ],
+  "occluders": [],
+  "props": [
+    {
+      "type": "lock_gate",
+      "x": 0,
+      "y": 0,
+      "w": 6,
+      "h": 1,
+      "label": "Vantaux de l'Écluse"
+    },
+    {
+      "type": "wall_back",
+      "x": 6,
+      "y": 0,
+      "w": 4,
+      "h": 1,
+      "label": "Muret du Bassin"
+    },
+    {
+      "type": "pallet_stack",
+      "x": 1,
+      "y": 3,
+      "w": 1,
+      "h": 1,
+      "label": "Caisses de Fanzines"
+    },
+    {
+      "type": "brazier",
+      "x": 4,
+      "y": 4,
+      "w": 1,
+      "h": 1,
+      "label": "Brasero du Quai"
+    },
+    {
+      "type": "oil_drum",
+      "x": 7,
+      "y": 3,
+      "w": 1,
+      "h": 1,
+      "label": "Fût d'Amarrage"
+    },
+    {
+      "type": "bollards",
+      "x": 8,
+      "y": 1,
+      "w": 2,
+      "h": 1,
+      "label": "Bollards Fonte"
+    }
+  ],
+  "hotspots": [
+    {
+      "id": "hs_ecluse_guet",
+      "label": "Passerelle de l'Écluse & Ronde privée",
+      "grid_x": 5,
+      "grid_y": 3,
+      "dialogue_id": "canal_ecluse_poste",
+      "phase": "any",
+      "color_hex": "#f2992e"
+    }
+  ],
+  "npcs": [],
+  "neighbors": {
+    "squat_kepons": 1,
+    "garage_bananes": 1,
+    "chez_bebert": 1
+  },
+  "completed_if_flag": "canal_defended"
+}

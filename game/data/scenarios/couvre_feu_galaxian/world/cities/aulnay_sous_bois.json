@@ -1,0 +1,137 @@
+{
+  "id": "aulnay",
+  "parent_id": "dept_93",
+  "zoom_level": 3,
+  "type": "city",
+  "name": "Aulnay-sous-Bois",
+  "short_name": "Aulnay",
+  "subtitle": "Commune voisine 93 — Usine Citroën & Rose-des-Vents (1982)",
+  "map_width": 1040,
+  "map_height": 760,
+  "backdrop": "res://assets/maps/map_aulnay.png",
+  "paper_tint": "#ded3bc",
+  "night_tint": "#181c24",
+  "sectors": [
+    {
+      "id": "usine_citroen",
+      "name": "Complexe Citroën Aulnay",
+      "color_hex": "#d96b27",
+      "polygon": [
+        [
+          445,
+          42
+        ],
+        [
+          995,
+          42
+        ],
+        [
+          995,
+          355
+        ],
+        [
+          445,
+          355
+        ]
+      ]
+    },
+    {
+      "id": "rose_des_vents",
+      "name": "Cité de la Rose-des-Vents (3000)",
+      "color_hex": "#9b8c7d",
+      "polygon": [
+        [
+          52,
+          110
+        ],
+        [
+          420,
+          110
+        ],
+        [
+          420,
+          520
+        ],
+        [
+          52,
+          520
+        ]
+      ]
+    }
+  ],
+  "roads": [
+    {
+      "label": "RER B — Gare d'Aulnay",
+      "kind": "rail",
+      "points": [
+        [
+          24,
+          456
+        ],
+        [
+          516,
+          438
+        ],
+        [
+          1016,
+          420
+        ]
+      ]
+    },
+    {
+      "label": "Embranchement Fret Citroën",
+      "kind": "rail",
+      "points": [
+        [
+          605,
+          435
+        ],
+        [
+          716,
+          352
+        ],
+        [
+          872,
+          325
+        ]
+      ]
+    },
+    {
+      "label": "Boulevard Industriel",
+      "kind": "road",
+      "points": [
+        [
+          432,
+          24
+        ],
+        [
+          432,
+          736
+        ]
+      ]
+    }
+  ],
+  "locations_order": [
+    "piquet_aulnay"
+  ],
+  "children": [
+    {
+      "id": "piquet_aulnay",
+      "name": "Porte Nord — Piquet Citroën",
+      "sector": "Complexe Citroën Aulnay",
+      "pos": [
+        645,
+        295
+      ],
+      "footprint": [
+        174,
+        74
+      ],
+      "color_hex": "#d96b27",
+      "status": "playable",
+      "interior_file": "maps/interiors/piquet_aulnay.json",
+      "neighbors": {},
+      "completed_if_flag": "aulnay_piquet_done"
+    }
+  ]
+}

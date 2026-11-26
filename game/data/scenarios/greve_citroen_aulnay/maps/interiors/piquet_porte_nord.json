@@ -1,0 +1,175 @@
+{
+  "id": "piquet_porte_nord",
+  "parent_city_id": "aulnay",
+  "zoom_level": 4,
+  "type": "interior",
+  "name": "Piquet Porte Nord (Citroën)",
+  "sector": "Complexe Citroën Aulnay",
+  "day_desc": "Devant les grilles d'entrée de l'usine : brasero crépitant dans un fût, Estafette syndicale et piles de tracts tout juste imprimés.",
+  "night_desc": "Sous la lumière orange des réverbères, les vestes bleues tiennent la chaîne autour du fût chaud.",
+  "day_tint": "#c7b9a6",
+  "night_tint": "#1c191d",
+  "render_mode": "modular",
+  "tile_w": 84,
+  "tile_h": 42,
+  "grid_w": 10,
+  "grid_h": 8,
+  "camera": {
+    "default_zoom": 1.0,
+    "min_zoom": 0.85,
+    "max_zoom": 1.45,
+    "follow_squad": false
+  },
+  "spawn": [
+    4.5,
+    5.5
+  ],
+  "blocked_cells": [
+    [
+      0,
+      0
+    ],
+    [
+      1,
+      0
+    ],
+    [
+      2,
+      0
+    ],
+    [
+      3,
+      0
+    ],
+    [
+      4,
+      0
+    ],
+    [
+      5,
+      0
+    ],
+    [
+      6,
+      0
+    ],
+    [
+      7,
+      0
+    ],
+    [
+      8,
+      0
+    ],
+    [
+      9,
+      0
+    ],
+    [
+      2,
+      2
+    ],
+    [
+      3,
+      2
+    ],
+    [
+      5,
+      3
+    ],
+    [
+      7,
+      2
+    ],
+    [
+      8,
+      2
+    ]
+  ],
+  "zones": [],
+  "exits": [
+    {
+      "id": "exit_city",
+      "label": "Plan d'Aulnay-sous-Bois (N3)",
+      "grid_x": 8.4,
+      "grid_y": 6.4,
+      "target_level": 3,
+      "target_id": "aulnay",
+      "color_hex": "#4aa3df"
+    }
+  ],
+  "lights": [
+    {
+      "grid_x": 5.2,
+      "grid_y": 3.4,
+      "radius": 290.0,
+      "strength": 1.0
+    },
+    {
+      "grid_x": 2.4,
+      "grid_y": 2.2,
+      "radius": 200.0,
+      "strength": 0.55
+    }
+  ],
+  "occluders": [],
+  "props": [
+    {
+      "type": "wall_back",
+      "x": 0,
+      "y": 0,
+      "w": 10,
+      "h": 1,
+      "label": "Grilles Citroën"
+    },
+    {
+      "type": "pallet_stack",
+      "x": 2,
+      "y": 2,
+      "w": 2,
+      "h": 1,
+      "label": "Caisse de Grève"
+    },
+    {
+      "type": "brazier",
+      "x": 5,
+      "y": 3,
+      "w": 1,
+      "h": 1,
+      "label": "Brasero"
+    },
+    {
+      "type": "van",
+      "x": 7,
+      "y": 2,
+      "w": 2,
+      "h": 1,
+      "label": "Estafette Syndicale"
+    },
+    {
+      "type": "mob",
+      "x": 1,
+      "y": 5,
+      "w": 1,
+      "h": 1,
+      "label": "103 SP"
+    }
+  ],
+  "hotspots": [
+    {
+      "id": "hs_caisse_greve",
+      "label": "Caisse de Grève & Tracts",
+      "grid_x": 3,
+      "grid_y": 3,
+      "dialogue_id": "aulnay_caisse_greve",
+      "phase": "any",
+      "color_hex": "#f28c28"
+    }
+  ],
+  "npcs": [],
+  "neighbors": {
+    "toit_rose_des_vents": 1,
+    "quai_fret_citroen": 1,
+    "parking_emboutissage": 1
+  }
+}

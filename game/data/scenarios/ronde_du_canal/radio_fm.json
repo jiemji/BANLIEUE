@@ -1,0 +1,32 @@
+{
+  "stations": [
+    {
+      "freq": "96.6 FM",
+      "name": "Radio Pirate de l'Ourcq",
+      "style": "Punk DIY & fanzines du canal",
+      "night_only": false,
+      "white_noise_ambience": false,
+      "base_tone_hz": 208.0,
+      "day_lines": [
+        "96.6 FM — « Émission spéciale depuis les docks de l'Ourcq : les groupes répètent malgré les rondes ! »"
+      ],
+      "night_lines": [
+        "96.6 FM — « Des phares de fourgon longent le chemin de halage vers l'entrepôt. Planquez la ronéo ! »"
+      ]
+    },
+    {
+      "freq": "104.7 FM",
+      "name": "Onde Blanche du Halage",
+      "style": "Souffle magnétique",
+      "night_only": true,
+      "white_noise_ambience": true,
+      "base_tone_hz": 140.0,
+      "day_lines": [
+        "104.7 FM — [Porteuse muette au-dessus de l'eau grise du canal.]"
+      ],
+      "night_lines": [
+        "104.7 FM — « ...les péniches ne s'arrêtent plus à l'écluse nord depuis 1979... »"
+      ]
+    }
+  ]
+}

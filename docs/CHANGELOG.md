@@ -2,6 +2,36 @@
 
 Toutes les évolutions notables du projet Godot 4 et de ses documents de conception sont consignées ici.
 
+## [0.10.0] - 2026-11-26
+### Profondeur Tactique Combat — Couverts & Interactifs de Décor
+- **Couverts & Obstacles (`cover_tiles[]`) et Interactifs (`combat_interactables[]`) (`tension_timeline.gd`, `iso_district_view.gd`, `timeline_panel.gd`)** :
+  - Ajout des cases de couvert bas (`blocks_movement: false`, abri sur place) et obstacles bloquants (`blocks_movement: true`, abri adjacent + blocage du pathfinding BFS), accordant `+defense_bonus` au DD contre les attaques à distance (`min_range >= 2`) et amortissant les coups moraux (`-moral_absorb`) sur les PJ abrités.
+  - Ajout d'éléments interactifs du décor utilisables en combat par clic direct sur la grille ou via bouton `⚙` dans la fiche active (Jet de rue `2d6` + briques d'effets JSON).
+  - Déploiement sur les 3 scénarios jouables (`Extincteur du quai` / *Banquette quai* / *Pilier béton* dans `couvre_feu_galaxian`, `Vanne d'écluse` dans `ronde_du_canal`, `Projecteur halogène` dans `greve_citroen_aulnay`) et validation dans `process_banlieue_assets.py`.
+
+### Scénario n°3 Inédit & Gabarit Modding
+- **Nouveau Scénario n°3 « Ondes Libres à Citroën Aulnay » (`game/data/scenarios/greve_citroen_aulnay/`, `scenarios_index.json`)** :
+  - Épisode autonome 1983 à Aulnay-sous-Bois avec trio de départ `[leader, franck, karim]`, `Nadia` recrutable sur les toits des 3000, 4 intérieurs modulaires N4 (`piquet_porte_nord`, `toit_rose_des_vents`, `quai_fret_citroen`, `parking_emboutissage`), radio `98.4 FM`, confrontation `encounter_piquet_aulnay` (horloge `Car de Sécurité`, `timed_events`), équipement exclusif `emetteur_pirate_fm` (`★ Appel 98.4 FM` inline) et hook `scripts/aulnay_hook.gd`.
+- **Gabarit `_template_scenario/` & Guide de Modding (`guide_modding.md`, `data_loader.gd`)** :
+  - Ajout du squelette autonome `game/data/scenarios/_template_scenario/` (avec `scripts/demo_hook.gd` et action `★` inline), masqué du sélecteur en jeu sur préfixe `_`/` .` dans `DataLoader.discover_scenarios()` tout en restant contrôlé par `--mode validate`, accompagné du manuel pratique [guide_modding.md](file:///e:/JDR/BANLIEUE/docs/guide_modding.md).
+
+### Bibliothèque d'Assets Modulaires & Cartographie 93 (`Option B`)
+- **Portraits BD, Vêtements `256×526`, Décor N4 & Plans IGN 1982** :
+  - Création de 3 portraits BD `1024×1024` dédiés (`cousin_so.png`, `skin_nerveux.png`, `so_veteran.png`), de 8 nouveaux calques modulaires `256×526` RGBA portant le catalogue à **52 équipements** (dont `imper_vigile` avec action `★ Bluff de Ronde` inline) et **8 profils** dans `player_profiles.json`.
+  - Intégration de `casemate_poudrerie.png` (`casemate_poudrerie.json`), déblocage d'**Aulnay-sous-Bois** (`map_aulnay.png` + `piquet_aulnay.json`) dans `couvre_feu_galaxian`, et ajout de `map_ourcq.png` + 4e intérieur `ecluse_ponton.json` dans `ronde_du_canal`.
+
+## [0.9.0] - 2026-11-24
+### Architecture 100 % Modulaire — Packs Isolés (1B), Briques & Hooks (2A), Import Cassette (3A)
+- **Découplage total du cœur moteur (`data_loader.gd`, `game_state.gd`, `save_manager.gd`, `audio_radio.gd`, `squad_manager.gd`, `tension_timeline.gd`, `world_map_view.gd`, `iso_district_view.gd`, `iso_prop_node.gd`, `main.gd`, `new_game_panel.gd`)** :
+  - Migration de `game/data/*` vers des packs isolés sous `game/data/scenarios/<id>/` (création de `couvre_feu_galaxian` et du second pack témoin `ronde_du_canal` avec `scripts/ponton_hook.gd`) et suppression de tout identifiant scénaristique codé en dur dans `game/scripts/` (vérifié automatiquement par `FORBIDDEN_HARDCODED_IDS` dans `process_banlieue_assets.py`).
+  - Moteur d'effets déclaratifs JSON (`_execute_effect_bricks` / `_simulate_effect_bricks` : 13 `op` combinables) + hooks `custom_script`, mobilier piloté par `rules/props_catalog.json`, stations FM par `radio_fm.json` et sélecteur de scénario + **Import de Cassette A/B/C** dans `NewGamePanel`.
+
+## [0.8.0] - 2026-11-23
+### Combat Tactique sur Grille `8×8`, Portées & Charge Symétrique (`10 s`)
+- **Déplacements PM, Portées & Arsenal (`tension_timeline.gd`, `iso_district_view.gd`, `timeline_panel.gd`)** :
+  - Positionnement tactique `(grid_x, grid_y)` et déplacement BFS (`PM 2–3` sur cases bleues) ; 3 bandes de portée (`Corps à corps 1c`, `Lancer 2–4c`, `Tir 2–6c` exigeant un outil `ranged_shoot`, `Charge 2–5c`, `Tchatche 1–5c`).
+  - **Charge symétrique & Interception 10 s** : saut sur la case adjacente la plus proche ; si interceptée avec succès, l'assaillant est **Assommé** et perd **`2 rangs` (`+4 crans`)**. Sur Charge PNJ → PJ, ouverture d'un **bandeau temps réel `10,0 s`** avec flèche de trajectoire rouge permettant à tout PJ prêt d'intercepter avant impact.
+
 ## [0.7.0] - 2026-11-22
 ### Personnages Modulaires en 3 Parties (`tête / haut+bras / bas+pieds`) & Équipement `Haut / Bas`
 - **Pipeline Assets 2D Modulaire (`process_banlieue_assets.py`, `SKILL.md`, `banlieue-asset-artist.md`)** : Découpe canonique `256×526` RGBA en 3 calques empilables (`heads/`, `tops/`, `bottoms/`) à partir des 12 pions existants plus 6 nouveaux sprites générés sur gabarit `leader_pawn.png` pour les PNJ et objets du coffre (`concierge`, `so_agent`, `cousin_so`, `skin_nerveux`, `perfecto_cloute`, `parka_anonyme`, `treillis_rangers`).

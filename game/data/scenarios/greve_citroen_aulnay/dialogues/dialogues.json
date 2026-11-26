@@ -1,0 +1,239 @@
+{
+  "dialogues": {
+    "aulnay_intro": {
+      "speaker_id": "franck",
+      "speaker_name": "Franck — Piquet Porte Nord",
+      "text": "18 h 00 devant les grandes grilles de Citroën Aulnay. Franck cale deux bûches dans le brasero pendant que Karim surveille la nationale :\n\n« Ce soir on lance Radio Chaîne Libre sur 98.4 FM pour soutenir la sortie d'usine. Mais la direction a posé un fourgon de brouillage au quai fret et bloqué le parking d'emboutissage ! »",
+      "choices": [
+        {
+          "label": "« On prépare le terrain : toits des 3000 et quai fret d'abord. »",
+          "tag": "Exploration",
+          "effects": {
+            "unlock_clue": "Caler l'antenne des 3000 et saboter le fourgon au quai fret avant d'affronter le barrage du parking."
+          },
+          "next": ""
+        },
+        {
+          "label": "« Pas le temps : on fonce au Parking d'Emboutissage maintenant ! »",
+          "tag": "Action directe",
+          "effects": {
+            "move_to": "parking_emboutissage",
+            "start_encounter": "encounter_piquet_aulnay"
+          },
+          "next": ""
+        }
+      ]
+    },
+    "aulnay_caisse_greve": {
+      "speaker_id": "franck",
+      "speaker_name": "Caisse de Grève — Porte Nord",
+      "text": "Des paquets de tracts ronéotés « AULNAY EN LUTTE · 98.4 FM » côtoient des gobelets en carton et quelques pièces de soutien.",
+      "choices": [
+        {
+          "label": "Prendre des tracts et faire tourner le mot d'ordre (+10 F, +15 XP)",
+          "tag": "Soutien • +10 F / +15 XP",
+          "conditions": {
+            "require_not_flag": "caisse_greve_vue"
+          },
+          "effects": {
+            "francs": 10,
+            "add_xp": {
+              "target": "all",
+              "amount": 15
+            },
+            "set_flag": {
+              "caisse_greve_vue": true
+            },
+            "unlock_clue": "Tracts de la Porte Nord prêts pour couvrir l'émission."
+          },
+          "next": ""
+        },
+        {
+          "label": "Refermer la caisse",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "aulnay_antenne_fm": {
+      "speaker_id": "franck",
+      "speaker_name": "Terrasse des 3000 — Antenne 98.4 FM",
+      "text": "Un câble coaxial vibre au vent au pied du mât. Caler correctement l'émetteur permettrait de couvrir tout le parking d'usine et d'ouvrir une voie de décrochage en direct.",
+      "choices": [
+        {
+          "label": "Caler l'antenne sur 98.4 FM (Jet Ondes & Radio)",
+          "tag": "Ondes FM • +1 cran Sécu & +1 Échappée",
+          "conditions": {
+            "require_not_flag": "antenne_calee"
+          },
+          "skill_check": {
+            "skill": "ondes_radio",
+            "dc": 10
+          },
+          "effects": {
+            "set_flag": {
+              "antenne_calee": true
+            },
+            "add_xp": {
+              "target": "all",
+              "amount": 25
+            },
+            "moral": {
+              "all": 5
+            },
+            "unlock_clue": "Antenne des 3000 calée sur 98.4 FM : renforce la bande et retarde le car de sécurité."
+          },
+          "fail_effects": {
+            "set_flag": {
+              "antenne_calee": true
+            },
+            "moral": {
+              "leader": -5
+            },
+            "notoriete": 1,
+            "add_xp": {
+              "target": "all",
+              "amount": 10
+            }
+          },
+          "next": ""
+        },
+        {
+          "label": "Redescendre vers l'ascenseur",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "aulnay_recruter_nadia": {
+      "speaker_id": "nadia",
+      "speaker_name": "Nadia — Toits de la Rose-des-Vents",
+      "text": "Casque sur une oreille, Nadia surveille les fréquences avec son walkman bricolé : « J'ai repéré la porteuse du fourgon gonio de l'usine. Vous me faites une place pour couvrir le direct ? »",
+      "choices": [
+        {
+          "label": "Embarquer Nadia avec la bande",
+          "tag": "Recrutement • Nadia rejoint le groupe",
+          "conditions": {
+            "require_not_flag": "nadia_aulnay_recruited"
+          },
+          "effects": {
+            "recruit": "nadia",
+            "set_flag": {
+              "nadia_aulnay_recruited": true
+            },
+            "unlock_clue": "Nadia a rejoint l'équipe sur les toits d'Aulnay."
+          },
+          "next": ""
+        },
+        {
+          "label": "« Reste en veille ici sur le toit. »",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "aulnay_fourgon_brouillage": {
+      "speaker_id": "karim",
+      "speaker_name": "Quai Fret — Fourgon de brouillage",
+      "text": "Portes entrebâillées, le fourgon banalisé bourdonne devant les voies ferrées. Un boîtier relais et une valise d'émission portable traînent derrière la roue arrière.",
+      "choices": [
+        {
+          "label": "Débrancher le brouilleur et embarquer l'émetteur valise (Système D)",
+          "tag": "Système D • Coupe garde Chef Sécu + Émetteur ★",
+          "conditions": {
+            "require_not_flag": "fourgon_sabote"
+          },
+          "skill_check": {
+            "skill": "systeme_d",
+            "dc": 10
+          },
+          "effects": {
+            "set_flag": {
+              "fourgon_sabote": true
+            },
+            "grant_item": "emetteur_pirate_fm",
+            "add_xp": {
+              "target": "all",
+              "amount": 25
+            },
+            "unlock_clue": "Fourgon brouilleur saboté & Émetteur valise 98.4 FM (★ Appel 98.4 FM) récupéré !"
+          },
+          "fail_effects": {
+            "set_flag": {
+              "fourgon_sabote": true
+            },
+            "notoriete": 1,
+            "moral": {
+              "all": -5
+            },
+            "add_xp": {
+              "target": "all",
+              "amount": 10
+            }
+          },
+          "next": ""
+        },
+        {
+          "label": "S'éloigner le long des rails",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "aulnay_barrage_parking": {
+      "speaker_id": "cousin_so",
+      "speaker_name": "Barrage — Parking d'Emboutissage",
+      "text": "Trois agents de la sécurité d'usine coupent l'allée vers le hall d'emboutissage pendant qu'un car de renfort s'engage sur le boulevard industriel.",
+      "choices": [
+        {
+          "label": "Forcer le passage et passer le direct devant eux !",
+          "tag": "Combat tactique sur la Frise",
+          "effects": {
+            "start_encounter": "encounter_piquet_aulnay"
+          },
+          "next": ""
+        },
+        {
+          "label": "Finir les préparatifs d'abord [F]",
+          "tag": "Attendre",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "aulnay_epilogue_victoire": {
+      "speaker_id": "franck",
+      "speaker_name": "Franck — Direct sur 98.4 FM",
+      "text": "Alors que l'équipe de nuit sort des halls d'emboutissage sous les applaudissements, les transistors reprennent déjà les premiers mots de Radio Chaîne Libre sur tout Aulnay !",
+      "choices": [
+        {
+          "label": "Boucler l'épisode « Ondes Libres à Citroën Aulnay »",
+          "tag": "Fin",
+          "effects": {
+            "finish_slice": true
+          },
+          "next": ""
+        }
+      ]
+    },
+    "aulnay_epilogue_repli": {
+      "speaker_id": "karim",
+      "speaker_name": "Karim — Retour Porte Nord",
+      "text": "Les sirènes du car de sécurité balaient le bitume du parking, mais les bandes magnétiques sont à l'abri derrière les grilles du piquet pour le direct du lendemain !",
+      "choices": [
+        {
+          "label": "Boucler l'épisode « Ondes Libres à Citroën Aulnay »",
+          "tag": "Fin",
+          "effects": {
+            "finish_slice": true
+          },
+          "next": ""
+        }
+      ]
+    }
+  }
+}

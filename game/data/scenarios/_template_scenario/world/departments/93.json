@@ -1,0 +1,59 @@
+{
+  "id": "dept_93",
+  "parent_id": "idf",
+  "zoom_level": 2,
+  "type": "department",
+  "code": "93",
+  "short_name": "93",
+  "name": "Seine-Saint-Denis (93)",
+  "subtitle": "Carte départementale modèle — 1 commune jouable",
+  "map_width": 1000,
+  "map_height": 760,
+  "backdrop": "res://assets/maps/map_93.png",
+  "paper_tint": "#dbd2bd",
+  "night_tint": "#191d26",
+  "routes": [
+    {
+      "id": "rer_b_demo",
+      "label": "RER B Nord",
+      "kind": "rail",
+      "color_hex": "#4aa3df",
+      "points": [
+        [
+          215,
+          620
+        ],
+        [
+          420,
+          385
+        ],
+        [
+          575,
+          255
+        ],
+        [
+          860,
+          220
+        ]
+      ]
+    }
+  ],
+  "children": [
+    {
+      "id": "quartier_demo",
+      "name": "Quartier Modèle (93)",
+      "pos": [
+        520,
+        215
+      ],
+      "radius": 20,
+      "status": "playable",
+      "child_file": "world/cities/quartier_demo.json",
+      "color_hex": "#f28c28",
+      "lore": "Commune d'exemple du gabarit de scénario : remplace-la par ta ville et son plan PNG 1040×760.",
+      "travel_hooks": {
+        "connections": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "id": "ronde_du_canal",
+  "title": "Ronde de Nuit sur l'Ourcq",
+  "subtitle": "QUAIS DE L'OURCQ · HIVER 1983",
+  "era": "Hiver 1983",
+  "new_game_subtitle": "Épisode autonome ou suite directe d'une cassette sauvegardée sur les berges industrielles de l'Ourcq.",
+  "squad_start_note": "Départ : Entrepôt-Squat des Kepons avec Zoé & Manu (ou ta bande importée d'une cassette).",
+  "synopsis": "21 h 45 sur le canal de l'Ourcq. Une ronde privée tente de saisir la presse du squat avant l'aube.",
+  "allow_import_cassette": true,
+  "allow_companion_import": true,
+  "world_root_file": "world/idf.json",
+  "leader_char_id": "leader",
+  "title_backdrop": {
+    "location_id": "squat_kepons",
+    "day_label": "Squat de l'Ourcq · Lumière d'atelier",
+    "twilight_label": "Squat de l'Ourcq · Brume du canal",
+    "night_label": "Squat de l'Ourcq · Nuit électrique"
+  },
+  "start_hierarchy": {
+    "zoom_level": 4,
+    "region_id": "idf",
+    "department_id": "dept_93",
+    "city_id": "berges_ourcq",
+    "location_id": "squat_kepons"
+  },
+  "intro_dialogue_id": "canal_intro",
+  "start_state": {
+    "phase": "night",
+    "clock_minutes": 1305,
+    "francs": 30,
+    "faveurs": 0,
+    "notoriete": 2,
+    "aura_bonus": 0,
+    "stash_label": "CAISSE DU SQUAT",
+    "stash_items": [
+      "cuir_kepon",
+      "perfecto_cloute",
+      "lance_pierre",
+      "petards_mammouth",
+      "cassettes_tdk",
+      "imper_vigile",
+      "treillis_kaki_rangers",
+      "survet_bleu_smurf",
+      "jean_ardoise_baskets"
+    ],
+    "initial_hint": "Prépare la défense de l'entrepôt avec Zoé et Manu.",
+    "opening_log_with_arch": "21 h 45 — {leader_name} ({archetype_title}) rejoint les quais de l'Ourcq.",
+    "opening_log_default": "21 h 45 — Nuit humide sur l'Entrepôt-Squat du canal.",
+    "recruit_log_template": "{name} rejoint l'équipe du canal !"
+  },
+  "phase_transitions": {
+    "twilight_button_label": "Attendre la Nuit sur le Canal",
+    "twilight_clock_minutes": 1260,
+    "night_clock_minutes": 1320,
+    "sas_overlay_text": "LA BRUME MONTE DU CANAL DE L'OURCQ\n\nLes sirènes d'usine se taisent. Les phares balaient l'écluse.",
+    "night_arrival_log": "22 h 00 — L'obscurité enveloppe les docks de l'Ourcq."
+  },
+  "travel_modifiers": [],
+  "endings": {
+    "banner_title": "ÉPISODE TERMINÉ — « Ronde de Nuit sur l'Ourcq »",
+    "replay_button_label": "Rejouer l'Épisode",
+    "outcome_labels": {
+      "social_win": "Ponton défendu — la ronde recule",
+      "escaped": "Tirages sauvés par la passerelle",
+      "canal_retreat": "Repli tactique Chez Bébert",
+      "default": "Ponton défendu"
+    },
+    "status_notes": [
+      {
+        "label": "Projecteur des Bananes",
+        "if_flag": "bananes_allied",
+        "true_text": "Branché sur la berge",
+        "false_text": "Non utilisé"
+      }
+    ],
+    "footer_text": "Épisode 100 % piloté par pack JSON isolé, zéro modification du cœur GDScript."
+  }
+}

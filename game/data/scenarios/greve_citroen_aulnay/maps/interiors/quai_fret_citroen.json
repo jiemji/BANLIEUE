@@ -1,0 +1,150 @@
+{
+  "id": "quai_fret_citroen",
+  "parent_city_id": "aulnay",
+  "zoom_level": 4,
+  "type": "interior",
+  "name": "Quai Fret & Voie de Triage",
+  "sector": "Embranchement Fret RER B",
+  "day_desc": "Voie ferrée industrielle longeant les entrepôts Citroën : palettes, fûts d'huile et un fourgon banalisé bardé d'antennes de brouillage.",
+  "night_desc": "Le ronronnement du groupe électrogène du fourgon couvre presque le passage des RER B vers Mitry.",
+  "day_tint": "#b8b09e",
+  "night_tint": "#171c22",
+  "render_mode": "modular",
+  "tile_w": 84,
+  "tile_h": 42,
+  "grid_w": 10,
+  "grid_h": 8,
+  "camera": {
+    "default_zoom": 1.0,
+    "min_zoom": 0.85,
+    "max_zoom": 1.45,
+    "follow_squad": false
+  },
+  "spawn": [
+    3.5,
+    5.8
+  ],
+  "blocked_cells": [
+    [
+      0,
+      0
+    ],
+    [
+      1,
+      0
+    ],
+    [
+      2,
+      0
+    ],
+    [
+      3,
+      0
+    ],
+    [
+      4,
+      0
+    ],
+    [
+      5,
+      0
+    ],
+    [
+      6,
+      0
+    ],
+    [
+      7,
+      0
+    ],
+    [
+      8,
+      0
+    ],
+    [
+      9,
+      0
+    ],
+    [
+      2,
+      3
+    ],
+    [
+      5,
+      2
+    ],
+    [
+      6,
+      2
+    ],
+    [
+      7,
+      2
+    ]
+  ],
+  "zones": [],
+  "exits": [
+    {
+      "id": "exit_city",
+      "label": "Plan d'Aulnay-sous-Bois (N3)",
+      "grid_x": 8.4,
+      "grid_y": 6.4,
+      "target_level": 3,
+      "target_id": "aulnay",
+      "color_hex": "#4aa3df"
+    }
+  ],
+  "lights": [
+    {
+      "grid_x": 6.0,
+      "grid_y": 3.0,
+      "radius": 260.0,
+      "strength": 0.9
+    }
+  ],
+  "occluders": [],
+  "props": [
+    {
+      "type": "rails",
+      "x": 0,
+      "y": 1,
+      "w": 10,
+      "h": 1,
+      "label": "Voie Fret"
+    },
+    {
+      "type": "pallet_stack",
+      "x": 2,
+      "y": 3,
+      "w": 1,
+      "h": 1,
+      "label": "Palettes"
+    },
+    {
+      "type": "van",
+      "x": 5,
+      "y": 2,
+      "w": 3,
+      "h": 1,
+      "label": "Fourgon Brouilleur"
+    }
+  ],
+  "hotspots": [
+    {
+      "id": "hs_fourgon_brouillage",
+      "label": "Fourgon gonio & Valise FM",
+      "grid_x": 6,
+      "grid_y": 3,
+      "dialogue_id": "aulnay_fourgon_brouillage",
+      "phase": "any",
+      "color_hex": "#d9c252"
+    }
+  ],
+  "npcs": [],
+  "neighbors": {
+    "piquet_porte_nord": 1,
+    "parking_emboutissage": 1,
+    "toit_rose_des_vents": 2
+  },
+  "completed_if_flag": "fourgon_sabote"
+}

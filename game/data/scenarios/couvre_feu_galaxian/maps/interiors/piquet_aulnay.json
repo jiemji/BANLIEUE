@@ -1,0 +1,201 @@
+{
+  "id": "piquet_aulnay",
+  "parent_city_id": "aulnay",
+  "zoom_level": 4,
+  "type": "interior",
+  "name": "Porte Nord — Piquet Citroën Aulnay",
+  "sector": "Complexe Citroën Aulnay",
+  "day_desc": "Devant les grilles des ateliers d'emboutissage : brasero dans un fût percé, palettes de tracts syndicaux et mobylettes des jeunes venus soutenir les grévistes.",
+  "night_desc": "Les braises du brasero éclairent les visages fatigués de l'équipe de nuit devant l'immense hall silencieux.",
+  "day_tint": "#c4b6a2",
+  "night_tint": "#1c191c",
+  "render_mode": "modular",
+  "tile_w": 84,
+  "tile_h": 42,
+  "grid_w": 10,
+  "grid_h": 8,
+  "camera": {
+    "default_zoom": 1.0,
+    "min_zoom": 0.85,
+    "max_zoom": 1.45,
+    "follow_squad": false
+  },
+  "spawn": [
+    4.5,
+    5.5
+  ],
+  "blocked_cells": [
+    [
+      0,
+      0
+    ],
+    [
+      1,
+      0
+    ],
+    [
+      2,
+      0
+    ],
+    [
+      3,
+      0
+    ],
+    [
+      4,
+      0
+    ],
+    [
+      5,
+      0
+    ],
+    [
+      6,
+      0
+    ],
+    [
+      7,
+      0
+    ],
+    [
+      8,
+      0
+    ],
+    [
+      9,
+      0
+    ],
+    [
+      2,
+      2
+    ],
+    [
+      3,
+      2
+    ],
+    [
+      5,
+      3
+    ],
+    [
+      7,
+      2
+    ],
+    [
+      8,
+      2
+    ]
+  ],
+  "zones": [],
+  "exits": [
+    {
+      "id": "exit_aulnay_map",
+      "label": "Plan d'Aulnay-sous-Bois",
+      "grid_x": 8.4,
+      "grid_y": 6.4,
+      "target_level": 3,
+      "target_id": "aulnay",
+      "color_hex": "#4aa3df"
+    },
+    {
+      "id": "exit_dept_93",
+      "label": "Retour RER B / 103 SP (93)",
+      "grid_x": 1.4,
+      "grid_y": 6.4,
+      "target_level": 2,
+      "target_id": "dept_93",
+      "color_hex": "#f28c28"
+    }
+  ],
+  "lights": [
+    {
+      "grid_x": 5.2,
+      "grid_y": 3.4,
+      "radius": 290.0,
+      "strength": 1.0
+    },
+    {
+      "grid_x": 2.0,
+      "grid_y": 1.6,
+      "radius": 210.0,
+      "strength": 0.6
+    }
+  ],
+  "occluders": [],
+  "props": [
+    {
+      "type": "wall_back",
+      "x": 0,
+      "y": 0,
+      "w": 10,
+      "h": 1,
+      "label": "Grilles Citroën"
+    },
+    {
+      "type": "pallet_stack",
+      "x": 2,
+      "y": 2,
+      "w": 2,
+      "h": 1,
+      "label": "Caisses de Tracts"
+    },
+    {
+      "type": "brazier",
+      "x": 5,
+      "y": 3,
+      "w": 1,
+      "h": 1,
+      "label": "Brasero de Piquet"
+    },
+    {
+      "type": "oil_drum",
+      "x": 6,
+      "y": 2,
+      "w": 1,
+      "h": 1,
+      "label": "Fût d'Atelier"
+    },
+    {
+      "type": "van",
+      "x": 7,
+      "y": 2,
+      "w": 2,
+      "h": 1,
+      "label": "Estafette Syndicale"
+    },
+    {
+      "type": "mob",
+      "x": 2,
+      "y": 5,
+      "w": 1,
+      "h": 1,
+      "label": "103 SP"
+    }
+  ],
+  "hotspots": [
+    {
+      "id": "hs_aulnay_brasero",
+      "label": "Brasero & Délégués de la Porte Nord",
+      "grid_x": 5,
+      "grid_y": 4,
+      "dialogue_id": "aulnay_piquet_greve",
+      "phase": "any",
+      "color_hex": "#f28c28"
+    }
+  ],
+  "npcs": [
+    {
+      "id": "npc_franck_aulnay",
+      "char_id": "franck",
+      "label": "Franck",
+      "grid_x": 4.2,
+      "grid_y": 3.6,
+      "dialogue_id": "aulnay_piquet_greve",
+      "phase": "any",
+      "hide_if_in_squad": true,
+      "action_state": "warming"
+    }
+  ],
+  "neighbors": {},
+  "completed_if_flag": "aulnay_piquet_done"
+}

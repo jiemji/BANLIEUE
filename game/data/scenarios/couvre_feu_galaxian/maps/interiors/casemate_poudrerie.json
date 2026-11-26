@@ -1,0 +1,280 @@
+{
+  "id": "casemate_poudrerie",
+  "parent_city_id": "cradon_les_gonesse",
+  "zoom_level": 4,
+  "type": "interior",
+  "name": "Casemate Nord de la Poudrerie",
+  "sector": "Lisière de la Poudrerie (Hors-Plan)",
+  "day_desc": "Enfoncée derrière le grillage tordu : casemate en béton et briques éclatées, conduites rouillées, porte blindée cadenassée et flaque laiteuse.",
+  "night_desc": "Au cœur du bois interdit, la flaque renvoie une lueur cyan anormale contre la porte blindée pendant que les tuyaux bourdonnent en sourdine.",
+  "day_tint": "#a7b39f",
+  "night_tint": "#131e24",
+  "render_mode": "backdrop",
+  "backdrop": "res://assets/locations/casemate_poudrerie.png",
+  "tile_w": 86,
+  "tile_h": 43,
+  "grid_w": 8,
+  "grid_h": 8,
+  "camera": {
+    "default_zoom": 1.0,
+    "min_zoom": 0.85,
+    "max_zoom": 1.45,
+    "follow_squad": false
+  },
+  "spawn": [
+    3.8,
+    5.4
+  ],
+  "blocked_cells": [
+    [
+      0,
+      0
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      0,
+      2
+    ],
+    [
+      0,
+      3
+    ],
+    [
+      0,
+      4
+    ],
+    [
+      0,
+      5
+    ],
+    [
+      0,
+      6
+    ],
+    [
+      0,
+      7
+    ],
+    [
+      1,
+      0
+    ],
+    [
+      1,
+      1
+    ],
+    [
+      1,
+      2
+    ],
+    [
+      1,
+      7
+    ],
+    [
+      2,
+      0
+    ],
+    [
+      2,
+      1
+    ],
+    [
+      2,
+      7
+    ],
+    [
+      3,
+      0
+    ],
+    [
+      3,
+      1
+    ],
+    [
+      3,
+      2
+    ],
+    [
+      4,
+      0
+    ],
+    [
+      4,
+      1
+    ],
+    [
+      4,
+      2
+    ],
+    [
+      5,
+      0
+    ],
+    [
+      5,
+      1
+    ],
+    [
+      5,
+      2
+    ],
+    [
+      5,
+      3
+    ],
+    [
+      6,
+      0
+    ],
+    [
+      6,
+      1
+    ],
+    [
+      6,
+      2
+    ],
+    [
+      6,
+      3
+    ],
+    [
+      6,
+      4
+    ],
+    [
+      7,
+      0
+    ],
+    [
+      7,
+      1
+    ],
+    [
+      7,
+      2
+    ],
+    [
+      7,
+      3
+    ],
+    [
+      7,
+      4
+    ],
+    [
+      7,
+      7
+    ]
+  ],
+  "zones": [],
+  "exits": [
+    {
+      "id": "exit_lisiere",
+      "label": "Sentier des Grilles",
+      "grid_x": 2.2,
+      "grid_y": 3.5,
+      "target_level": 4,
+      "target_id": "lisiere_poudrerie",
+      "color_hex": "#5f8c96"
+    },
+    {
+      "id": "exit_city",
+      "label": "Plan de Cradon",
+      "grid_x": 5.8,
+      "grid_y": 6.4,
+      "target_level": 3,
+      "target_id": "cradon_les_gonesse",
+      "color_hex": "#4aa3df"
+    }
+  ],
+  "lights": [
+    {
+      "grid_x": 4.2,
+      "grid_y": 4.8,
+      "radius": 230.0,
+      "strength": 0.92
+    },
+    {
+      "grid_x": 5.0,
+      "grid_y": 3.2,
+      "radius": 180.0,
+      "strength": 0.45
+    }
+  ],
+  "occluders": [
+    {
+      "id": "occ_left_barrel",
+      "sort_y_px": 446,
+      "polygon_px": [
+        [
+          498,
+          330
+        ],
+        [
+          556,
+          330
+        ],
+        [
+          558,
+          448
+        ],
+        [
+          498,
+          448
+        ]
+      ]
+    },
+    {
+      "id": "occ_right_barrel",
+      "sort_y_px": 576,
+      "polygon_px": [
+        [
+          682,
+          448
+        ],
+        [
+          742,
+          448
+        ],
+        [
+          742,
+          578
+        ],
+        [
+          682,
+          578
+        ]
+      ]
+    }
+  ],
+  "props": [],
+  "hotspots": [
+    {
+      "id": "hs_casemate_porte",
+      "label": "Porte blindée & Vestiaire de ronde",
+      "grid_x": 4,
+      "grid_y": 3,
+      "dialogue_id": "casemate_porte_blindee",
+      "phase": "any",
+      "color_hex": "#f28c28"
+    }
+  ],
+  "npcs": [],
+  "neighbors": {
+    "lisiere_poudrerie": 1,
+    "tour_b": 2,
+    "box_garage": 2,
+    "galaxian": 3,
+    "gare_rer_y": 3,
+    "ruelle_relais": 3,
+    "chez_bebert": 4,
+    "garage_bananes": 4,
+    "squat_kepons": 4
+  },
+  "completed_if_flag": "casemate_checked"
+}

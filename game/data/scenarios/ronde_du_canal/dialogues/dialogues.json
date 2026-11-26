@@ -1,0 +1,173 @@
+{
+  "dialogues": {
+    "canal_intro": {
+      "speaker_id": "zoe",
+      "speaker_name": "Zoé — Entrepôt du Canal",
+      "text": "21 h 45 au bord de l'Ourcq. La presse sérigraphique tourne à plein régime pendant que Manu surveille la berge.\n\n« Les vigiles privés du dépôt veulent saisir les tirages et boucler le ponton avant minuit. On prépare les outils au Garage ou on les attend de pied ferme devant la presse ? »",
+      "choices": [
+        {
+          "label": "« On fait le tour du canal pour préparer le terrain avant la descente. »",
+          "tag": "Exploration",
+          "effects": {
+            "unlock_clue": "Préparer l'établi de Manu ou prendre conseil chez Bébert avant d'affronter la Ronde."
+          },
+          "next": ""
+        },
+        {
+          "label": "« Ils arrivent déjà — on défend la presse maintenant ! »",
+          "tag": "Confrontation directe",
+          "effects": {
+            "start_encounter": "encounter_ponton_canal"
+          },
+          "next": ""
+        }
+      ]
+    },
+    "canal_presse": {
+      "speaker_id": "zoe",
+      "speaker_name": "Table de sérigraphie",
+      "text": "Les affiches sèchent sur des palettes. Dehors, les bottes de la ronde résonnent déjà sur le gravier du halage.",
+      "choices": [
+        {
+          "label": "Faire face à la Ronde du Canal sur-le-champ !",
+          "tag": "Combat tactique",
+          "effects": {
+            "start_encounter": "encounter_ponton_canal"
+          },
+          "next": ""
+        },
+        {
+          "label": "Vérifier encore l'équipement [F]",
+          "tag": "Attendre",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "canal_zoe": {
+      "speaker_id": "zoe",
+      "speaker_name": "Zoé",
+      "text": "« Tant que la ronéo tient, le quartier saura tout demain matin. »",
+      "choices": [
+        {
+          "label": "« On lâche rien. »",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "canal_etabli": {
+      "speaker_id": "manu",
+      "speaker_name": "Établi des Bananes",
+      "text": "Des phares longue portée de 103 SP sont câblés sur une batterie de camion pour éblouir les vigiles.",
+      "choices": [
+        {
+          "label": "Brancher le projecteur pirate (Système D)",
+          "conditions": {
+            "require_not_flag": "bananes_allied"
+          },
+          "skill_check": {
+            "skill": "systeme_d",
+            "dc": 9,
+            "fail_flag": "proj_failed",
+            "retryable": false
+          },
+          "effects": {
+            "set_flag": {
+              "bananes_allied": true
+            },
+            "unlock_clue": "Projecteur pirate prêt (+1 cran sur la Ronde).",
+            "add_xp": {
+              "target": "all",
+              "amount": 15
+            }
+          },
+          "fail_effects": {
+            "moral": {
+              "leader": -3
+            }
+          },
+          "next": ""
+        },
+        {
+          "label": "Refermer le capot",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "canal_manu": {
+      "speaker_id": "manu",
+      "speaker_name": "Manu",
+      "text": "« Deux coups de clé de 14 et leur fourgon repart sur les jantes ! »",
+      "choices": [
+        {
+          "label": "« Bien vu Manu. »",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "canal_franck": {
+      "speaker_id": "franck",
+      "speaker_name": "Franck — Chez Bébert",
+      "text": "« Les vigiles du dépôt détestent les témoins. Montrez-leur que les gars d'Aulnay surveillent l'écluse. »",
+      "choices": [
+        {
+          "label": "Prendre le tuyau de Franck (+1 Faveur)",
+          "conditions": {
+            "require_not_flag": "franck_tipped"
+          },
+          "effects": {
+            "set_flag": {
+              "franck_tipped": true
+            },
+            "faveurs": 1
+          },
+          "next": ""
+        },
+        {
+          "label": "Saluer le comptoir",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "canal_epilogue": {
+      "speaker_id": "zoe",
+      "speaker_name": "Zoé — Aube sur le Canal",
+      "text": "Les phares du fourgon reculent le long du chemin de halage. Les paquets de fanzines partent sur les porte-bagages des 103 SP avant le lever du jour !",
+      "choices": [
+        {
+          "label": "Conclure l'épisode « Ronde de Nuit sur l'Ourcq »",
+          "tag": "Fin",
+          "effects": {
+            "finish_slice": true
+          },
+          "next": ""
+        }
+      ]
+    },
+    "canal_ecluse_poste": {
+      "speaker_id": "zoe",
+      "speaker_name": "Zoé — Passerelle de l'Écluse",
+      "text": "Les phares du fourgon balaient les vantaux mouillés de l'écluse. Deux vigiles en parka à brassard orange avancent vers les caisses de tirages.",
+      "choices": [
+        {
+          "label": "Défendre le ponton de l'écluse maintenant !",
+          "tag": "Confrontation tactique",
+          "effects": {
+            "start_encounter": "encounter_ponton_canal"
+          },
+          "next": ""
+        },
+        {
+          "label": "Revenir préparer l'équipe au squat",
+          "tag": "Repli",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,328 @@
+{
+  "encounters": {
+    "encounter_piquet_aulnay": {
+      "id": "encounter_piquet_aulnay",
+      "title": "Parking d'Emboutissage — Direct 98.4 FM",
+      "location_id": "parking_emboutissage",
+      "custom_script": "scripts/aulnay_hook.gd",
+      "intro_text": "Trois gros bras de la sécurité d'usine bloquent le parking d'emboutissage. Un car de sécurité approche par le boulevard industriel.",
+      "pre_modifiers": [
+        {
+          "if_flag": "antenne_calee",
+          "clock_delta": 1,
+          "escape_delta": 1,
+          "log": "Antenne des 3000 calée : +1 cran de marge et +1 progression Échappée !"
+        },
+        {
+          "if_flag": "fourgon_sabote",
+          "target_tag": "chef_usine",
+          "clear_counter": true,
+          "log": "Fourgon brouilleur saboté : la garde initiale du Chef de Sécurité est coupée !"
+        }
+      ],
+      "escalation_clock": {
+        "enabled": true,
+        "id": "crs",
+        "label": "Car de Sécurité",
+        "short_label": "Sécu",
+        "sub": "Sirènes",
+        "color": "#f2992e",
+        "intent": "Bouclage du parking d'usine",
+        "start_ticks": 5,
+        "expire_outcome": "car_securite_rush",
+        "expire_summary": "Le car de sécurité ferme les accès du boulevard : la bande décroche vers la Porte Nord (-7 Moral).",
+        "expire_effects": [
+          {
+            "op": "modify_moral",
+            "target": "all_allies",
+            "amount": -7,
+            "use_shield": false
+          }
+        ]
+      },
+      "escape_config": {
+        "enabled": true,
+        "required_progress": 2,
+        "action_label": "Filer par le Fret !",
+        "action_title": "Décrocher par la voie de triage RER B",
+        "target_name": "Voie de triage Aulnay",
+        "status_ready_label": "VOIE FRET OUVERTE !",
+        "outcome_id": "escaped",
+        "summary": "Émetteur sous le bras, la bande file le long des rails du fret pendant que les ouvriers prennent le relais !"
+      },
+      "timed_events": [
+        {
+          "id": "flash_984_fm",
+          "trigger_turn_ticks": 4,
+          "title": "Direct 98.4 FM — Relève d'usine",
+          "log": "RADIO CHAÎNE LIBRE : L'appel passe dans les haut-parleurs des ateliers — la voie du fret s'ouvre !",
+          "unlocks_escape": true,
+          "shake": false
+        }
+      ],
+      "player_action_ids": [
+        "act_pression",
+        "act_lancer",
+        "act_tir",
+        "act_charge",
+        "act_tchatche",
+        "act_repli"
+      ],
+      "enemies": [
+        {
+          "id": "vigile_portail",
+          "name": "Vigile du Portail",
+          "role": "Sécurité privée",
+          "tags": [
+            "garde"
+          ],
+          "portrait": "res://assets/portraits/cousin_so.png",
+          "appearance": {
+            "head": "res://assets/modular/heads/cousin_so.png",
+            "top": "res://assets/modular/tops/imper_vigile.png",
+            "bottom": "res://assets/modular/bottoms/jean_ardoise_baskets.png"
+          },
+          "start_grid": [
+            2,
+            2
+          ],
+          "move_points": 3,
+          "can_charge": true,
+          "intercept_bonus": 1,
+          "resolve_max": 3,
+          "initial_tick": 1,
+          "speed": 2,
+          "dc_social": 10,
+          "dc_pression": 10,
+          "intent_label": "Repousse les jeunes loin des grilles",
+          "bark": "« Interdit au public ici, remballez vos câbles ! »",
+          "has_counter_interrupt": false,
+          "counter_label": "",
+          "charge_attack": {
+            "log": "💥 {enemy} fonce sur {target} (-7 Moral) !",
+            "effects": [
+              {
+                "op": "modify_moral",
+                "target": "target_ally",
+                "amount": -7,
+                "use_shield": true
+              }
+            ]
+          },
+          "melee_attack": {
+            "log": "{enemy} plaque {target} contre les bollards (-6 Moral) !",
+            "effects": [
+              {
+                "op": "modify_moral",
+                "target": "target_ally",
+                "amount": -6,
+                "use_shield": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "gros_bras_csl",
+          "name": "Milicien de Chaîne",
+          "role": "Briseur de piquet",
+          "tags": [
+            "milice"
+          ],
+          "portrait": "res://assets/portraits/skin_nerveux.png",
+          "appearance": {
+            "head": "res://assets/modular/heads/skin_nerveux.png",
+            "top": "res://assets/modular/tops/harrington_skin.png",
+            "bottom": "res://assets/modular/bottoms/treillis_kaki_rangers.png"
+          },
+          "start_grid": [
+            4,
+            2
+          ],
+          "move_points": 2,
+          "can_charge": true,
+          "intercept_bonus": 2,
+          "resolve_max": 4,
+          "initial_tick": 2,
+          "speed": 3,
+          "dc_social": 11,
+          "dc_pression": 11,
+          "intent_label": "Intimidation devant les ateliers",
+          "bark": "« Vous allez voir si votre poste pirate tient cinq minutes ! »",
+          "has_counter_interrupt": false,
+          "counter_label": "",
+          "charge_attack": {
+            "log": "💥 {enemy} percute {target} (-8 Moral) !",
+            "effects": [
+              {
+                "op": "modify_moral",
+                "target": "target_ally",
+                "amount": -8,
+                "use_shield": true
+              }
+            ]
+          },
+          "melee_attack": {
+            "log": "{enemy} met un coup de pression (-7 Moral sur {target}) !",
+            "effects": [
+              {
+                "op": "modify_moral",
+                "target": "target_ally",
+                "amount": -7,
+                "use_shield": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "chef_securite_usine",
+          "name": "Chef Sécurité d'Usine",
+          "role": "Encadrement Citroën",
+          "tags": [
+            "chef_usine"
+          ],
+          "portrait": "res://assets/portraits/so_veteran.png",
+          "appearance": {
+            "head": "res://assets/modular/heads/so_agent.png",
+            "top": "res://assets/modular/tops/blouson_so.png",
+            "bottom": "res://assets/modular/bottoms/pantalon_so.png"
+          },
+          "start_grid": [
+            6,
+            2
+          ],
+          "move_points": 2,
+          "can_charge": true,
+          "intercept_bonus": 3,
+          "resolve_max": 5,
+          "initial_tick": 3,
+          "speed": 3,
+          "dc_social": 12,
+          "dc_pression": 12,
+          "intent_label": "Cordon de fermeture & saisie radio",
+          "bark": "« Confisquez cette valise avant la sortie de l'équipe B ! »",
+          "has_counter_interrupt": true,
+          "counter_label": "Garde verrouillée !",
+          "charge_attack": {
+            "log": "💥 {enemy} charge {target} (-9 Moral, reste en garde) !",
+            "effects": [
+              {
+                "op": "set_counter_ready",
+                "value": true
+              },
+              {
+                "op": "modify_moral",
+                "target": "target_ally",
+                "amount": -9,
+                "use_shield": true
+              }
+            ]
+          },
+          "melee_attack": {
+            "log": "{enemy} sonne le rassemblement (-5 Moral à toute la bande) !",
+            "effects": [
+              {
+                "op": "set_counter_ready",
+                "value": true
+              },
+              {
+                "op": "modify_moral",
+                "target": "all_allies",
+                "amount": -5,
+                "use_shield": true
+              }
+            ]
+          }
+        }
+      ],
+      "outcomes": {
+        "default_flags": {
+          "aulnay_encounter_done": true
+        },
+        "win_summary": "Le cordon de sécurité recule devant la sortie des ateliers et le direct sur 98.4 FM !",
+        "social_win": {
+          "xp_all": 35,
+          "grant_trait": {
+            "char_id": "leader",
+            "trait": "Voix d'Aulnay 98.4"
+          },
+          "regroup_squad": true,
+          "move_to": "piquet_porte_nord",
+          "next_dialogue": "aulnay_epilogue_victoire"
+        },
+        "escaped": {
+          "xp_all": 30,
+          "grant_trait": {
+            "char_id": "leader",
+            "trait": "Voix d'Aulnay 98.4"
+          },
+          "regroup_squad": true,
+          "move_to": "piquet_porte_nord",
+          "next_dialogue": "aulnay_epilogue_victoire"
+        },
+        "car_securite_rush": {
+          "xp_all": 15,
+          "regroup_squad": true,
+          "move_to": "piquet_porte_nord",
+          "next_dialogue": "aulnay_epilogue_repli"
+        }
+      },
+      "cover_tiles": [
+        {
+          "x": 2,
+          "y": 4,
+          "label": "Fût d'emboutissage",
+          "defense_bonus": 2,
+          "moral_absorb": 2,
+          "blocks_movement": true
+        },
+        {
+          "x": 5,
+          "y": 4,
+          "label": "Bollards parking",
+          "defense_bonus": 1,
+          "moral_absorb": 2,
+          "blocks_movement": false
+        }
+      ],
+      "combat_interactables": [
+        {
+          "id": "prop_projecteur_hall",
+          "label": "Projecteur halogène",
+          "x": 1,
+          "y": 5,
+          "max_range": 2,
+          "cost_tick": 2,
+          "skill": "ondes_radio",
+          "dc": 9,
+          "one_shot": true,
+          "effects": [
+            {
+              "op": "cut_counter"
+            },
+            {
+              "op": "damage_resolve",
+              "amount": 1,
+              "scope": "all_enemies"
+            },
+            {
+              "op": "modify_moral",
+              "target": "all_allies",
+              "amount": 4,
+              "use_shield": false
+            }
+          ],
+          "fail_effects": [
+            {
+              "op": "modify_moral",
+              "target": "self",
+              "amount": -3,
+              "use_shield": true
+            }
+          ],
+          "log_success": "💡 {actor} pivote le projecteur halogène en plein visage du barrage (-1 résol. tous ennemis, garde coupée, +4 Moral) !",
+          "log_fail": "💡 Câble sectionné ({actor}) : le projecteur grésille (-3 Moral) !"
+        }
+      ]
+    }
+  }
+}

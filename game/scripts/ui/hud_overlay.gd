@@ -1,3 +1,4 @@
+## Bandeau supérieur et panneau latéral d'exploration, 100 % pilotés par les données du scénario actif.
 extends Control
 
 signal squad_regroup_requested
@@ -20,6 +21,7 @@ var _lbl_stats: Label = null
 var _btn_mute: Button = null
 var _crumb_btns: Array[Button] = []
 var _btn_zoom_out: Button = null
+var _lbl_map_header: Label = null
 var _btn_city_map: Button = null
 var _btn_regroup: Button = null
 
@@ -51,7 +53,7 @@ func _make_panel_style(bg: Color, border: Color, border_w: int = 2) -> StyleBoxF
 	return sb
 
 func _build_ui() -> void:
-	# 1. Bandeau supérieur 1982
+	# 1. Bandeau supérieur
 	var top_bar: PanelContainer = PanelContainer.new()
 	top_bar.position = Vector2(10, 6)
 	top_bar.size = Vector2(1260, 44)
@@ -62,11 +64,11 @@ func _build_ui() -> void:
 	top_hbox.add_theme_constant_override("separation", 8)
 	top_bar.add_child(top_hbox)
 
-	var crumb_labels: Array[String] = ["IDF", "93", "Cradon", "Intérieur"]
+	var crumb_defaults: Array[String] = ["N1", "N2", "N3", "Intérieur"]
 	_crumb_btns.clear()
-	for idx in range(crumb_labels.size()):
+	for idx in range(crumb_defaults.size()):
 		var b_cr: Button = Button.new()
-		b_cr.text = crumb_labels[idx]
+		b_cr.text = crumb_defaults[idx]
 		b_cr.add_theme_font_size_override("font_size", 11)
 		var lvl_cap: int = idx + 1
 		b_cr.pressed.connect(func() -> void: zoom_level_requested.emit(lvl_cap))
@@ -167,15 +169,15 @@ func _build_ui() -> void:
 
 	side_vbox.add_child(HSeparator.new())
 
-	# -- Carte Cradon-lès-Gonesse
-	var lbl_m: Label = Label.new()
-	lbl_m.text = "ATLAS & CRADON-LÈS-GONESSE"
-	lbl_m.add_theme_font_size_override("font_size", 13)
-	lbl_m.add_theme_color_override("font_color", Color(0.95, 0.55, 0.16))
-	side_vbox.add_child(lbl_m)
+	# -- Atlas & Ville active
+	_lbl_map_header = Label.new()
+	_lbl_map_header.text = "ATLAS & QUARTIERS"
+	_lbl_map_header.add_theme_font_size_override("font_size", 13)
+	_lbl_map_header.add_theme_color_override("font_color", Color(0.95, 0.55, 0.16))
+	side_vbox.add_child(_lbl_map_header)
 
 	_btn_city_map = Button.new()
-	_btn_city_map.text = "Plan de Cradon (N3) [M]"
+	_btn_city_map.text = "Plan de ville (N3) [M]"
 	_btn_city_map.pressed.connect(func() -> void: zoom_level_requested.emit(3))
 	side_vbox.add_child(_btn_city_map)
 
@@ -184,7 +186,7 @@ func _build_ui() -> void:
 	side_vbox.add_child(_locations_box)
 
 	_btn_twilight = Button.new()
-	_btn_twilight.text = "Passer au Crépuscule (Boeing → Nuit)"
+	_btn_twilight.text = "Passer au Crépuscule"
 	_btn_twilight.pressed.connect(func() -> void: twilight_requested.emit())
 	side_vbox.add_child(_btn_twilight)
 
@@ -247,28 +249,39 @@ func refresh() -> void:
 		return
 	var loc_id: String = GameState.get_active_location_id()
 	var loc: Dictionary = DataLoader.get_location(loc_id)
+	var reg: Dictionary = DataLoader.get_region(GameState.current_region_id)
+	var dept: Dictionary = DataLoader.get_department(GameState.current_department_id)
+	var city: Dictionary = DataLoader.get_city(GameState.current_city_id)
+
+	var reg_short: String = str(reg.get("short_name", str(reg.get("name", "N1")).split(" ")[0]))
+	var dept_short: String = str(dept.get("short_name", str(dept.get("code", "N2"))))
+	var city_short: String = str(city.get("short_name", str(city.get("name", "Ville")).split(" ")[0]))
+	var city_full: String = str(city.get("name", city_short))
+
+	var dyn_crumbs: Array[String] = [reg_short, dept_short, city_short, "Intérieur"]
 	var zl: int = GameState.current_zoom_level
 	for i in range(_crumb_btns.size()):
 		var b_cr: Button = _crumb_btns[i]
+		b_cr.text = dyn_crumbs[i]
 		var is_here: bool = (i + 1 == zl)
 		b_cr.disabled = is_here
 		b_cr.modulate = Color(1.0, 0.72, 0.32) if is_here else Color.WHITE
+
 	if _btn_zoom_out != null:
 		_btn_zoom_out.disabled = (zl <= 1)
+	if _lbl_map_header != null:
+		_lbl_map_header.text = "ATLAS & %s" % city_full.to_upper()
 	if _btn_city_map != null:
-		_btn_city_map.text = "Revenir à l'intérieur (N4) [M]" if zl < 4 else "Plan de Cradon (N3) [M]"
+		_btn_city_map.text = "Revenir à l'intérieur (N4) [M]" if zl < 4 else ("Plan de %s (N3) [M]" % city_short)
 	if _btn_regroup != null:
 		_btn_regroup.text = "%d Soudés" % GameState.squad_members.size()
 
 	if zl == 1:
-		var reg: Dictionary = DataLoader.get_region(GameState.current_region_id)
-		_lbl_loc.text = " N1 · %s" % str(reg.get("name", "Île-de-France"))
+		_lbl_loc.text = " N1 · %s" % str(reg.get("name", reg_short))
 	elif zl == 2:
-		var dept: Dictionary = DataLoader.get_department(GameState.current_department_id)
-		_lbl_loc.text = " N2 · %s" % str(dept.get("name", "Seine-Saint-Denis (93)"))
+		_lbl_loc.text = " N2 · %s" % str(dept.get("name", dept_short))
 	elif zl == 3:
-		var city: Dictionary = DataLoader.get_city(GameState.current_city_id)
-		_lbl_loc.text = " N3 · %s" % str(city.get("name", "Cradon-lès-Gonesse"))
+		_lbl_loc.text = " N3 · %s" % city_full
 	else:
 		var gw: int = int(loc.get("grid_w", 8))
 		var gh: int = int(loc.get("grid_h", 8))
@@ -293,9 +306,12 @@ func refresh() -> void:
 	var gids: Array[int] = GameState.get_present_group_ids()
 	for gid in gids:
 		var members: Array[String] = GameState.get_group_members(gid)
+		if members.is_empty():
+			continue
 		var is_act: bool = (gid == GameState.active_group_id)
 		var first_st: Dictionary = GameState.get_member_state(members[0])
-		var g_loc: String = str(DataLoader.get_location(str(first_st.get("location_id", "box_garage"))).get("name", ""))
+		var g_loc_id: String = str(first_st.get("location_id", loc_id))
+		var g_loc: String = str(DataLoader.get_location(g_loc_id).get("name", g_loc_id))
 		var g_order: String = str(first_st.get("order_label", "Guetter"))
 
 		var card: VBoxContainer = VBoxContainer.new()
@@ -332,11 +348,35 @@ func refresh() -> void:
 		card.add_child(sub_loc)
 		_groups_box.add_child(card)
 
-	# Rafraîchir carte des lieux
+	# Rafraîchir carte des lieux de la ville active (ou tous les lieux connus du scénario)
 	for c in _locations_box.get_children():
 		c.queue_free()
 
-	for lid in DataLoader.location_order:
+	var city_loc_ids: Array[String] = []
+	var city_ch_v: Variant = city.get("children", [])
+	if city_ch_v is Array and not (city_ch_v as Array).is_empty():
+		var playable_map: Dictionary = {}
+		for bc_v in (city_ch_v as Array):
+			if bc_v is Dictionary:
+				var bcd: Dictionary = bc_v as Dictionary
+				var bid: String = str(bcd.get("id", ""))
+				if bid != "" and GameState.is_node_playable(bcd):
+					playable_map[bid] = bcd
+		var ord_v: Variant = city.get("locations_order", [])
+		if ord_v is Array:
+			for ov in (ord_v as Array):
+				var olid: String = str(ov)
+				if playable_map.has(olid):
+					city_loc_ids.append(olid)
+		for pk in playable_map.keys():
+			var pks: String = str(pk)
+			if not city_loc_ids.has(pks):
+				city_loc_ids.append(pks)
+	else:
+		for lid_all in DataLoader.location_order:
+			city_loc_ids.append(lid_all)
+
+	for lid in city_loc_ids:
 		var ldef: Dictionary = DataLoader.get_location(lid)
 		var here_tags: Array[String] = []
 		for gid in gids:
@@ -348,19 +388,7 @@ func refresh() -> void:
 
 		var b_loc: Button = Button.new()
 		var mark_here: String = (" [" + ",".join(here_tags) + "]") if not here_tags.is_empty() else ""
-		var done_mark: String = ""
-		if lid == "tour_b" and GameState.has_flag("tour_b_done"):
-			done_mark = " ✓"
-		elif lid == "chez_bebert" and GameState.has_flag("bebert_done"):
-			done_mark = " ✓"
-		elif lid == "ruelle_relais" and GameState.has_flag("ruelle_done"):
-			done_mark = " ✓"
-		elif lid == "garage_bananes" and GameState.has_flag("manu_recruited"):
-			done_mark = " ✓"
-		elif lid == "squat_kepons" and GameState.has_flag("zoe_recruited"):
-			done_mark = " ✓"
-		elif lid == "lisiere_poudrerie" and GameState.has_flag("poudrerie_done"):
-			done_mark = " ✓"
+		var done_mark: String = " ✓" if GameState.is_location_completed(lid, ldef) else ""
 		b_loc.text = "%s%s%s" % [str(ldef.get("name", lid)), mark_here, done_mark]
 		b_loc.clip_text = true
 		b_loc.tooltip_text = b_loc.text
@@ -369,6 +397,9 @@ func refresh() -> void:
 		b_loc.pressed.connect(func() -> void: location_travel_requested.emit(lid_cap))
 		_locations_box.add_child(b_loc)
 
+	var pt_v: Variant = DataLoader.scenario_manifest.get("phase_transitions", {})
+	if pt_v is Dictionary:
+		_btn_twilight.text = str((pt_v as Dictionary).get("twilight_button_label", "Passer au Crépuscule"))
 	_btn_twilight.visible = (GameState.phase == "day")
 
 	# Radio FM
@@ -389,5 +420,9 @@ func refresh() -> void:
 	for clue in GameState.clues:
 		out_lines.append("• " + clue)
 	if out_lines.is_empty():
-		out_lines.append("• Explore le Box-Garage ou file au Galaxian.")
+		var st_cfg_v: Variant = DataLoader.scenario_manifest.get("start_state", {})
+		var def_hint: String = "Explore les alentours."
+		if st_cfg_v is Dictionary:
+			def_hint = str((st_cfg_v as Dictionary).get("initial_hint", def_hint))
+		out_lines.append("• " + def_hint)
 	_lbl_clues.text = "\n".join(out_lines)

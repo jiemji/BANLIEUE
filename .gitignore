@@ -1,0 +1,12 @@
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+
+# Godot 4 local import & editor caches
+game/.godot/
+.godot/
+
+# Temporary files
+*.tmp
+*.bak

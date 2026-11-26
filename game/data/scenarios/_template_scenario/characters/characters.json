@@ -1,0 +1,166 @@
+{
+  "characters": [
+    {
+      "id": "leader",
+      "name": "Toi (Leader)",
+      "role": "Meneur du groupe",
+      "tribe": "Quartier Démo",
+      "color_hex": "#f28c28",
+      "portrait": "res://assets/portraits/leader.png",
+      "appearance": {
+        "head": "res://assets/modular/heads/leader.png",
+        "default_top": "res://assets/modular/tops/parka_dalle.png",
+        "default_bottom": "res://assets/modular/bottoms/jean_gris_training.png"
+      },
+      "attitude": 64,
+      "aura": 3,
+      "moral_start": 70,
+      "moral_max": 100,
+      "stress_threshold": 30,
+      "stress_name": "Pression",
+      "crisis_label": "Coup de tension sous l'éclairage",
+      "specialty_id": "reflexe_rue",
+      "specialty_name": "Réflexe de rue",
+      "specialty_desc": "Retarde l'horloge d'escalade et ouvre une issue.",
+      "in_squad_default": true,
+      "age": 18,
+      "home_location": "lieu_depart",
+      "bio": "Personnage principal personnalisable du scénario modèle.",
+      "arc_summary": "Tenir le groupe uni pendant la virée.",
+      "characteristics": {
+        "esprit": 3,
+        "corps": 3,
+        "energie": 4
+      },
+      "skills": {
+        "caves_esquive": 2,
+        "systeme_d": 2,
+        "tchatche": 1
+      },
+      "default_equipment": {
+        "look_top": "haut_debrouille",
+        "look_bottom": "bas_jean_demo",
+        "tool": "outil_trousseau_demo",
+        "fetish": ""
+      },
+      "relations": {
+        "allie_demo": {
+          "status": "soudes",
+          "label": "Binôme du quartier"
+        }
+      },
+      "crisis": {
+        "log": "CRISE D'AUTONOMIE ! {actor} agit sous tension (-5 Moral).",
+        "effects": [
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": -5,
+            "use_shield": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "allie_demo",
+      "name": "Samia",
+      "role": "L'Éclaireuse",
+      "tribe": "Atelier & FM",
+      "color_hex": "#4aa3df",
+      "portrait": "res://assets/portraits/nadia.png",
+      "appearance": {
+        "head": "res://assets/modular/heads/nadia.png",
+        "default_top": "res://assets/modular/tops/blouson_jean.png",
+        "default_bottom": "res://assets/modular/bottoms/pantalon_velours_ville.png"
+      },
+      "attitude": 60,
+      "aura": 3,
+      "moral_start": 66,
+      "moral_max": 100,
+      "stress_threshold": 30,
+      "stress_name": "Doute",
+      "crisis_label": "Décroche pour surveiller l'issue",
+      "specialty_id": "sang_froid",
+      "specialty_name": "Sang-froid",
+      "specialty_desc": "Calme un équipier en crise ou casse le bluff adverse.",
+      "in_squad_default": true,
+      "age": 18,
+      "home_location": "lieu_depart",
+      "bio": "Compagne de départ du gabarit, orientée esprits/ondes.",
+      "arc_summary": "Garder une porte de sortie ouverte.",
+      "characteristics": {
+        "esprit": 4,
+        "corps": 2,
+        "energie": 3
+      },
+      "skills": {
+        "ondes_radio": 3,
+        "systeme_d": 3,
+        "baston_pression": -1
+      },
+      "default_equipment": {
+        "look_top": "haut_tchatche",
+        "look_bottom": "bas_ville_demo",
+        "tool": "",
+        "fetish": "fetiche_badge_demo"
+      },
+      "relations": {
+        "leader": {
+          "status": "soudes",
+          "label": "Binôme du quartier"
+        }
+      },
+      "crisis": {
+        "log": "CRISE D'AUTONOMIE ! Samia repère la sortie (+1 échappée, -5 Moral).",
+        "effects": [
+          {
+            "op": "advance_escape",
+            "amount": 1
+          },
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": -5,
+            "use_shield": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "contact_demo",
+      "name": "Mickaël",
+      "role": "Guetteur sur le parvis",
+      "tribe": "Riverains",
+      "color_hex": "#9b8c7d",
+      "portrait": "res://assets/portraits/cousin_so.png",
+      "appearance": {
+        "head": "res://assets/modular/heads/cousin_so.png",
+        "default_top": "res://assets/modular/tops/blouson_cousin.png",
+        "default_bottom": "res://assets/modular/bottoms/jean_gris_derbies.png"
+      },
+      "attitude": 54,
+      "aura": 3,
+      "moral_start": 60,
+      "moral_max": 100,
+      "stress_threshold": 25,
+      "stress_name": "Méfiance",
+      "crisis_label": "Se retire dans la cage d'escalier",
+      "specialty_id": "trousseau",
+      "specialty_name": "Veille de rue",
+      "specialty_desc": "Surveille les allées et venues du parvis.",
+      "in_squad_default": false,
+      "home_location": "lieu_depart",
+      "crisis": {
+        "log": "CRISE D'AUTONOMIE ! Mickaël garde ses distances (-5 Moral).",
+        "effects": [
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": -5,
+            "use_shield": false
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,445 @@
+{
+  "id": "box_garage",
+  "parent_city_id": "cradon_les_gonesse",
+  "zoom_level": 4,
+  "type": "interior",
+  "name": "Box-Garage de la Cité",
+  "sector": "La Dalle & la Cité",
+  "day_desc": "Votre repaire bétonné sous la Dalle : deux 103 SP sur béquille, canapé en skaï éventré et radiocassette branché sur la bande FM.",
+  "night_desc": "Rideau baissé aux trois quarts, néon orange grésillant. Idéal pour souffler, récupérer du Moral et capter le 104.7 FM.",
+  "day_tint": "#d9cdb8",
+  "night_tint": "#26252b",
+  "render_mode": "backdrop",
+  "backdrop": "res://assets/locations/box_garage.png",
+  "tile_w": 86,
+  "tile_h": 43,
+  "grid_w": 8,
+  "grid_h": 8,
+  "camera": {
+    "default_zoom": 1.0,
+    "min_zoom": 0.85,
+    "max_zoom": 1.45,
+    "follow_squad": false
+  },
+  "spawn": [
+    3,
+    4
+  ],
+  "blocked_cells": [],
+  "zones": [],
+  "exits": [
+    {
+      "id": "exit_city",
+      "label": "Sortir (Cradon)",
+      "grid_x": 6.2,
+      "grid_y": 6.4,
+      "target_level": 3,
+      "target_id": "cradon_les_gonesse",
+      "color_hex": "#4aa3df"
+    }
+  ],
+  "lights": [],
+  "occluders": [
+    {
+      "id": "occ_wall_front_left",
+      "always_front": true,
+      "polygon_px": [
+        [
+          150,
+          558
+        ],
+        [
+          178,
+          568
+        ],
+        [
+          580,
+          798
+        ],
+        [
+          600,
+          848
+        ],
+        [
+          150,
+          588
+        ]
+      ]
+    },
+    {
+      "id": "occ_wall_front_right",
+      "always_front": true,
+      "polygon_px": [
+        [
+          580,
+          764
+        ],
+        [
+          1028,
+          514
+        ],
+        [
+          1048,
+          524
+        ],
+        [
+          1048,
+          588
+        ],
+        [
+          600,
+          848
+        ],
+        [
+          580,
+          836
+        ]
+      ]
+    },
+    {
+      "id": "occ_shutter",
+      "sort_y_px": 740,
+      "polygon_px": [
+        [
+          184,
+          298
+        ],
+        [
+          208,
+          290
+        ],
+        [
+          602,
+          512
+        ],
+        [
+          602,
+          768
+        ],
+        [
+          574,
+          782
+        ],
+        [
+          574,
+          562
+        ],
+        [
+          184,
+          344
+        ]
+      ]
+    },
+    {
+      "id": "occ_workbench",
+      "sort_y_px": 725,
+      "polygon_px": [
+        [
+          408,
+          608
+        ],
+        [
+          488,
+          562
+        ],
+        [
+          646,
+          650
+        ],
+        [
+          646,
+          738
+        ],
+        [
+          574,
+          776
+        ],
+        [
+          416,
+          692
+        ]
+      ]
+    },
+    {
+      "id": "occ_boxes_front",
+      "sort_y_px": 660,
+      "polygon_px": [
+        [
+          656,
+          672
+        ],
+        [
+          688,
+          646
+        ],
+        [
+          712,
+          650
+        ],
+        [
+          716,
+          604
+        ],
+        [
+          758,
+          582
+        ],
+        [
+          768,
+          588
+        ],
+        [
+          768,
+          564
+        ],
+        [
+          802,
+          548
+        ],
+        [
+          848,
+          574
+        ],
+        [
+          848,
+          622
+        ],
+        [
+          728,
+          690
+        ],
+        [
+          670,
+          718
+        ],
+        [
+          656,
+          706
+        ]
+      ]
+    },
+    {
+      "id": "occ_blue_mob",
+      "sort_y_px": 535,
+      "polygon_px": [
+        [
+          432,
+          342
+        ],
+        [
+          500,
+          326
+        ],
+        [
+          568,
+          376
+        ],
+        [
+          608,
+          396
+        ],
+        [
+          628,
+          466
+        ],
+        [
+          628,
+          536
+        ],
+        [
+          580,
+          542
+        ],
+        [
+          478,
+          476
+        ],
+        [
+          434,
+          424
+        ]
+      ]
+    },
+    {
+      "id": "occ_sofa",
+      "sort_y_px": 510,
+      "polygon_px": [
+        [
+          646,
+          355
+        ],
+        [
+          718,
+          315
+        ],
+        [
+          728,
+          288
+        ],
+        [
+          760,
+          294
+        ],
+        [
+          898,
+          376
+        ],
+        [
+          912,
+          412
+        ],
+        [
+          910,
+          456
+        ],
+        [
+          835,
+          514
+        ],
+        [
+          648,
+          405
+        ]
+      ]
+    },
+    {
+      "id": "occ_radio_stand",
+      "sort_y_px": 530,
+      "polygon_px": [
+        [
+          882,
+          474
+        ],
+        [
+          910,
+          456
+        ],
+        [
+          910,
+          414
+        ],
+        [
+          932,
+          412
+        ],
+        [
+          944,
+          360
+        ],
+        [
+          952,
+          360
+        ],
+        [
+          978,
+          444
+        ],
+        [
+          998,
+          454
+        ],
+        [
+          998,
+          496
+        ],
+        [
+          1008,
+          502
+        ],
+        [
+          1008,
+          528
+        ],
+        [
+          964,
+          554
+        ],
+        [
+          882,
+          504
+        ]
+      ]
+    }
+  ],
+  "props": [
+    {
+      "type": "wall_back",
+      "x": 0,
+      "y": 0,
+      "w": 8,
+      "h": 1,
+      "label": "Mur Béton"
+    },
+    {
+      "type": "mob",
+      "x": 1,
+      "y": 2,
+      "w": 1,
+      "h": 1,
+      "label": "103 SP"
+    },
+    {
+      "type": "mob",
+      "x": 2,
+      "y": 2,
+      "w": 1,
+      "h": 1,
+      "label": "103 SP #2"
+    },
+    {
+      "type": "sofa",
+      "x": 5,
+      "y": 2,
+      "w": 2,
+      "h": 1,
+      "label": "Canapé skaï"
+    },
+    {
+      "type": "radio",
+      "x": 6,
+      "y": 4,
+      "w": 1,
+      "h": 1,
+      "label": "Poste FM"
+    },
+    {
+      "type": "workbench",
+      "x": 1,
+      "y": 5,
+      "w": 2,
+      "h": 1,
+      "label": "Établi"
+    }
+  ],
+  "hotspots": [
+    {
+      "id": "hs_mobs",
+      "label": "Établi & 103 SP",
+      "grid_x": 4,
+      "grid_y": 6,
+      "dialogue_id": "box_garage_mobs",
+      "phase": "any",
+      "color_hex": "#f28c28"
+    },
+    {
+      "id": "hs_radio_qg",
+      "label": "Radiocassette FM",
+      "grid_x": 6,
+      "grid_y": 1,
+      "dialogue_id": "box_garage_radio",
+      "phase": "any",
+      "color_hex": "#4aa3df"
+    }
+  ],
+  "npcs": [],
+  "neighbors": {
+    "tour_b": 1,
+    "lisiere_poudrerie": 2,
+    "galaxian": 2,
+    "chez_bebert": 2,
+    "ruelle_relais": 3,
+    "gare_rer_y": 3,
+    "squat_kepons": 3,
+    "garage_bananes": 4
+  }
+}

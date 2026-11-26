@@ -11,7 +11,7 @@ signal combat_cancel_requested
 const PawnActorScript: GDScript = preload("res://scripts/world/pawn_actor.gd")
 const IsoPropNodeScript: GDScript = preload("res://scripts/world/iso_prop_node.gd")
 
-var current_loc_id: String = "box_garage"
+var current_loc_id: String = ""
 var tile_w: float = 86.0
 var tile_h: float = 43.0
 var iso_origin: Vector2 = Vector2(455.0, 210.0)
@@ -28,7 +28,6 @@ var input_blocked: bool = false
 var train_fantome_active: bool = false
 var train_x_progress: float = -2.0
 var _pulse_time: float = 0.0
-var _backdrop_cache: Dictionary = {}
 var _pawn_container: Node2D = null
 var _markers_overlay: Node2D = null
 var _pawn_actors: Dictionary = {}
@@ -78,7 +77,9 @@ func _ready() -> void:
 	_markers_overlay.draw.connect(_draw_markers_overlay)
 	add_child(_markers_overlay)
 
-	set_location("box_garage")
+	var init_loc: String = DataLoader.get_start_location_id()
+	if init_loc != "":
+		set_location(init_loc)
 	set_view_active(true)
 	if not GameState.state_changed.is_connected(_on_game_state_changed):
 		GameState.state_changed.connect(_on_game_state_changed)
@@ -199,6 +200,7 @@ func _rebuild_combat_focus_restore(loc: Dictionary) -> void:
 
 func set_location(loc_id: String) -> void:
 	current_loc_id = loc_id
+	train_fantome_active = false
 	var loc: Dictionary = DataLoader.get_location(loc_id)
 	tile_w = float(loc.get("tile_w", 86.0))
 	tile_h = float(loc.get("tile_h", 43.0))
@@ -263,6 +265,13 @@ func trigger_train_fantome() -> void:
 	train_fantome_active = true
 	train_x_progress = -3.0
 	queue_redraw()
+
+## Déclenche un effet scénique déclaratif sur le décor N4 (ex. "passing_train").
+func trigger_stage_fx(fx_id: String) -> void:
+	if fx_id == "passing_train" or fx_id == "train_fantome":
+		trigger_train_fantome()
+	else:
+		queue_redraw()
 
 func iso_to_screen(gx: float, gy: float) -> Vector2:
 	var sx: float = (gx - gy) * (tile_w * 0.5)
@@ -624,7 +633,8 @@ func _rebuild_depth_decor(loc: Dictionary) -> void:
 				if pv is Dictionary:
 					var pd: Dictionary = pv as Dictionary
 					var ptype: String = str(pd.get("type", "box"))
-					if ptype != "rails" and ptype != "platform":
+					var pshape: String = str(pd.get("shape", str(DataLoader.get_prop_def(ptype).get("shape", "box"))))
+					if pshape != "rails" and pshape != "platform":
 						var pn: Node2D = IsoPropNodeScript.new()
 						_pawn_container.add_child(pn)
 						pn.call("setup_prop", pd, tile_w, tile_h, iso_origin, is_night)
@@ -634,6 +644,30 @@ func _draw() -> void:
 	var loc: Dictionary = DataLoader.get_location(current_loc_id)
 	var is_night: bool = (GameState.phase == "night")
 	var low_moral: bool = GameState.get_lowest_moral() <= 40
+
+	var rail_rows: Array[int] = []
+	var rail_day_col: Color = Color(0.32, 0.33, 0.36)
+	var rail_night_col: Color = Color(0.18, 0.19, 0.22)
+	var persist_train_flag: String = ""
+	var fx_list_var: Variant = loc.get("ambient_fx", [])
+	if fx_list_var is Array:
+		for fxv in (fx_list_var as Array):
+			if fxv is Dictionary:
+				var fxd: Dictionary = fxv as Dictionary
+				var fx_type: String = str(fxd.get("type", ""))
+				if fx_type == "rail_tint":
+					var rows_v: Variant = fxd.get("rows", [])
+					if rows_v is Array:
+						for rv in (rows_v as Array):
+							rail_rows.append(int(rv))
+					var rday: String = str(fxd.get("day_color", ""))
+					var rnight: String = str(fxd.get("night_color", ""))
+					if rday != "":
+						rail_day_col = Color.html(rday)
+					if rnight != "":
+						rail_night_col = Color.html(rnight)
+				elif fx_type == "passing_train":
+					persist_train_flag = str(fxd.get("persist_if_night_flag", ""))
 
 	var backdrop_path: String = str(loc.get("backdrop", ""))
 	var backdrop_tex: Texture2D = _load_texture_safe(backdrop_path) if (render_mode == "backdrop" and backdrop_path != "") else null
@@ -663,8 +697,8 @@ func _draw() -> void:
 				else:
 					tile_col = tile_col.darkened(0.05)
 
-				if current_loc_id == "gare_rer_y" and (gy == 1 or gy == 2):
-					tile_col = Color(0.18, 0.19, 0.22) if is_night else Color(0.32, 0.33, 0.36)
+				if rail_rows.has(gy):
+					tile_col = rail_night_col if is_night else rail_day_col
 				if _blocked_cells.has("%d,%d" % [gx, gy]):
 					tile_col = tile_col.darkened(0.18)
 				draw_colored_polygon(PackedVector2Array([p0, p1, p2, p3]), tile_col)
@@ -676,7 +710,8 @@ func _draw() -> void:
 				if pv is Dictionary:
 					var pd: Dictionary = pv as Dictionary
 					var ptype: String = str(pd.get("type", "box"))
-					if ptype == "rails" or ptype == "platform":
+					var pshape2: String = str(pd.get("shape", str(DataLoader.get_prop_def(ptype).get("shape", "box"))))
+					if pshape2 == "rails" or pshape2 == "platform":
 						_draw_prop(pd, is_night)
 
 		if zones_var is Array:
@@ -688,7 +723,7 @@ func _draw() -> void:
 						var zpos: Vector2 = iso_to_screen(float(zd.get("x", 0)) + 0.3, float(zd.get("y", 1)) + float(zd.get("h", 4)) - 0.5)
 						draw_string(ThemeDB.fallback_font, zpos, zname.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, 180, 10, Color(0.95, 0.94, 0.88, 0.45) if is_night else Color(0.18, 0.16, 0.14, 0.50))
 
-	if current_loc_id == "gare_rer_y" and (train_fantome_active or (is_night and GameState.has_flag("encounter_gare_done"))):
+	if train_fantome_active or (is_night and persist_train_flag != "" and GameState.has_flag(persist_train_flag)):
 		_draw_ghost_train()
 
 	if _combat_stage_mode:
@@ -717,12 +752,34 @@ func _draw_markers_overlay() -> void:
 			if hsv is Dictionary:
 				_draw_hotspot_on(_markers_overlay, hsv as Dictionary, is_night)
 
-	if current_loc_id == "gare_rer_y" and (is_night or low_moral):
-		var sign_pos: Vector2 = iso_to_screen(3.5, 3.0) + Vector2(-72.0, -70.0)
-		var odd_txt: String = "CRADON-CENTRE [HORS-PLAN]" if int(_pulse_time * 0.7) % 3 == 0 else "RER B — BIFURCATION Y"
-		_markers_overlay.draw_rect(Rect2(sign_pos, Vector2(168.0, 22.0)), Color(0.08, 0.12, 0.28, 0.92), true)
-		_markers_overlay.draw_rect(Rect2(sign_pos, Vector2(168.0, 22.0)), Color(0.32, 0.68, 0.95), false, 1.5)
-		_markers_overlay.draw_string(ThemeDB.fallback_font, sign_pos + Vector2(6.0, 15.0), odd_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.88, 0.95, 1.0))
+	var signs_var: Variant = loc.get("diegetic_signs", [])
+	if signs_var is Array:
+		for sv in (signs_var as Array):
+			if not (sv is Dictionary):
+				continue
+			var sd: Dictionary = sv as Dictionary
+			if bool(sd.get("night_or_low_moral", false)) and not (is_night or low_moral):
+				continue
+			var sgx: float = float(sd.get("grid_x", 3.5))
+			var sgy: float = float(sd.get("grid_y", 3.0))
+			var off_px: Vector2 = Vector2(-72.0, -70.0)
+			var off_v: Variant = sd.get("offset_px", [])
+			if off_v is Array and (off_v as Array).size() >= 2:
+				var oa: Array = off_v as Array
+				off_px = Vector2(float(oa[0]), float(oa[1]))
+			var sz_px: Vector2 = Vector2(168.0, 22.0)
+			var sz_v: Variant = sd.get("size_px", [])
+			if sz_v is Array and (sz_v as Array).size() >= 2:
+				var sa: Array = sz_v as Array
+				sz_px = Vector2(float(sa[0]), float(sa[1]))
+			var sign_pos: Vector2 = iso_to_screen(sgx, sgy) + off_px
+			var normal_t: String = str(sd.get("normal_text", ""))
+			var glitch_t: String = str(sd.get("glitch_text", normal_t))
+			var odd_txt: String = glitch_t if ((is_night or low_moral) and glitch_t != "" and int(_pulse_time * 0.7) % 3 == 0) else normal_t
+			if odd_txt != "":
+				_markers_overlay.draw_rect(Rect2(sign_pos, sz_px), Color(0.08, 0.12, 0.28, 0.92), true)
+				_markers_overlay.draw_rect(Rect2(sign_pos, sz_px), Color(0.32, 0.68, 0.95), false, 1.5)
+				_markers_overlay.draw_string(ThemeDB.fallback_font, sign_pos + Vector2(6.0, 15.0), odd_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.88, 0.95, 1.0))
 
 func _zone_tint_at(gx: int, gy: int, zones_var: Variant, is_night: bool, fallback_col: Color) -> Color:
 	if zones_var is Array:
@@ -777,63 +834,33 @@ func _draw_horizon_silhouette(is_night: bool, low_moral: bool) -> void:
 
 func _draw_prop(prop: Dictionary, is_night: bool) -> void:
 	var ptype: String = str(prop.get("type", "box"))
+	var pdef: Dictionary = DataLoader.get_prop_def(ptype)
+	var shape: String = str(prop.get("shape", str(pdef.get("shape", "box"))))
 	var gx: float = float(prop.get("x", 0))
 	var gy: float = float(prop.get("y", 0))
 	var w: float = float(prop.get("w", 1))
 	var h: float = float(prop.get("h", 1))
 	var lbl: String = str(prop.get("label", ""))
 
-	if ptype == "rails":
+	var day_hex: String = str(prop.get("day_color", str(pdef.get("day_color", "#a69480"))))
+	var night_hex: String = str(prop.get("night_color", str(pdef.get("night_color", day_hex))))
+	var chosen_hex: String = night_hex if (is_night and night_hex != "") else day_hex
+	var col: Color = Color.html(chosen_hex) if chosen_hex != "" else Color(0.65, 0.58, 0.50)
+
+	if shape == "rails":
 		var r0: Vector2 = iso_to_screen(gx, gy + 0.35)
 		var r1: Vector2 = iso_to_screen(gx + w, gy + 0.35)
 		var r2: Vector2 = iso_to_screen(gx, gy + 1.45)
 		var r3: Vector2 = iso_to_screen(gx + w, gy + 1.45)
-		draw_line(r0, r1, Color(0.55, 0.62, 0.72), 2.5)
-		draw_line(r2, r3, Color(0.55, 0.62, 0.72), 2.5)
+		draw_line(r0, r1, col, 2.5)
+		draw_line(r2, r3, col, 2.5)
 		return
-	if ptype == "platform":
-		_draw_iso_box(gx, gy, w, h, 8.0, Color(0.52, 0.54, 0.56) if not is_night else Color(0.24, 0.25, 0.28), "")
+	if shape == "platform":
+		var ph: float = float(prop.get("height_px", float(pdef.get("height_px", 8.0))))
+		_draw_iso_box(gx, gy, w, h, ph, col, "")
 		return
 
-	var height_px: float = 24.0
-	var col: Color = Color(0.65, 0.58, 0.50)
-	if ptype == "wall_back":
-		height_px = 46.0
-		col = Color(0.54, 0.50, 0.46) if not is_night else Color(0.18, 0.18, 0.22)
-	elif ptype == "mob":
-		height_px = 18.0
-		col = Color(0.95, 0.52, 0.16)
-	elif ptype == "sofa":
-		height_px = 16.0
-		col = Color(0.72, 0.20, 0.22)
-	elif ptype == "radio":
-		height_px = 14.0
-		col = Color(0.22, 0.56, 0.85)
-	elif ptype == "arcade":
-		height_px = 32.0
-		col = Color(0.22, 0.54, 0.92)
-	elif ptype == "babyfoot":
-		height_px = 20.0
-		col = Color(0.62, 0.46, 0.26)
-	elif ptype == "counter":
-		height_px = 20.0
-		col = Color(0.92, 0.78, 0.28)
-	elif ptype == "notice":
-		height_px = 28.0
-		col = Color(0.85, 0.18, 0.18)
-	elif ptype == "lodge":
-		height_px = 36.0
-		col = Color(0.58, 0.62, 0.68)
-	elif ptype == "van":
-		height_px = 28.0
-		col = Color(0.32, 0.42, 0.68)
-	elif ptype == "sign_rer":
-		height_px = 34.0
-		col = Color(0.18, 0.36, 0.82)
-	elif ptype == "trash":
-		height_px = 22.0
-		col = Color(0.48, 0.52, 0.56)
-
+	var height_px: float = float(prop.get("height_px", float(pdef.get("height_px", 24.0))))
 	_draw_iso_box(gx, gy, w, h, height_px, col, lbl)
 
 func _draw_iso_box(gx: float, gy: float, w: float, h: float, height_px: float, top_col: Color, label: String) -> void:
@@ -1062,26 +1089,7 @@ func _sync_pawn_actors() -> void:
 			pn.call("set_night", is_night)
 
 func _load_texture_safe(res_path: String) -> Texture2D:
-	if res_path == "":
-		return null
-	if _backdrop_cache.has(res_path):
-		var cached: Variant = _backdrop_cache.get(res_path, null)
-		if cached is Texture2D:
-			return cached as Texture2D
-		return null
-	var tex: Texture2D = null
-	if ResourceLoader.exists(res_path):
-		var loaded: Resource = load(res_path)
-		if loaded is Texture2D:
-			tex = loaded as Texture2D
-	if tex == null:
-		var abs_path: String = ProjectSettings.globalize_path(res_path)
-		if FileAccess.file_exists(abs_path):
-			var img: Image = Image.load_from_file(abs_path)
-			if img != null and not img.is_empty():
-				tex = ImageTexture.create_from_image(img)
-	_backdrop_cache[res_path] = tex
-	return tex
+	return DataLoader.load_texture_safe(res_path)
 
 ## Gère survol et clic sur les pions et cases tactiques en mode combat isométrique.
 func _handle_combat_input(event: InputEvent) -> void:
@@ -1231,6 +1239,34 @@ func _draw_combat_iso_grid() -> void:
 				line_col = Color(0.45, 0.48, 0.54, 0.16)
 			_draw_iso_tile(gx, gy, fill_col, line_col, 1.0)
 
+	# 0. Couverts tactiques et objets interactifs du décor sur la grille 8x8
+	if _combat_timeline != null:
+		var cov_var: Variant = _combat_timeline.get("cover_tiles")
+		if cov_var is Array:
+			for cv in (cov_var as Array):
+				if cv is Dictionary:
+					var cd: Dictionary = cv as Dictionary
+					var cx_c: int = int(cd.get("x", 0))
+					var cy_c: int = int(cd.get("y", 1))
+					var blk_c: bool = bool(cd.get("blocks_movement", false))
+					var c_fill: Color = Color(0.18, 0.46, 0.34, 0.42 if blk_c else 0.26)
+					var c_line: Color = Color(0.36, 0.86, 0.58, 0.85 if blk_c else 0.65)
+					_draw_iso_tile(cx_c, cy_c, c_fill, c_line, 2.0 if blk_c else 1.5)
+					var sc_cov: Vector2 = iso_to_screen(float(cx_c) + 0.5, float(cy_c) + 0.5)
+					draw_string(ThemeDB.fallback_font, sc_cov + Vector2(-8.0, 4.0), "🛡", HORIZONTAL_ALIGNMENT_CENTER, 20, 12, Color(0.68, 0.98, 0.78))
+
+		var inter_var: Variant = _combat_timeline.get("combat_interactables")
+		if inter_var is Array:
+			var pulse_i: float = 0.28 + 0.12 * sin(_pulse_time * 4.5)
+			for iv in (inter_var as Array):
+				if iv is Dictionary and not bool((iv as Dictionary).get("used", false)):
+					var id_d: Dictionary = iv as Dictionary
+					var ix_i: int = int(id_d.get("x", 0))
+					var iy_i: int = int(id_d.get("y", 1))
+					_draw_iso_tile(ix_i, iy_i, Color(0.95, 0.66, 0.18, pulse_i), Color(1.0, 0.84, 0.32, 0.92), 2.2)
+					var sc_int: Vector2 = iso_to_screen(float(ix_i) + 0.5, float(iy_i) + 0.5)
+					draw_string(ThemeDB.fallback_font, sc_int + Vector2(-42.0, -8.0), "⚙ " + str(id_d.get("label", "Objet")), HORIZONTAL_ALIGNMENT_CENTER, 92, 10, Color(1.0, 0.92, 0.54))
+
 	var eff_h_kind: String = _combat_hovered_kind if _combat_hovered_id != "" else _combat_ext_hovered_kind
 	var eff_h_id: String = _combat_hovered_id if _combat_hovered_id != "" else _combat_ext_hovered_id
 	var active_ent: Dictionary = {}
@@ -1250,7 +1286,9 @@ func _draw_combat_iso_grid() -> void:
 		if max_r > 0:
 			var ap_var: Variant = _combat_timeline.call("get_entity_grid_pos", "ally", act_id)
 			var ap: Vector2i = ap_var if ap_var is Vector2i else Vector2i(3, 6)
-			var r_col: Color = Color(0.98, 0.56, 0.20) if (_combat_action_id == "act_charge" or _combat_action_id == "act_pression") else Color(0.32, 0.88, 0.72)
+			var act_def_r: Dictionary = DataLoader.get_combat_action_def(_combat_action_id)
+			var is_close_or_charge: bool = (str(act_def_r.get("movement_mode", "")) == "charge" or max_r <= 1)
+			var r_col: Color = Color(0.98, 0.56, 0.20) if is_close_or_charge else Color(0.32, 0.88, 0.72)
 			for gy2 in range(1, grid_h):
 				for gx2 in range(grid_w):
 					var d_tile: int = maxi(absi(gx2 - ap.x), absi(gy2 - ap.y))
@@ -1302,7 +1340,8 @@ func _draw_combat_iso_grid() -> void:
 			_draw_iso_tile(cx, cy, Color(dcol.r, dcol.g, dcol.b, 0.24), dcol, 2.4)
 
 	# 4. Aperçu case d'atterrissage Charge PJ -> PNJ survolé
-	if _combat_timeline != null and _combat_action_id == "act_charge" and eff_h_kind == "enemy" and _is_combat_targetable("enemy", eff_h_id) and act_k == "ally":
+	var is_charge_mode: bool = (str(DataLoader.get_combat_action_def(_combat_action_id).get("movement_mode", "")) == "charge")
+	if _combat_timeline != null and is_charge_mode and eff_h_kind == "enemy" and _is_combat_targetable("enemy", eff_h_id) and act_k == "ally":
 		var ap2_v: Variant = _combat_timeline.call("get_entity_grid_pos", "ally", act_id)
 		var ep2_v: Variant = _combat_timeline.call("get_entity_grid_pos", "enemy", eff_h_id)
 		var ap2: Vector2i = ap2_v if ap2_v is Vector2i else Vector2i(3, 6)

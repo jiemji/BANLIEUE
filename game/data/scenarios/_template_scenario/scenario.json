@@ -1,0 +1,72 @@
+{
+  "id": "_template_scenario",
+  "title": "Gabarit de Scénario (À dupliquer)",
+  "subtitle": "BANLIEUE NORD · 1982–1984",
+  "era": "Printemps 1983",
+  "new_game_subtitle": "Modèle de départ prêt à adapter : duplique _template_scenario/ sous un nouveau nom sans underscore.",
+  "squad_start_note": "Départ : Lieu de départ avec ton Leader & un Allié de démonstration.",
+  "synopsis": "Canevas autonome minimaliste : un lieu isométrique modulaire, une carte de quartier, un dialogue à jet de rue et une confrontation sur la Frise avec hook custom_script.",
+  "allow_import_cassette": true,
+  "allow_companion_import": true,
+  "world_root_file": "world/idf.json",
+  "leader_char_id": "leader",
+  "title_backdrop": {
+    "location_id": "lieu_depart",
+    "day_label": "Lieu de départ · Jour",
+    "twilight_label": "Lieu de départ · Crépuscule sodium",
+    "night_label": "Lieu de départ · Nuit N&B"
+  },
+  "start_hierarchy": {
+    "zoom_level": 4,
+    "region_id": "idf",
+    "department_id": "dept_93",
+    "city_id": "quartier_demo",
+    "location_id": "lieu_depart"
+  },
+  "intro_dialogue_id": "demo_intro",
+  "start_state": {
+    "phase": "day",
+    "clock_minutes": 1050,
+    "francs": 30,
+    "faveurs": 0,
+    "notoriete": 1,
+    "aura_bonus": 0,
+    "stash_label": "CASIER DU QUARTIER",
+    "stash_items": [
+      "veste_demo",
+      "bas_jean_demo",
+      "petards_demo"
+    ],
+    "initial_hint": "Inspecte le comptoir ou parle au contact sur le terrain.",
+    "opening_log_with_arch": "17 h 30 — {leader_name} ({archetype_title}) arrive au point de départ.",
+    "opening_log_default": "17 h 30 — Arrivée au point de départ du scénario.",
+    "recruit_log_template": "{name} rejoint le groupe !"
+  },
+  "phase_transitions": {
+    "twilight_button_label": "Passer au Crépuscule",
+    "twilight_clock_minutes": 1200,
+    "night_clock_minutes": 1320,
+    "sas_overlay_text": "CRÉPUSCULE SUR LA BANLIEUE\n\nLes lampadaires sodium s'allument. La nuit ouvre de nouvelles pistes.",
+    "night_arrival_log": "22 h 00 — La nuit vient de tomber sur le quartier."
+  },
+  "travel_modifiers": [],
+  "endings": {
+    "banner_title": "SCÉNARIO TERMINÉ — Gabarit Modèle",
+    "replay_button_label": "Rejouer le Scénario",
+    "outcome_labels": {
+      "social_win": "Passage ouvert par le dialogue ou l'intimidation",
+      "escaped": "Repli maîtrisé avant le bouclage",
+      "demo_retreat": "Retraite tactique à la tombée du jour",
+      "default": "Scénario bouclé"
+    },
+    "status_notes": [
+      {
+        "label": "Indice du comptoir",
+        "if_flag": "demo_hotspot_done",
+        "true_text": "Récupéré (+veste de ronde)",
+        "false_text": "Non fouillé"
+      }
+    ],
+    "footer_text": "Sauvegarde sur cassette TDK ou importe ce groupe dans un autre pack."
+  }
+}

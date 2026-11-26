@@ -1,0 +1,161 @@
+{
+  "id": "parking_emboutissage",
+  "parent_city_id": "aulnay",
+  "zoom_level": 4,
+  "type": "interior",
+  "name": "Parking d'Emboutissage (Barrage)",
+  "sector": "Complexe Citroën Aulnay",
+  "day_desc": "Vaste esplanade bitumée devant les halls gris : bollards en fonte, fûts renversés et le cordon des agents de sécurité d'usine.",
+  "night_desc": "Sous les projecteurs industriels, le service de sécurité ferme l'accès aux voies RER avant la sortie de l'équipe de nuit.",
+  "day_tint": "#b4b2ad",
+  "night_tint": "#181b24",
+  "render_mode": "modular",
+  "tile_w": 84,
+  "tile_h": 42,
+  "grid_w": 10,
+  "grid_h": 8,
+  "camera": {
+    "default_zoom": 1.0,
+    "min_zoom": 0.85,
+    "max_zoom": 1.45,
+    "follow_squad": false
+  },
+  "spawn": [
+    4.5,
+    6.0
+  ],
+  "blocked_cells": [
+    [
+      0,
+      0
+    ],
+    [
+      1,
+      0
+    ],
+    [
+      2,
+      0
+    ],
+    [
+      3,
+      0
+    ],
+    [
+      4,
+      0
+    ],
+    [
+      5,
+      0
+    ],
+    [
+      6,
+      0
+    ],
+    [
+      7,
+      0
+    ],
+    [
+      8,
+      0
+    ],
+    [
+      9,
+      0
+    ],
+    [
+      1,
+      3
+    ],
+    [
+      8,
+      3
+    ]
+  ],
+  "zones": [],
+  "exits": [
+    {
+      "id": "exit_city",
+      "label": "Plan d'Aulnay-sous-Bois (N3)",
+      "grid_x": 8.6,
+      "grid_y": 6.5,
+      "target_level": 3,
+      "target_id": "aulnay",
+      "color_hex": "#4aa3df"
+    }
+  ],
+  "lights": [
+    {
+      "grid_x": 5.0,
+      "grid_y": 3.5,
+      "radius": 320.0,
+      "strength": 0.95
+    }
+  ],
+  "occluders": [],
+  "props": [
+    {
+      "type": "wall_back",
+      "x": 0,
+      "y": 0,
+      "w": 10,
+      "h": 1,
+      "label": "Hall Emboutissage"
+    },
+    {
+      "type": "oil_drum",
+      "x": 1,
+      "y": 3,
+      "w": 1,
+      "h": 1,
+      "label": "Fût"
+    },
+    {
+      "type": "oil_drum",
+      "x": 8,
+      "y": 3,
+      "w": 1,
+      "h": 1,
+      "label": "Fût"
+    },
+    {
+      "type": "bollards",
+      "x": 3,
+      "y": 2,
+      "w": 4,
+      "h": 1,
+      "label": "Barrage"
+    }
+  ],
+  "hotspots": [
+    {
+      "id": "hs_barrage_parking",
+      "label": "Barrage de Sécurité d'Usine",
+      "grid_x": 5,
+      "grid_y": 3,
+      "dialogue_id": "aulnay_barrage_parking",
+      "phase": "any",
+      "color_hex": "#e03e36"
+    }
+  ],
+  "npcs": [
+    {
+      "id": "npc_cousin_parking",
+      "char_id": "cousin_so",
+      "label": "Vigile Portail",
+      "grid_x": 4.2,
+      "grid_y": 2.8,
+      "dialogue_id": "aulnay_barrage_parking",
+      "phase": "any",
+      "action_state": "guarding"
+    }
+  ],
+  "neighbors": {
+    "piquet_porte_nord": 1,
+    "quai_fret_citroen": 1,
+    "toit_rose_des_vents": 2
+  },
+  "completed_if_flag": "aulnay_encounter_done"
+}

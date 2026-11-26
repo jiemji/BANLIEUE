@@ -1,0 +1,158 @@
+{
+  "id": "toit_rose_des_vents",
+  "parent_city_id": "aulnay",
+  "zoom_level": 4,
+  "type": "interior",
+  "name": "Toits de la Rose-des-Vents",
+  "sector": "Cité de la Rose-des-Vents (3000)",
+  "day_desc": "Terrasse technique d'une barre des 3000 dominant les halles Citroën : antenne FM haubanée et valise radio sur une table pliante.",
+  "night_desc": "Le vent balaie les graviers de la terrasse tandis que la LED verte du fréquencemètre cherche le 98.4 FM.",
+  "day_tint": "#b2bec7",
+  "night_tint": "#151d26",
+  "render_mode": "modular",
+  "tile_w": 84,
+  "tile_h": 42,
+  "grid_w": 10,
+  "grid_h": 8,
+  "camera": {
+    "default_zoom": 1.0,
+    "min_zoom": 0.85,
+    "max_zoom": 1.45,
+    "follow_squad": false
+  },
+  "spawn": [
+    4.2,
+    5.6
+  ],
+  "blocked_cells": [
+    [
+      0,
+      0
+    ],
+    [
+      1,
+      0
+    ],
+    [
+      2,
+      0
+    ],
+    [
+      3,
+      0
+    ],
+    [
+      4,
+      0
+    ],
+    [
+      5,
+      0
+    ],
+    [
+      6,
+      0
+    ],
+    [
+      7,
+      0
+    ],
+    [
+      8,
+      0
+    ],
+    [
+      9,
+      0
+    ],
+    [
+      2,
+      2
+    ],
+    [
+      6,
+      2
+    ],
+    [
+      7,
+      2
+    ]
+  ],
+  "zones": [],
+  "exits": [
+    {
+      "id": "exit_city",
+      "label": "Plan d'Aulnay-sous-Bois (N3)",
+      "grid_x": 8.4,
+      "grid_y": 6.4,
+      "target_level": 3,
+      "target_id": "aulnay",
+      "color_hex": "#4aa3df"
+    }
+  ],
+  "lights": [
+    {
+      "grid_x": 3.0,
+      "grid_y": 2.8,
+      "radius": 260.0,
+      "strength": 0.9
+    }
+  ],
+  "occluders": [],
+  "props": [
+    {
+      "type": "wall_back",
+      "x": 0,
+      "y": 0,
+      "w": 10,
+      "h": 1,
+      "label": "Acrotère Béton"
+    },
+    {
+      "type": "radio",
+      "x": 2,
+      "y": 2,
+      "w": 1,
+      "h": 1,
+      "label": "Émetteur 98.4 FM"
+    },
+    {
+      "type": "fusebox",
+      "x": 6,
+      "y": 2,
+      "w": 2,
+      "h": 1,
+      "label": "Mât d'Antenne"
+    }
+  ],
+  "hotspots": [
+    {
+      "id": "hs_antenne_fm",
+      "label": "Table & Antenne 98.4 FM",
+      "grid_x": 3,
+      "grid_y": 3,
+      "dialogue_id": "aulnay_antenne_fm",
+      "phase": "any",
+      "color_hex": "#4aa3df"
+    }
+  ],
+  "npcs": [
+    {
+      "id": "npc_nadia_toit",
+      "char_id": "nadia",
+      "label": "Nadia",
+      "grid_x": 5.5,
+      "grid_y": 3.5,
+      "dialogue_id": "aulnay_recruter_nadia",
+      "phase": "any",
+      "hide_if_in_squad": true,
+      "action_state": "listening"
+    }
+  ],
+  "neighbors": {
+    "piquet_porte_nord": 1,
+    "quai_fret_citroen": 2,
+    "parking_emboutissage": 2
+  },
+  "completed_if_flag": "antenne_calee"
+}

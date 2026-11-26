@@ -1,3 +1,5 @@
+## Source unique de vérité de la session active, découplée de tout scénario spécifique.
+## Pilote le lancement d'un pack scénario isolé (neuf ou avec import de cassette Option 3A), les stats, l'équipement et les Jets de rue 2d6.
 extends Node
 
 signal state_changed
@@ -7,6 +9,10 @@ signal zoom_changed(level: int, map_id: String)
 signal log_added(entry: String)
 
 const EQUIP_SLOTS: Array[String] = ["look_top", "look_bottom", "tool", "fetish"]
+
+var current_scenario_id: String = ""
+var scenario_completed: bool = false
+var unlocked_nodes: Array[String] = []
 
 var phase: String = "day" # "day", "twilight", "night"
 var clock_minutes: int = 17 * 60 + 30
@@ -28,9 +34,9 @@ var current_station_idx: int = 0
 var last_encounter_outcome: String = ""
 
 var current_zoom_level: int = 4
-var current_region_id: String = "idf"
-var current_department_id: String = "dept_93"
-var current_city_id: String = "cradon_les_gonesse"
+var current_region_id: String = ""
+var current_department_id: String = ""
+var current_city_id: String = ""
 
 var has_active_session: bool = false
 var leader_profile: Dictionary = {}
@@ -40,41 +46,102 @@ func _ready() -> void:
 	reset_new_slice({})
 	has_active_session = false
 
-## Réinitialise une nouvelle session du niveau-pilote en injectant le profil Leader choisi (nom, portrait, archétype).
+## Réinitialise une session pour le scénario demandé (supporte scenario_id et import_slot_idx dans profile).
 func reset_new_slice(profile: Dictionary = {}) -> void:
-	phase = "day"
-	clock_minutes = 17 * 60 + 30
-	francs = 25
-	faveurs = 0
-	notoriete = 1
-	aura_bonus = 0
+	var target_scen: String = str(profile.get("scenario_id", current_scenario_id)).strip_edges()
+	if target_scen == "":
+		target_scen = DataLoader.active_scenario_id if DataLoader.active_scenario_id != "" else DataLoader.get_default_scenario_id()
+	var import_slot: int = int(profile.get("import_slot_idx", 0))
+	start_scenario_session(profile, target_scen, import_slot)
+
+## Initialise une nouvelle partie sur un pack scénario isolé, avec bande neuve ou import d'une cassette (Option 3A).
+func start_scenario_session(profile: Dictionary = {}, scenario_id: String = "", import_slot_idx: int = 0) -> void:
+	var target_scen: String = scenario_id.strip_edges()
+	if target_scen == "":
+		target_scen = DataLoader.active_scenario_id if DataLoader.active_scenario_id != "" else DataLoader.get_default_scenario_id()
+	DataLoader.ensure_scenario_loaded(target_scen)
+	current_scenario_id = DataLoader.active_scenario_id
+	scenario_completed = false
+
+	var man: Dictionary = DataLoader.scenario_manifest
+	var st_cfg_v: Variant = man.get("start_state", {})
+	var st_cfg: Dictionary = st_cfg_v as Dictionary if st_cfg_v is Dictionary else {}
+	var sh_cfg_v: Variant = man.get("start_hierarchy", {})
+	var sh_cfg: Dictionary = sh_cfg_v as Dictionary if sh_cfg_v is Dictionary else {}
+
+	phase = str(st_cfg.get("phase", "day"))
+	clock_minutes = int(st_cfg.get("clock_minutes", 17 * 60 + 30))
+	francs = int(st_cfg.get("francs", 25))
+	faveurs = int(st_cfg.get("faveurs", 0))
+	notoriete = int(st_cfg.get("notoriete", 1))
+	aura_bonus = int(st_cfg.get("aura_bonus", 0))
+
 	flags.clear()
 	clues.clear()
 	activity_log.clear()
+	unlocked_nodes.clear()
 	squad_members.clear()
 	member_states.clear()
 	member_progression.clear()
-	box_stash = ["perfecto_cloute", "parka_anonyme", "treillis_rangers", "pantalon_velours_ville", "cassettes_tdk", "petards_mammouth"]
+	box_stash.clear()
 	forced_roll_queue.clear()
+
+	var raw_stash: Variant = st_cfg.get("stash_items", [])
+	if raw_stash is Array:
+		for si in (raw_stash as Array):
+			var iid: String = str(si)
+			if iid != "" and not DataLoader.get_equipment_def(iid).is_empty() and not box_stash.has(iid):
+				box_stash.append(iid)
+
 	active_group_id = 0
 	current_station_idx = 0
 	last_encounter_outcome = ""
-	current_zoom_level = 4
-	current_region_id = "idf"
-	current_department_id = "dept_93"
-	current_city_id = "cradon_les_gonesse"
+	current_zoom_level = clampi(int(sh_cfg.get("zoom_level", 4)), 1, 4)
+	current_region_id = str(sh_cfg.get("region_id", ""))
+	if current_region_id == "" and not DataLoader.regions.is_empty():
+		current_region_id = str(DataLoader.regions.keys()[0])
+	current_department_id = str(sh_cfg.get("department_id", ""))
+	if current_department_id == "" and not DataLoader.departments.is_empty():
+		current_department_id = str(DataLoader.departments.keys()[0])
+	current_city_id = str(sh_cfg.get("city_id", ""))
+	if current_city_id == "" and not DataLoader.cities.is_empty():
+		current_city_id = str(DataLoader.cities.keys()[0])
 
-	if DataLoader.characters.is_empty() or DataLoader.player_archetypes.is_empty():
-		DataLoader.load_all()
+	var start_loc_id: String = str(sh_cfg.get("location_id", DataLoader.get_start_location_id()))
+	var leader_cid: String = DataLoader.get_leader_char_id()
 
-	var chosen_name: String = str(profile.get("name", "Alex")).strip_edges()
+	var imported_data: Dictionary = {}
+	if import_slot_idx > 0 and bool(man.get("allow_import_cassette", true)):
+		imported_data = SaveManager.read_slot_full(import_slot_idx)
+
+	var eff_profile: Dictionary = profile.duplicate(true)
+	if not imported_data.is_empty():
+		var saved_lp_v: Variant = imported_data.get("leader_profile", {})
+		if saved_lp_v is Dictionary:
+			var saved_lp: Dictionary = saved_lp_v as Dictionary
+			for k_lp in saved_lp.keys():
+				if not eff_profile.has(k_lp) or str(eff_profile.get(k_lp, "")) == "":
+					eff_profile[k_lp] = saved_lp.get(k_lp)
+			if str(profile.get("use_saved_identity", "true")) == "true":
+				eff_profile["name"] = str(saved_lp.get("name", eff_profile.get("name", "")))
+				eff_profile["archetype_id"] = str(saved_lp.get("archetype_id", eff_profile.get("archetype_id", "")))
+				eff_profile["portrait_id"] = str(saved_lp.get("portrait_id", eff_profile.get("portrait_id", "")))
+
+	var def_name: String = DataLoader.player_default_names[0] if not DataLoader.player_default_names.is_empty() else "Alex"
+	var chosen_name: String = str(eff_profile.get("name", def_name)).strip_edges()
 	if chosen_name == "":
-		chosen_name = "Alex"
-	var chosen_arch_id: String = str(profile.get("archetype_id", "mains_noires"))
+		chosen_name = def_name
+	var default_arch: String = str(DataLoader.player_archetypes[0].get("id", "")) if not DataLoader.player_archetypes.is_empty() else ""
+	var chosen_arch_id: String = str(eff_profile.get("archetype_id", default_arch))
+	if chosen_arch_id == "" and not DataLoader.player_archetypes.is_empty():
+		chosen_arch_id = default_arch
+	# Compatibility fallback when caller passes an archetype_id directly (e.g. unit tests)
 	var arch_def: Dictionary = DataLoader.get_archetype_def(chosen_arch_id)
 	if not arch_def.is_empty():
 		chosen_arch_id = str(arch_def.get("id", chosen_arch_id))
-	var chosen_port_id: String = str(profile.get("portrait_id", "player_01"))
+
+	var default_port: String = str(DataLoader.player_portraits[0].get("id", "")) if not DataLoader.player_portraits.is_empty() else ""
+	var chosen_port_id: String = str(eff_profile.get("portrait_id", default_port))
 	var port_def: Dictionary = DataLoader.get_portrait_def(chosen_port_id)
 	if not port_def.is_empty():
 		chosen_port_id = str(port_def.get("id", chosen_port_id))
@@ -83,10 +150,10 @@ func reset_new_slice(profile: Dictionary = {}) -> void:
 		"name": chosen_name,
 		"archetype_id": chosen_arch_id,
 		"portrait_id": chosen_port_id,
-		"portrait_path": str(port_def.get("portrait", str(profile.get("portrait_path", "")))),
-		"head_path": str(port_def.get("head", str(profile.get("head_path", "")))),
-		"default_top_path": str(port_def.get("default_top", str(profile.get("default_top_path", "")))),
-		"default_bottom_path": str(port_def.get("default_bottom", str(profile.get("default_bottom_path", ""))))
+		"portrait_path": str(port_def.get("portrait", str(eff_profile.get("portrait_path", "")))),
+		"head_path": str(port_def.get("head", str(eff_profile.get("head_path", "")))),
+		"default_top_path": str(port_def.get("default_top", str(eff_profile.get("default_top_path", "")))),
+		"default_bottom_path": str(port_def.get("default_bottom", str(eff_profile.get("default_bottom_path", ""))))
 	}
 	DataLoader.apply_leader_profile(leader_profile)
 
@@ -101,7 +168,7 @@ func reset_new_slice(profile: Dictionary = {}) -> void:
 				if fl_name != "":
 					flags[fl_name] = true
 
-	var start_loc: Dictionary = DataLoader.get_location("box_garage")
+	var start_loc: Dictionary = DataLoader.get_location(start_loc_id)
 	var sp_var: Variant = start_loc.get("spawn", [3.0, 4.0])
 	var sp_x: float = 3.0
 	var sp_y: float = 4.0
@@ -114,14 +181,14 @@ func reset_new_slice(profile: Dictionary = {}) -> void:
 		var cid: String = str(cid_var)
 		var cdef: Dictionary = DataLoader.get_character(cid)
 		var in_default: bool = bool(cdef.get("in_squad_default", false))
-		_ensure_progression_entry(cid, 40 if cid == "leader" else (20 if in_default else 0))
+		_ensure_progression_entry(cid, 40 if cid == leader_cid else (20 if in_default else 0))
 		var m_start: int = int(cdef.get("moral_start", 60))
 		var m_max: int = get_effective_moral_max(cid)
 		var threshold: int = get_effective_stress_threshold(cid)
 		member_states[cid] = {
 			"moral": clampi(m_start, 0, m_max),
 			"moral_max": m_max,
-			"location_id": "box_garage",
+			"location_id": start_loc_id,
 			"grid_x": sp_x,
 			"grid_y": sp_y,
 			"group_id": 0,
@@ -131,18 +198,148 @@ func reset_new_slice(profile: Dictionary = {}) -> void:
 		if in_default:
 			squad_members.append(cid)
 
+	if not imported_data.is_empty():
+		_apply_cassette_import(imported_data, bool(man.get("allow_companion_import", true)), start_loc_id, sp_x, sp_y)
+
 	var arch_title: String = str(arch_def.get("title", ""))
 	if arch_title != "":
-		add_log("17 h 30 — %s (%s) au Box-Garage sous la Dalle." % [chosen_name, arch_title])
+		var tpl_arch: String = str(st_cfg.get("opening_log_with_arch", "{leader_name} ({archetype_title}) entre en scène."))
+		add_log(tpl_arch.replace("{leader_name}", chosen_name).replace("{archetype_title}", arch_title))
 	else:
-		add_log("17 h 30 — Au Box-Garage sous la Dalle. Fais tourner la FM ou file au Galaxian.")
+		var tpl_def: String = str(st_cfg.get("opening_log_default", "Début du scénario."))
+		add_log(tpl_def.replace("{leader_name}", chosen_name))
 	state_changed.emit()
 
+func _apply_cassette_import(imported_data: Dictionary, allow_companions: bool, start_loc_id: String, sp_x: float, sp_y: float) -> void:
+	var gs_var: Variant = imported_data.get("game_state", {})
+	if not (gs_var is Dictionary):
+		return
+	var gs_d: Dictionary = gs_var as Dictionary
+	var leader_cid: String = DataLoader.get_leader_char_id()
+
+	francs = maxi(francs, int(gs_d.get("francs", francs)))
+	faveurs = maxi(faveurs, int(gs_d.get("faveurs", faveurs)))
+	notoriete = maxi(notoriete, int(gs_d.get("notoriete", notoriete)))
+
+	# Fusionner le coffre compatible sans dupliquer
+	var saved_stash_v: Variant = gs_d.get("box_stash", [])
+	if saved_stash_v is Array:
+		for sv in (saved_stash_v as Array):
+			var iid: String = str(sv)
+			if iid != "" and not DataLoader.get_equipment_def(iid).is_empty() and not box_stash.has(iid):
+				box_stash.append(iid)
+
+	# Importer la progression compatible (Leader + compagnons présents dans ce scénario)
+	var mp_var: Variant = gs_d.get("member_progression", {})
+	if mp_var is Dictionary:
+		var mp_d: Dictionary = mp_var as Dictionary
+		for cid_k in mp_d.keys():
+			var cid: String = str(cid_k)
+			if not DataLoader.characters.has(cid):
+				continue
+			if cid != leader_cid and not allow_companions:
+				continue
+			var src_p_v: Variant = mp_d.get(cid_k, {})
+			if not (src_p_v is Dictionary):
+				continue
+			var src_p: Dictionary = src_p_v as Dictionary
+			var dst_p: Dictionary = get_member_progression(cid)
+			dst_p["xp"] = maxi(int(dst_p.get("xp", 0)), int(src_p.get("xp", 0)))
+
+			var dst_sk_v: Variant = dst_p.get("skills", {})
+			var dst_sk: Dictionary = (dst_sk_v as Dictionary).duplicate(true) if dst_sk_v is Dictionary else {}
+			var src_sk_v: Variant = src_p.get("skills", {})
+			if src_sk_v is Dictionary:
+				var src_sk: Dictionary = src_sk_v as Dictionary
+				for sk_k in src_sk.keys():
+					var skid: String = str(sk_k)
+					if DataLoader.skills_by_id.has(skid):
+						dst_sk[skid] = clampi(int(src_sk.get(sk_k, 0)), -3, 5)
+			dst_p["skills"] = dst_sk
+
+			var dst_eq_v: Variant = dst_p.get("equipment", {})
+			var dst_eq: Dictionary = (dst_eq_v as Dictionary).duplicate(true) if dst_eq_v is Dictionary else {"look_top": "", "look_bottom": "", "tool": "", "fetish": ""}
+			var src_eq_v: Variant = src_p.get("equipment", {})
+			if src_eq_v is Dictionary:
+				var src_eq: Dictionary = src_eq_v as Dictionary
+				for sl in EQUIP_SLOTS:
+					var eq_id: String = str(src_eq.get(sl, ""))
+					if eq_id != "" and not DataLoader.get_equipment_def(eq_id).is_empty():
+						dst_eq[sl] = eq_id
+						var st_idx: int = box_stash.find(eq_id)
+						if st_idx >= 0:
+							box_stash.remove_at(st_idx)
+			dst_p["equipment"] = dst_eq
+
+			var tr_out: Array[String] = []
+			var src_tr_v: Variant = src_p.get("traits", [])
+			if src_tr_v is Array:
+				for tv in (src_tr_v as Array):
+					var ts: String = str(tv)
+					if ts != "" and not tr_out.has(ts):
+						tr_out.append(ts)
+			dst_p["traits"] = tr_out
+			member_progression[cid] = dst_p
+			_sync_moral_bounds_for(cid)
+
+	# Importer les compagnons déjà recrutés qui existent dans ce scénario
+	if allow_companions:
+		var saved_sq_v: Variant = gs_d.get("squad_members", [])
+		if saved_sq_v is Array:
+			for sq_v in (saved_sq_v as Array):
+				var rcid: String = str(sq_v)
+				if rcid != "" and DataLoader.characters.has(rcid) and not squad_members.has(rcid) and squad_members.size() < 6:
+					squad_members.append(rcid)
+					var st_r: Dictionary = get_member_state(rcid)
+					st_r["location_id"] = start_loc_id
+					st_r["grid_x"] = sp_x
+					st_r["grid_y"] = sp_y
+					st_r["group_id"] = 0
+					st_r["order_label"] = "En bande"
+					member_states[rcid] = st_r
+
+	add_log("Cassette importée : %s retrouve la bande (Notoriété %d, %d membres)." % [str(leader_profile.get("name", "Alex")), notoriete, squad_members.size()])
+
 func add_log(msg: String) -> void:
+	if msg == "":
+		return
 	activity_log.append(msg)
 	if activity_log.size() > 40:
 		activity_log.remove_at(0)
 	log_added.emit(msg)
+
+## Retourne l'intitulé du coffre partagé défini dans le manifeste du scénario actif.
+func get_stash_label() -> String:
+	var st_v: Variant = DataLoader.scenario_manifest.get("start_state", {})
+	if st_v is Dictionary:
+		var lbl: String = str((st_v as Dictionary).get("stash_label", ""))
+		if lbl != "":
+			return lbl
+	return "COFFRE DE LA BANDE"
+
+## Débloque dynamiquement un nœud cartographique ou un intérieur (N1 à N4) en cours de scénario.
+func unlock_node(node_id: String) -> void:
+	if node_id != "" and not unlocked_nodes.has(node_id):
+		unlocked_nodes.append(node_id)
+		state_changed.emit()
+
+## Indique si un nœud cartographique est jouable (statut JSON "playable" ou débloqué dynamiquement).
+func is_node_playable(node_dict: Dictionary) -> bool:
+	var nid: String = str(node_dict.get("id", ""))
+	if nid != "" and unlocked_nodes.has(nid):
+		return true
+	var req_flag: String = str(node_dict.get("unlock_if_flag", ""))
+	if req_flag != "" and has_flag(req_flag):
+		return true
+	return str(node_dict.get("status", "undescribed")) == "playable"
+
+## Indique si un lieu est complété selon son champ déclaratif completed_if_flag.
+func is_location_completed(loc_id: String, node_dict: Dictionary = {}) -> bool:
+	var fl: String = str(node_dict.get("completed_if_flag", ""))
+	if fl == "":
+		var ldef: Dictionary = DataLoader.get_location(loc_id)
+		fl = str(ldef.get("completed_if_flag", ""))
+	return fl != "" and has_flag(fl)
 
 func get_member_state(char_id: String) -> Dictionary:
 	var val: Variant = member_states.get(char_id, {})
@@ -151,11 +348,12 @@ func get_member_state(char_id: String) -> Dictionary:
 	return {}
 
 func get_active_location_id() -> String:
+	var fallback_loc: String = DataLoader.get_start_location_id()
 	for cid in squad_members:
 		var st: Dictionary = get_member_state(cid)
 		if int(st.get("group_id", 0)) == active_group_id:
-			return str(st.get("location_id", "box_garage"))
-	return "box_garage"
+			return str(st.get("location_id", fallback_loc))
+	return fallback_loc
 
 func get_group_members(group_id: int) -> Array[String]:
 	var res: Array[String] = []
@@ -179,10 +377,11 @@ func get_present_group_ids() -> Array[int]:
 	return ids
 
 func get_groups_in_location(loc_id: String) -> Array[int]:
+	var fallback_loc: String = DataLoader.get_start_location_id()
 	var ids: Array[int] = []
 	for cid in squad_members:
 		var st: Dictionary = get_member_state(cid)
-		if str(st.get("location_id", "box_garage")) == loc_id:
+		if str(st.get("location_id", fallback_loc)) == loc_id:
 			var gid: int = int(st.get("group_id", 0))
 			if not ids.has(gid):
 				ids.append(gid)
@@ -190,12 +389,13 @@ func get_groups_in_location(loc_id: String) -> Array[int]:
 	return ids
 
 func get_group_grid_pos(group_id: int) -> Vector2:
+	var fallback_loc: String = DataLoader.get_start_location_id()
 	for cid in squad_members:
 		var st: Dictionary = get_member_state(cid)
 		if int(st.get("group_id", 0)) == group_id:
 			if st.has("grid_x") and st.has("grid_y"):
 				return Vector2(float(st.get("grid_x", 3.0)), float(st.get("grid_y", 4.0)))
-			var lid: String = str(st.get("location_id", "box_garage"))
+			var lid: String = str(st.get("location_id", fallback_loc))
 			var ldef: Dictionary = DataLoader.get_location(lid)
 			var sp_var: Variant = ldef.get("spawn", [3.0, 4.0])
 			if sp_var is Array and (sp_var as Array).size() >= 2:
@@ -449,7 +649,7 @@ func get_equipped_action_item_name(char_id: String, action_id: String) -> String
 					return str(idef.get("name", iid))
 	return ""
 
-## Analyse les équipements portés par un PJ et retourne ses capacités de tir et bonus de lancer 1982.
+## Analyse les équipements portés par un PJ et retourne ses capacités de tir et bonus de lancer.
 func get_ranged_combat_profile(char_id: String) -> Dictionary:
 	var has_ranged: bool = false
 	var ranged_bonus: int = 0
@@ -500,6 +700,7 @@ func get_charac_label(charac_id: String) -> String:
 
 ## Sélectionne le meilleur lanceur du groupe actif (ou le personnage imposé) pour un test de compétence.
 func get_best_active_group_roller(skill_id: String, specific_char_id: String = "") -> Dictionary:
+	var leader_cid: String = DataLoader.get_leader_char_id()
 	var charac_id: String = get_skill_charac_id(skill_id)
 	var charac_lbl: String = get_charac_label(charac_id)
 	var sk_name: String = str(DataLoader.get_skill_def(skill_id).get("name", skill_id))
@@ -509,7 +710,7 @@ func get_best_active_group_roller(skill_id: String, specific_char_id: String = "
 	else:
 		candidates = get_active_group_members()
 		if candidates.is_empty():
-			candidates = ["leader"]
+			candidates = [leader_cid]
 
 	var best_cid: String = candidates[0]
 	var best_total: int = -999
@@ -524,7 +725,7 @@ func get_best_active_group_roller(skill_id: String, specific_char_id: String = "
 		elif t_val == best_total:
 			if s_val > best_sk:
 				is_better = true
-			elif s_val == best_sk and cid == "leader" and best_cid != "leader":
+			elif s_val == best_sk and cid == leader_cid and best_cid != leader_cid:
 				is_better = true
 		if is_better:
 			best_total = t_val
@@ -736,17 +937,41 @@ func add_trait(char_id: String, trait_label: String) -> void:
 		add_log("Trait acquis (%s) : %s" % [cname, trait_label])
 		state_changed.emit()
 
-## Ajoute un équipement connu au coffre partagé du Box-Garage sans doublon.
+## Ajoute un équipement connu au coffre partagé de la bande sans doublon.
 func add_to_box_stash(item_id: String) -> void:
 	if item_id == "" or DataLoader.get_equipment_def(item_id).is_empty():
 		return
 	if not box_stash.has(item_id):
 		box_stash.append(item_id)
 		var iname: String = str(DataLoader.get_equipment_def(item_id).get("name", item_id))
-		add_log("Coffre Box-Garage : +%s" % iname)
+		add_log("%s : +%s" % [get_stash_label(), iname])
 		state_changed.emit()
 
-## Vérifie si un objet est présent dans le coffre du Box-Garage ou porté dans le groupe actif.
+## Retire un objet du coffre partagé ou de l'équipement porté par un membre de la bande.
+func remove_item_from_group_or_stash(item_id: String) -> bool:
+	if item_id == "":
+		return false
+	var st_idx: int = box_stash.find(item_id)
+	if st_idx >= 0:
+		box_stash.remove_at(st_idx)
+		state_changed.emit()
+		return true
+	for cid in squad_members:
+		var prog: Dictionary = get_member_progression(cid)
+		var eq_var: Variant = prog.get("equipment", {})
+		if eq_var is Dictionary:
+			var eq_d: Dictionary = (eq_var as Dictionary).duplicate(true)
+			for sl in EQUIP_SLOTS:
+				if str(eq_d.get(sl, "")) == item_id:
+					eq_d[sl] = ""
+					prog["equipment"] = eq_d
+					member_progression[cid] = prog
+					_sync_moral_bounds_for(cid)
+					state_changed.emit()
+					return true
+	return false
+
+## Vérifie si un objet est présent dans le coffre partagé ou porté dans le groupe actif.
 func has_item_in_active_group_or_stash(item_id: String) -> bool:
 	if box_stash.has(item_id):
 		return true
@@ -781,7 +1006,7 @@ func equip_item(char_id: String, item_id: String) -> bool:
 	state_changed.emit()
 	return true
 
-## Retire l'objet porté sur l'emplacement donné et le replace dans le coffre du Box-Garage.
+## Retire l'objet porté sur l'emplacement donné et le replace dans le coffre partagé.
 func unequip_slot(char_id: String, slot_name: String) -> bool:
 	var prog: Dictionary = get_member_progression(char_id)
 	var eq_var: Variant = prog.get("equipment", {})
@@ -857,7 +1082,11 @@ func recruit_member(char_id: String) -> void:
 		st["order_label"] = "Recruté"
 		member_states[char_id] = st
 		var cdef: Dictionary = DataLoader.get_character(char_id)
-		add_log("%s rejoint la bande au Box-Garage !" % str(cdef.get("name", char_id)))
+		var st_cfg_v: Variant = DataLoader.scenario_manifest.get("start_state", {})
+		var tpl: String = "{name} rejoint la bande !"
+		if st_cfg_v is Dictionary:
+			tpl = str((st_cfg_v as Dictionary).get("recruit_log_template", tpl))
+		add_log(tpl.replace("{name}", str(cdef.get("name", char_id))))
 		state_changed.emit()
 
 func set_flag(flag_name: String, val: bool = true) -> void:
@@ -877,15 +1106,17 @@ func set_phase(new_phase: String) -> void:
 	if phase == new_phase:
 		return
 	phase = new_phase
+	var pt_v: Variant = DataLoader.scenario_manifest.get("phase_transitions", {})
+	var pt: Dictionary = pt_v as Dictionary if pt_v is Dictionary else {}
 	if new_phase == "twilight":
-		clock_minutes = 20 * 60 + 15
+		clock_minutes = int(pt.get("twilight_clock_minutes", 20 * 60 + 15))
 	elif new_phase == "night":
-		clock_minutes = 22 * 60 + 10
+		clock_minutes = int(pt.get("night_clock_minutes", 22 * 60 + 10))
 	phase_changed.emit(new_phase)
 	state_changed.emit()
 
 func advance_clock(minutes_add: int) -> void:
-	clock_minutes = (clock_minutes + minutes_add) % (24 * 60)
+	clock_minutes = posmod(clock_minutes + minutes_add, 24 * 60)
 	state_changed.emit()
 
 func format_clock() -> String:
@@ -937,7 +1168,13 @@ func to_save_dict() -> Dictionary:
 	var stash_copy: Array[String] = []
 	for iid in box_stash:
 		stash_copy.append(iid)
+	var unl_copy: Array[String] = []
+	for nid in unlocked_nodes:
+		unl_copy.append(nid)
 	return {
+		"scenario_id": current_scenario_id,
+		"scenario_completed": scenario_completed,
+		"unlocked_nodes": unl_copy,
 		"phase": phase,
 		"clock_minutes": clock_minutes,
 		"francs": francs,
@@ -962,8 +1199,10 @@ func to_save_dict() -> Dictionary:
 
 ## Restaure le profil du protagoniste et l'état complet d'une session depuis une sauvegarde JSON.
 func load_from_save_dict(profile_data: Dictionary, state_data: Dictionary) -> void:
-	if DataLoader.characters.is_empty() or DataLoader.player_archetypes.is_empty():
-		DataLoader.load_all()
+	var saved_scen: String = str(state_data.get("scenario_id", DataLoader.get_default_scenario_id()))
+	DataLoader.ensure_scenario_loaded(saved_scen)
+	current_scenario_id = DataLoader.active_scenario_id
+	scenario_completed = bool(state_data.get("scenario_completed", false))
 
 	leader_profile = profile_data.duplicate(true)
 	var lp_name: String = str(leader_profile.get("name", "Alex")).strip_edges()
@@ -972,12 +1211,23 @@ func load_from_save_dict(profile_data: Dictionary, state_data: Dictionary) -> vo
 	leader_profile["name"] = lp_name
 	DataLoader.apply_leader_profile(leader_profile)
 
-	phase = str(state_data.get("phase", "day"))
-	clock_minutes = int(state_data.get("clock_minutes", 17 * 60 + 30))
-	francs = int(state_data.get("francs", 25))
-	faveurs = int(state_data.get("faveurs", 0))
-	notoriete = int(state_data.get("notoriete", 1))
+	var st_cfg_v: Variant = DataLoader.scenario_manifest.get("start_state", {})
+	var st_cfg: Dictionary = st_cfg_v as Dictionary if st_cfg_v is Dictionary else {}
+	var sh_cfg_v: Variant = DataLoader.scenario_manifest.get("start_hierarchy", {})
+	var sh_cfg: Dictionary = sh_cfg_v as Dictionary if sh_cfg_v is Dictionary else {}
+
+	phase = str(state_data.get("phase", str(st_cfg.get("phase", "day"))))
+	clock_minutes = int(state_data.get("clock_minutes", int(st_cfg.get("clock_minutes", 1050))))
+	francs = int(state_data.get("francs", int(st_cfg.get("francs", 25))))
+	faveurs = int(state_data.get("faveurs", int(st_cfg.get("faveurs", 0))))
+	notoriete = int(state_data.get("notoriete", int(st_cfg.get("notoriete", 1))))
 	aura_bonus = int(state_data.get("aura_bonus", state_data.get("fasa_bonus", 0)))
+
+	unlocked_nodes.clear()
+	var unl_var: Variant = state_data.get("unlocked_nodes", [])
+	if unl_var is Array:
+		for uv in (unl_var as Array):
+			unlocked_nodes.append(str(uv))
 
 	flags.clear()
 	var fl_var: Variant = state_data.get("flags", {})
@@ -1031,16 +1281,19 @@ func load_from_save_dict(profile_data: Dictionary, state_data: Dictionary) -> vo
 			for iv in (bs_var as Array):
 				box_stash.append(str(iv))
 	else:
-		box_stash = ["perfecto_cloute", "parka_anonyme", "treillis_rangers", "pantalon_velours_ville", "cassettes_tdk", "petards_mammouth"]
+		var raw_def_stash: Variant = st_cfg.get("stash_items", [])
+		if raw_def_stash is Array:
+			for ds in (raw_def_stash as Array):
+				box_stash.append(str(ds))
 	forced_roll_queue.clear()
 
 	active_group_id = int(state_data.get("active_group_id", 0))
 	current_station_idx = int(state_data.get("current_station_idx", 0))
 	last_encounter_outcome = str(state_data.get("last_encounter_outcome", ""))
-	current_zoom_level = clampi(int(state_data.get("current_zoom_level", 4)), 1, 4)
-	current_region_id = str(state_data.get("current_region_id", "idf"))
-	current_department_id = str(state_data.get("current_department_id", "dept_93"))
-	current_city_id = str(state_data.get("current_city_id", "cradon_les_gonesse"))
+	current_zoom_level = clampi(int(state_data.get("current_zoom_level", int(sh_cfg.get("zoom_level", 4)))), 1, 4)
+	current_region_id = str(state_data.get("current_region_id", str(sh_cfg.get("region_id", ""))))
+	current_department_id = str(state_data.get("current_department_id", str(sh_cfg.get("department_id", ""))))
+	current_city_id = str(state_data.get("current_city_id", str(sh_cfg.get("city_id", ""))))
 	has_active_session = true
 
 	var emit_id: String = current_region_id

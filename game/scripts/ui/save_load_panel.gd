@@ -1,4 +1,4 @@
-## Modale de gestion des 3 emplacements de sauvegarde manuels (Cassettes A, B, C) en mode lecture ou écriture.
+## Modale de gestion des 3 emplacements de sauvegarde manuels (Cassettes A, B, C) avec affichage du Scénario associé.
 extends Control
 
 signal slot_saved(slot_idx: int)
@@ -9,7 +9,6 @@ var _mode: String = "load" # "load" | "save"
 var _lbl_title: Label = null
 var _lbl_feedback: Label = null
 var _slots_box: VBoxContainer = null
-var _tex_cache: Dictionary = {}
 
 var _confirm_overlay: ColorRect = null
 var _lbl_confirm: Label = null
@@ -56,7 +55,7 @@ func _build_ui() -> void:
 	vb.add_child(_lbl_title)
 
 	var lbl_sub: Label = Label.new()
-	lbl_sub.text = "3 emplacements manuels — Cassettes TDK 1982 (aucune sauvegarde automatique)."
+	lbl_sub.text = "3 emplacements manuels — Cassettes TDK (sauvegarde du scénario en cours et import inter-scénarios)."
 	lbl_sub.add_theme_font_size_override("font_size", 12)
 	lbl_sub.add_theme_color_override("font_color", Color(0.76, 0.78, 0.82))
 	vb.add_child(lbl_sub)
@@ -181,7 +180,7 @@ func _rebuild_slots() -> void:
 		hbox.add_child(thumb_frame)
 
 		var port_path: String = str(meta.get("portrait_path", ""))
-		var tex: Texture2D = _load_texture_safe(port_path) if (not is_empty and port_path != "") else null
+		var tex: Texture2D = DataLoader.load_texture_safe(port_path) if (not is_empty and port_path != "") else null
 		if tex != null:
 			var tr: TextureRect = TextureRect.new()
 			tr.texture = tex
@@ -209,9 +208,13 @@ func _rebuild_slots() -> void:
 		info_vb.add_child(top_row)
 
 		var lbl_slot: Label = Label.new()
-		lbl_slot.text = slot_label.to_upper()
+		var scen_tag: String = (" — « %s »%s" % [
+			str(meta.get("scenario_title", "")),
+			(" [Terminé ★]" if bool(meta.get("scenario_completed", false)) else "")
+		]) if not is_empty else ""
+		lbl_slot.text = slot_label.to_upper() + scen_tag
 		lbl_slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		lbl_slot.add_theme_font_size_override("font_size", 14)
+		lbl_slot.add_theme_font_size_override("font_size", 13)
 		lbl_slot.add_theme_color_override("font_color", Color(0.95, 0.55, 0.16))
 		top_row.add_child(lbl_slot)
 
@@ -240,11 +243,11 @@ func _rebuild_slots() -> void:
 			var ph: String = str(meta.get("phase", "day"))
 			var ph_lbl: String = "NUIT" if ph == "night" else ("CRÉPUSCULE" if ph == "twilight" else "JOUR")
 			lbl_det.text = "%s  |  %s · %s  |  %d membres · %d F" % [
-				str(meta.get("location_name", "Box-Garage")),
+				str(meta.get("location_name", "")),
 				ph_lbl,
-				str(meta.get("clock_text", "17 h 30")),
+				str(meta.get("clock_text", "")),
 				int(meta.get("squad_count", 3)),
-				int(meta.get("francs", 25))
+				int(meta.get("francs", 0))
 			]
 		info_vb.add_child(lbl_det)
 
@@ -328,25 +331,3 @@ func _perform_load(slot_idx: int) -> void:
 		slot_loaded.emit(slot_idx)
 	else:
 		_lbl_feedback.text = "Impossible de lire %s." % SaveManager.get_slot_label(slot_idx)
-
-func _load_texture_safe(res_path: String) -> Texture2D:
-	if res_path == "":
-		return null
-	if _tex_cache.has(res_path):
-		var cached: Variant = _tex_cache.get(res_path, null)
-		if cached is Texture2D:
-			return cached as Texture2D
-		return null
-	var tex: Texture2D = null
-	if ResourceLoader.exists(res_path):
-		var loaded: Resource = load(res_path)
-		if loaded is Texture2D:
-			tex = loaded as Texture2D
-	if tex == null:
-		var abs_path: String = ProjectSettings.globalize_path(res_path)
-		if FileAccess.file_exists(abs_path):
-			var img: Image = Image.load_from_file(abs_path)
-			if img != null and not img.is_empty():
-				tex = ImageTexture.create_from_image(img)
-	_tex_cache[res_path] = tex
-	return tex

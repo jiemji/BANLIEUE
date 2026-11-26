@@ -1,0 +1,924 @@
+{
+  "actions": [
+    {
+      "id": "act_pression",
+      "label": "Corps à corps",
+      "title": "Corps à corps / Pression",
+      "desc": "Jet Caisse & Pression (Corps, 1 case) : -2/-3 résolution et recule la cible (+1/+2 crans), bonus si Aura ≥ 5.",
+      "target_kind": "enemy",
+      "min_range": 1,
+      "max_range": 1,
+      "cost_tick": 2,
+      "skill": "baston_pression",
+      "dc_source": "enemy_pression",
+      "roll_bonuses": [
+        {
+          "type": "aura_tiers",
+          "tiers": [
+            {
+              "min_aura": 7,
+              "val": 2
+            },
+            {
+              "min_aura": 5,
+              "val": 1
+            }
+          ],
+          "label_prefix": "Aura"
+        }
+      ],
+      "on_success": {
+        "shake": true,
+        "effects": [
+          {
+            "op": "damage_resolve",
+            "amount": 2,
+            "brilliant_amount": 3,
+            "scope": "target"
+          },
+          {
+            "op": "push_ticks",
+            "amount": 1,
+            "crit_amount": 2
+          }
+        ],
+        "log": "{actor} impose son Aura : {target} recule (-{dmg} résol., +{push} cran) !"
+      },
+      "on_fail": {
+        "effects": [
+          {
+            "op": "damage_resolve",
+            "amount": 1,
+            "scope": "target"
+          }
+        ],
+        "log": "Pression hésitante ({actor}) : -1 résolution sur {target} sans le faire reculer.",
+        "preview_fail": "-1 Résol. (0 recul)"
+      },
+      "on_flaw": {
+        "shake": true,
+        "buzz": true,
+        "effects": [
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": -5,
+            "use_shield": true
+          }
+        ],
+        "log": "Couac de pression ({actor}) : l'adversaire rigole sous ton nez (0 dégât, -5 Moral) !",
+        "preview_fail": "0 dégât & -5 Moral"
+      }
+    },
+    {
+      "id": "act_lancer",
+      "label": "Lancer",
+      "title": "Lancer à distance (2–4c)",
+      "desc": "Jet Caves & Esquive (Corps, 2–4 cases) : canette ou pavé (-2/-3 résolution, +1 cran si Coup d'éclat).",
+      "target_kind": "enemy",
+      "min_range": 2,
+      "max_range": 4,
+      "cost_tick": 2,
+      "skill": "caves_esquive",
+      "dc_source": "enemy_pression",
+      "uses_throw_bonus": true,
+      "default_tool_label": "Pavé / Canette",
+      "on_success": {
+        "shake_on_brilliant": true,
+        "effects": [
+          {
+            "op": "damage_resolve",
+            "amount": 2,
+            "brilliant_amount": 3,
+            "scope": "target"
+          },
+          {
+            "op": "push_ticks",
+            "amount": 1,
+            "only_if_brilliant": true
+          }
+        ],
+        "log": "{actor} touche à distance ({tool}) : {target} perd {dmg} de résolution.",
+        "brilliant_log": "{actor} lance au but ({tool}) ! {target} prend -{dmg} résol. et +1 cran !"
+      },
+      "on_fail": {
+        "effects": [
+          {
+            "op": "damage_resolve",
+            "amount": 1,
+            "scope": "target"
+          }
+        ],
+        "log": "Lancer court ({actor}) : {target} encaisse seulement -1 de résolution.",
+        "preview_fail": "-1 Résol."
+      },
+      "on_flaw": {
+        "shake": true,
+        "buzz": true,
+        "effects": [
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": -4,
+            "use_shield": true
+          }
+        ],
+        "log": "Lancer raté ({actor}) : le projectile file dans la tôle (0 dégât, -4 Moral) !",
+        "preview_fail": "0 dégât & -4 Moral"
+      }
+    },
+    {
+      "id": "act_tir",
+      "label": "Tir",
+      "title": "Tir à distance ({tool})",
+      "desc": "Jet Système D (Esprit, 2–6 cases, outil de tir 1982 requis) : -2/-3 résolution et coupe la garde.",
+      "target_kind": "enemy",
+      "min_range": 2,
+      "max_range": 6,
+      "cost_tick": 2,
+      "requires_ranged_tool": true,
+      "missing_tool_reason": "Outil de tir 1982 requis (Lance-pierre / Pétards)",
+      "skill": "systeme_d",
+      "dc_source": "enemy_social",
+      "default_tool_label": "Outil 1982",
+      "on_success": {
+        "shake_on_brilliant": true,
+        "effects": [
+          {
+            "op": "damage_resolve",
+            "amount": 2,
+            "brilliant_amount": 3,
+            "scope": "target"
+          },
+          {
+            "op": "cut_counter",
+            "only_if_brilliant": true
+          }
+        ],
+        "log": "[{tool}] {actor} ajuste {target} : -{dmg} Résol.{cut_suffix}"
+      },
+      "on_fail": {
+        "effects": [
+          {
+            "op": "damage_resolve",
+            "amount": 1,
+            "scope": "target"
+          }
+        ],
+        "log": "[{tool}] Tir frôlant {target} (-1 Résol.).",
+        "preview_fail": "-1 Résol."
+      },
+      "on_flaw": {
+        "shake": true,
+        "buzz": true,
+        "effects": [
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": -4,
+            "use_shield": true
+          }
+        ],
+        "log": "[{tool}] Tir manqué ({actor}) : -4 Moral !",
+        "preview_fail": "0 dégât & -4 Moral"
+      }
+    },
+    {
+      "id": "act_charge",
+      "label": "Charge",
+      "title": "Charge (2–5c)",
+      "desc": "Bondit (2–5 cases) sur la case adjacente libre et frappe (Corps + Caisse) ; risque d'être Assommé (-2 rangs) si intercepté !",
+      "target_kind": "enemy",
+      "movement_mode": "charge",
+      "min_range": 2,
+      "max_range": 5,
+      "cost_tick": 2,
+      "skill": "baston_pression",
+      "dc_source": "enemy_pression",
+      "roll_bonuses": [
+        {
+          "type": "aura_tiers",
+          "tiers": [
+            {
+              "min_aura": 7,
+              "val": 2
+            },
+            {
+              "min_aura": 5,
+              "val": 1
+            }
+          ],
+          "label_prefix": "Aura"
+        }
+      ],
+      "on_success": {
+        "shake": true,
+        "effects": [
+          {
+            "op": "damage_resolve",
+            "amount": 3,
+            "brilliant_amount": 4,
+            "scope": "target"
+          },
+          {
+            "op": "push_ticks",
+            "amount": 1,
+            "crit_amount": 2
+          }
+        ],
+        "log": "⚡ CHARGE ! {actor} percute {target} (-{dmg} résol., +{push} cran) !"
+      },
+      "on_fail": {
+        "effects": [
+          {
+            "op": "damage_resolve",
+            "amount": 1,
+            "scope": "target"
+          }
+        ],
+        "log": "Charge contenue ({actor}) sur {target} (-1 résol.).",
+        "preview_fail": "-1 Résol."
+      },
+      "on_flaw": {
+        "shake": true,
+        "buzz": true,
+        "effects": [
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": -5,
+            "use_shield": true
+          }
+        ],
+        "log": "Charge déséquilibrée ({actor}) : esquive adverse (0 dégât, -5 Moral) !",
+        "preview_fail": "0 dégât & -5 Moral"
+      }
+    },
+    {
+      "id": "act_tchatche",
+      "label": "Tchatche",
+      "title": "Tchatche / Bluff Attitude",
+      "desc": "Jet Tchatche & Baratin (Esprit, 1–5 cases) : entame la résolution (-2/-3 si réussi, +bonus Faveur/dossier).",
+      "target_kind": "enemy",
+      "min_range": 1,
+      "max_range": 5,
+      "cost_tick": 2,
+      "skill": "tchatche",
+      "dc_source": "enemy_social",
+      "dc_modifiers": [
+        {
+          "if_flag": "ludo_bluffed_cousin",
+          "if_target_tag": "cousin_bluffable",
+          "delta": -1
+        }
+      ],
+      "roll_bonuses": [
+        {
+          "type": "any_faveur_or_flag",
+          "flag": "tour_b_done",
+          "val": 1,
+          "label": "Faveur/Dossier"
+        }
+      ],
+      "on_success": {
+        "shake_on_brilliant": true,
+        "effects": [
+          {
+            "op": "damage_resolve",
+            "amount": 2,
+            "brilliant_amount": 3,
+            "crit_bonus": 1,
+            "bonus_if_roll_bonus": 1,
+            "scope": "target"
+          }
+        ],
+        "log": "{actor} balance les preuves ! {target} perd {dmg} de résolution."
+      },
+      "on_fail": {
+        "effects": [
+          {
+            "op": "damage_resolve",
+            "amount": 1,
+            "scope": "target"
+          }
+        ],
+        "log": "Tchatche tiède de {actor} : {target} encaisse seulement -1 de résolution.",
+        "preview_fail": "-1 Résol."
+      },
+      "on_flaw": {
+        "shake": true,
+        "buzz": true,
+        "effects": [
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": -4,
+            "use_shield": true
+          }
+        ],
+        "log": "Couac de tchatche ({actor}) : bafouillage devant le quai (0 dégât, -4 Moral) !",
+        "preview_fail": "0 dégât & -4 Moral"
+      }
+    },
+    {
+      "id": "act_repli",
+      "label": "Échappée",
+      "title": "Préparer l'échappée",
+      "desc": "Jet Caves & Esquive (Corps, toute portée) : retarde la patrouille (+2/+3 crans) et rapproche l'évacuation (+1).",
+      "target_kind": "none",
+      "preview_target_id": "crs",
+      "min_range": 0,
+      "max_range": 0,
+      "cost_tick": 2,
+      "skill": "caves_esquive",
+      "dc_source": "fixed",
+      "dc_base": 10,
+      "dc_modifiers": [
+        {
+          "if_escalation_lte": 2,
+          "delta": 1
+        }
+      ],
+      "on_success": {
+        "effects": [
+          {
+            "op": "modify_escalation_clock",
+            "amount": 2,
+            "brilliant_amount": 3
+          },
+          {
+            "op": "advance_escape",
+            "amount": 1
+          }
+        ],
+        "log": "{actor} ouvre la voie vers le quai / les caves (+{clock} crans {clock_short}, échappée {escape}/{escape_req})."
+      },
+      "on_fail": {
+        "effects": [
+          {
+            "op": "modify_escalation_clock",
+            "amount": 1
+          }
+        ],
+        "log": "{actor} contourne à demi (+1 cran {clock_short} seulement, échappée {escape}/{escape_req}).",
+        "preview_fail": "+1 CRS (0 Échappée)"
+      },
+      "on_flaw": {
+        "shake": true,
+        "buzz": true,
+        "effects": [
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": -4,
+            "use_shield": true
+          }
+        ],
+        "log": "Couac d'esquive ({actor}) : grille bloquée, zéro cran gagné (-4 Moral) !",
+        "preview_fail": "+0 CRS & -4 Moral"
+      }
+    },
+    {
+      "id": "act_equip_intimidation_look",
+      "is_equipment": true,
+      "once_per_encounter": true,
+      "short_label": "Intimidation Look",
+      "title": "Intimidation Look (Perfecto 1982)",
+      "target_kind": "enemy",
+      "min_range": 1,
+      "max_range": 5,
+      "skill": "baston_pression",
+      "dc_source": "enemy_pression",
+      "roll_bonuses": [
+        {
+          "type": "fixed",
+          "val": 2,
+          "label": "Perfecto"
+        }
+      ],
+      "on_success": {
+        "shake": true,
+        "effects": [
+          {
+            "op": "damage_resolve",
+            "amount": 3,
+            "brilliant_amount": 4,
+            "scope": "target"
+          },
+          {
+            "op": "push_ticks",
+            "amount": 2
+          },
+          {
+            "op": "cut_counter"
+          }
+        ],
+        "log": "[Perfecto] {actor} glace {target} (-{dmg} résol., +2 crans, contre coupé) !"
+      },
+      "on_fail": {
+        "effects": [
+          {
+            "op": "damage_resolve",
+            "amount": 1,
+            "scope": "target"
+          },
+          {
+            "op": "push_ticks",
+            "amount": 1
+          }
+        ],
+        "log": "[Perfecto] Pression partielle sur {target} (-1 résol., +1 cran).",
+        "preview_fail": "-1 Résol · +1 cran"
+      },
+      "on_flaw": {
+        "shake": true,
+        "buzz": true,
+        "effects": [
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": -4,
+            "use_shield": true
+          }
+        ],
+        "log": "[Perfecto] Couac de dégaine ({actor}) : 0 dégât, -4 Moral !",
+        "preview_fail": "0 dégât & -4 Moral"
+      }
+    },
+    {
+      "id": "act_equip_infiltration",
+      "is_equipment": true,
+      "once_per_encounter": true,
+      "short_label": "Infiltration",
+      "title": "Infiltration discrète (Parka)",
+      "target_kind": "none",
+      "preview_target_id": "crs",
+      "min_range": 0,
+      "max_range": 0,
+      "skill": "caves_esquive",
+      "dc_source": "fixed",
+      "dc_base": 10,
+      "roll_bonuses": [
+        {
+          "type": "fixed",
+          "val": 2,
+          "label": "Parka"
+        }
+      ],
+      "on_success": {
+        "effects": [
+          {
+            "op": "modify_escalation_clock",
+            "amount": 2,
+            "brilliant_amount": 3
+          },
+          {
+            "op": "advance_escape",
+            "amount": 1
+          },
+          {
+            "op": "add_shield",
+            "amount": 1,
+            "absorb": 6
+          }
+        ],
+        "log": "[Parka anonyme] {actor} se fond dans l'ombre (+{clock} crans {clock_short}, +1 échappée, +1 bouclier) !"
+      },
+      "on_fail": {
+        "effects": [
+          {
+            "op": "modify_escalation_clock",
+            "amount": 1
+          },
+          {
+            "op": "advance_escape",
+            "amount": 1
+          },
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": -3,
+            "use_shield": true
+          }
+        ],
+        "log": "[Parka anonyme] Passage serré (+1 {clock_short}, +1 échappée, -3 Moral).",
+        "preview_fail": "+1 CRS, +1 Échappée, -3 Moral"
+      },
+      "on_flaw": {
+        "shake": true,
+        "buzz": true,
+        "effects": [
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": -6,
+            "use_shield": true
+          }
+        ],
+        "log": "[Parka anonyme] Lampadaire en pleine poire ! (-6 Moral, +0 {clock_short})",
+        "preview_fail": "+0 CRS & -6 Moral"
+      }
+    },
+    {
+      "id": "act_equip_boombox",
+      "is_equipment": true,
+      "once_per_encounter": true,
+      "short_label": "Son de Dalle",
+      "title": "Son de Dalle (Ghetto-blaster K7)",
+      "target_kind": "none",
+      "min_range": 0,
+      "max_range": 0,
+      "skill": "solidarite_bande",
+      "dc_source": "fixed",
+      "dc_base": 10,
+      "roll_bonuses": [
+        {
+          "type": "fixed",
+          "val": 1,
+          "label": "Boombox"
+        }
+      ],
+      "on_success": {
+        "effects": [
+          {
+            "op": "modify_moral",
+            "target": "all_allies",
+            "amount": 8,
+            "brilliant_amount": 12,
+            "use_shield": false
+          },
+          {
+            "op": "delay_crises",
+            "target": "all",
+            "amount": 1
+          }
+        ],
+        "log": "[Ghetto-blaster] Le son retourne la dalle ! (+{moral} Moral à tous, crises retardées +1 cran)"
+      },
+      "on_fail": {
+        "effects": [
+          {
+            "op": "modify_moral",
+            "target": "all_allies",
+            "amount": 4,
+            "use_shield": false
+          },
+          {
+            "op": "modify_escalation_clock",
+            "amount": -1,
+            "min_val": 1
+          }
+        ],
+        "log": "[Ghetto-blaster] Vacarme sur le quai (+4 Moral à tous, mais -1 cran {clock_short} !).",
+        "preview_fail": "+4 Moral mais -1 cran CRS"
+      },
+      "on_flaw": {
+        "shake": true,
+        "buzz": true,
+        "effects": [
+          {
+            "op": "modify_moral",
+            "target": "all_allies",
+            "amount": 4,
+            "use_shield": false
+          },
+          {
+            "op": "modify_escalation_clock",
+            "amount": -1,
+            "min_val": 1
+          }
+        ],
+        "log": "[Ghetto-blaster] Vacarme sur le quai (+4 Moral à tous, mais -1 cran {clock_short} !).",
+        "preview_fail": "+4 Moral mais -1 cran CRS"
+      }
+    },
+    {
+      "id": "act_equip_pochoir",
+      "is_equipment": true,
+      "once_per_encounter": true,
+      "short_label": "Pochoir",
+      "title": "Bomber un mot d'ordre (Pochoir)",
+      "target_kind": "enemy",
+      "min_range": 1,
+      "max_range": 4,
+      "skill": "systeme_d",
+      "dc_source": "enemy_social",
+      "roll_bonuses": [
+        {
+          "type": "fixed",
+          "val": 1,
+          "label": "Pochoir"
+        }
+      ],
+      "on_success": {
+        "shake": true,
+        "effects": [
+          {
+            "op": "damage_resolve",
+            "amount": 2,
+            "brilliant_amount": 3,
+            "scope": "target"
+          },
+          {
+            "op": "damage_resolve",
+            "amount": 1,
+            "scope": "other_enemies"
+          },
+          {
+            "op": "modify_notoriete",
+            "amount": 1
+          }
+        ],
+        "log": "[Pochoir] Mot d'ordre claqué sous leur nez (-{dmg} résol. cible, -1 aux autres, +1 Notoriété) !"
+      },
+      "on_fail": {
+        "effects": [
+          {
+            "op": "damage_resolve",
+            "amount": 1,
+            "scope": "target"
+          },
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": -3,
+            "use_shield": true
+          }
+        ],
+        "log": "[Pochoir] Slogan baveux sur {target} (-1 résol., -3 Moral).",
+        "preview_fail": "-1 Résol cible, -3 Moral"
+      },
+      "on_flaw": {
+        "shake": true,
+        "buzz": true,
+        "effects": [
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": -6,
+            "use_shield": true
+          }
+        ],
+        "log": "[Pochoir] Buse bouchée en pleine rue ! (-6 Moral)",
+        "preview_fail": "-6 Moral"
+      }
+    },
+    {
+      "id": "act_equip_record_fm",
+      "is_equipment": true,
+      "once_per_encounter": true,
+      "short_label": "Capter FM",
+      "title": "Enregistrer la Fréquence (Walkman FM)",
+      "target_kind": "none",
+      "preview_target_id": "crs",
+      "min_range": 0,
+      "max_range": 0,
+      "skill": "ondes_radio",
+      "dc_source": "fixed",
+      "dc_base": 10,
+      "roll_bonuses": [
+        {
+          "type": "fixed",
+          "val": 1,
+          "label": "Walkman FM"
+        }
+      ],
+      "on_success": {
+        "effects": [
+          {
+            "op": "modify_escalation_clock",
+            "amount": 2
+          },
+          {
+            "op": "advance_escape",
+            "amount": 1
+          },
+          {
+            "op": "advance_turn_counter",
+            "amount": 2
+          }
+        ],
+        "log": "[Walkman FM] Onde calée sur le quai (+2 {clock_short}, +1 échappée, signal rapproché) !"
+      },
+      "on_fail": {
+        "effects": [
+          {
+            "op": "modify_escalation_clock",
+            "amount": 1
+          },
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": -5,
+            "use_shield": true
+          }
+        ],
+        "log": "[Walkman FM] Friture parasite (+1 {clock_short}, -5 Moral).",
+        "preview_fail": "+1 CRS, -5 Moral"
+      },
+      "on_flaw": {
+        "shake": true,
+        "buzz": true,
+        "effects": [
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": -8,
+            "use_shield": true
+          }
+        ],
+        "log": "[Walkman FM] Larsen glaçant sur 104.7 FM ! (-8 Moral)",
+        "preview_fail": "-8 Moral"
+      }
+    },
+    {
+      "id": "act_equip_pass_mjc",
+      "is_equipment": true,
+      "once_per_encounter": true,
+      "short_label": "Pass Mairie",
+      "title": "Pass Mairie / Carte MJC",
+      "target_kind": "enemy",
+      "min_range": 1,
+      "max_range": 5,
+      "skill": "lecture_rue",
+      "dc_source": "enemy_social",
+      "roll_bonuses": [
+        {
+          "type": "fixed",
+          "val": 2,
+          "label": "Pass Mairie"
+        }
+      ],
+      "on_success": {
+        "effects": [
+          {
+            "op": "damage_resolve",
+            "amount": 2,
+            "brilliant_amount": 3,
+            "scope": "target"
+          },
+          {
+            "op": "cut_counter"
+          },
+          {
+            "op": "modify_escalation_clock",
+            "amount": 1
+          }
+        ],
+        "log": "[Pass Mairie] {actor} sort la carte officielle : {target} se fige (-{dmg} résol., contre coupé, +1 {clock_short}) !"
+      },
+      "on_fail": {
+        "effects": [
+          {
+            "op": "damage_resolve",
+            "amount": 1,
+            "scope": "target"
+          },
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": -4,
+            "use_shield": true
+          }
+        ],
+        "log": "[Pass Mairie] Papier contesté (-1 résol., -4 Moral).",
+        "preview_fail": "-1 Résol, -4 Moral"
+      },
+      "on_flaw": {
+        "shake": true,
+        "buzz": true,
+        "effects": [
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": -7,
+            "use_shield": true
+          }
+        ],
+        "log": "[Pass Mairie] Le tampon sonne faux ! (-7 Moral)",
+        "preview_fail": "-7 Moral"
+      }
+    },
+    {
+      "id": "act_equip_pause_musique",
+      "is_equipment": true,
+      "once_per_encounter": true,
+      "short_label": "Pause TDK",
+      "title": "Pause musique (Cassettes TDK)",
+      "target_kind": "ally",
+      "ally_target_default": "lowest_moral",
+      "min_range": 0,
+      "max_range": 0,
+      "skill": "sang_froid_nerfs",
+      "dc_source": "fixed",
+      "dc_base": 9,
+      "roll_bonuses": [
+        {
+          "type": "fixed",
+          "val": 1,
+          "label": "TDK"
+        }
+      ],
+      "on_success": {
+        "effects": [
+          {
+            "op": "modify_moral",
+            "target": "ally_target",
+            "amount": 10,
+            "brilliant_amount": 14,
+            "use_shield": false
+          },
+          {
+            "op": "delay_crises",
+            "target": "ally_target",
+            "amount": 1
+          }
+        ],
+        "log": "[Cassettes TDK] Quelques mesures apaisent {target} (+{moral} Moral, crise retardée +1 cran) !"
+      },
+      "on_fail": {
+        "effects": [
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": 5,
+            "use_shield": false
+          }
+        ],
+        "log": "[Cassettes TDK] Souffle court retrouvé (+5 Moral pour {actor}).",
+        "preview_fail": "+5 Moral à l'acteur"
+      },
+      "on_flaw": {
+        "buzz": true,
+        "effects": [],
+        "log": "[Cassettes TDK] Bande emmêlée dans le boîtier (0 Moral récupéré) !",
+        "preview_fail": "Bande emmêlée (0 Moral)"
+      }
+    },
+    {
+      "id": "act_equip_pass_tour",
+      "is_equipment": true,
+      "once_per_encounter": true,
+      "short_label": "Gaine Tour B",
+      "title": "Gaine Tour B (Trousseau)",
+      "target_kind": "none",
+      "preview_target_id": "crs",
+      "min_range": 0,
+      "max_range": 0,
+      "skill": "systeme_d",
+      "dc_source": "fixed",
+      "dc_base": 10,
+      "roll_bonuses": [
+        {
+          "type": "fixed",
+          "val": 1,
+          "label": "Trousseau"
+        }
+      ],
+      "on_success": {
+        "effects": [
+          {
+            "op": "modify_escalation_clock",
+            "amount": 2,
+            "brilliant_amount": 3
+          },
+          {
+            "op": "advance_escape",
+            "amount": 1
+          }
+        ],
+        "log": "[Trousseau caves] Trappe technique ouverte (+{clock} crans {clock_short}, échappée {escape}/{escape_req}) !"
+      },
+      "on_fail": {
+        "effects": [
+          {
+            "op": "modify_escalation_clock",
+            "amount": 1
+          },
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": -3,
+            "use_shield": true
+          }
+        ],
+        "log": "[Trousseau caves] Trappe grinçante (+1 {clock_short}, -3 Moral).",
+        "preview_fail": "+1 CRS, -3 Moral"
+      },
+      "on_flaw": {
+        "shake": true,
+        "buzz": true,
+        "effects": [
+          {
+            "op": "modify_moral",
+            "target": "self",
+            "amount": -6,
+            "use_shield": true
+          }
+        ],
+        "log": "[Trousseau caves] Clé tordue dans la serrure (-6 Moral, +0 {clock_short}) !",
+        "preview_fail": "-6 Moral"
+      }
+    }
+  ]
+}

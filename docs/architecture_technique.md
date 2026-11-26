@@ -1,150 +1,89 @@
-# *Banlieue* — Architecture Technique
+# *Banlieue* — Architecture Technique Modulaire
 
-> **Version courante : 0.7.0** — Mise à jour : 2026-11-22
+> **Version courante : 0.10.0** — Mise à jour : 2026-11-26
 
-*Spécification technique de référence et socle des Jalons 0 & 1 (Option C & D + UX Frise Combat v0.4) — Phase Technique (🛠️ Léo & 🎯 Agent Combat UX).*
-
----
-
-## 1. Stack Technique Validée
-
-* **Architecture Spatiale Multi-Zoom (4 Niveaux)** :
-  * **Niveaux 1, 2 & 3 *(Plans papier IGN / RATP 1982 en 2D)*** : pilotés par `WorldMapView` (`scripts/world/world_map_view.gd`) + `Camera2D`, appuyés par les fonds cartographiques illustrés `assets/maps/map_idf.png`, `map_93.png` et `map_cradon.png` alignés sur les tracés JSON (zoom molette, panoramique clic droit, fil d'Ariane supérieur, `Retour arrière (Backspace)` / `M`, tandis qu'`Échap` ouvre le Menu Principal / Pause).
-    * **N1 (`idf.json`)** : Île-de-France (8 départements ; seul le **93** est `playable`, les 7 autres sont `undescribed` avec `travel_hooks`).
-    * **N2 (`departments/93.json`)** : Seine-Saint-Denis (axes RER B Nord en Y, RN2, Canal de l'Ourcq ; seule **Cradon-lès-Gonesse** est `playable` au départ, avec liaisons déjà modélisées vers Aulnay, La Courneuve, Drancy, Bobigny, etc.).
-    * **N3 (`cities/cradon_les_gonesse.json`)** : Plan de Cradon-lès-Gonesse (5 secteurs colorés incluant `Canal de l'Ourcq & Zone Ind.`, tracé du canal `water`, **9 bâtiments cliquables**, affichage temps réel des sous-groupes `G1..G6` et des lignes de **Renfort**).
-  * **Niveau 4 *(Intérieurs & Scènes de détail en 2D Isométrique `2:1`)*** : rendu hybride `backdrop` / `modular` (`render_mode`, les **9 intérieurs actuels** étant tous illustrés en `backdrop` `8×8`), grilles rectangulaires `grid_w × grid_h` variables supportées, `zones[]`, `blocked_cells[]`, `exits[]`, tri en profondeur `y_sort_enabled` + **masquage du décor au premier plan** (`IsoPropNode` en modulaire, `occluders[]` `Polygon2D`/RGBA sur `backdrop`, marqueurs `hotspots`/`exits` sur calque supérieur dédié), `Camera2D` avec suivi optionnel de bande (`follow_squad`), panoramique ZQSD/flèches/clic droit et zoom molette.
-* **Moteur & Langage** : **Godot Engine 4** (`config_version=5`, renderer `GL Compatibility` pour compatibilité universelle 4.4–4.7 et démarrage immédiat sans dépendance lourde) + **GDScript 2.0**.
-* **Architecture Data-Driven (Option C)** : Séparation stricte entre le code moteur (`scripts/`), les scènes (`scenes/`), les shaders (`shaders/`) et l'ensemble des données narratives et cartographiques modulaires au format **JSON** (`data/world/` + `data/maps/interiors/`). Permet d'étendre le 93, d'ajouter de nouvelles communes et d'injecter le futur **Chantier D (Scénario)** sans modifier le moteur.
-* **Rendu DA & Son du Jalon 0 / Jalon 1** :
-  * *Visuel* : Décors isométriques BD illustrés (`game/assets/locations/`) ou greybox vectoriel de secours + **sprites modulaires en pied `256×526` RGBA assemblés en direct (`heads` + `tops` + `bottoms`)** par `DataLoader.assemble_modular_pawn()` et animés par `PawnActor` (`scripts/world/pawn_actor.gd`) pour les PJ et PNJ (dont combat isométrique, avec **shader contour dynamique `2 px`** sans couture interne et **ombre silhouette orientée `4h`**) + shader post-process `film_1982_post.gdshader` (grain 16mm, bascule Jour gouache délavée ↔ Nuit N&B argentique préservant sélectivement les **4 couleurs-signaux** : orange sodium, rouge fanzine, bleu électrique, halo pâle de la Poudrerie). Les portraits BD `1024×1024` restent conservés dans `assets/portraits/`.
-  * *Pipeline Assets capitalisé* : Agent dédié persistant [banlieue-asset-artist.md](file:///e:/JDR/BANLIEUE/.agents/agents/banlieue-asset-artist.md) + skill [SKILL.md](file:///e:/JDR/BANLIEUE/.agents/skills/banlieue-asset-pipeline/SKILL.md) + script `process_banlieue_assets.py`.
-  * *Audio* : Synthèse procédurale légère en temps réel via `AudioStreamGenerator` (clic mécanique de touche cassette sur la Frise, coup sec d'Interruption hors-tour, grondement grave Boeing au Sas crépusculaire, souffle/zapping FM et impulsion basse Cold Wave nocturne), zéro fichier audio externe requis pour le Jalon 0.
+*Spécification technique de référence : Cœur générique 100 % découplé, Packs de Scénarios isolés (Option 1B), Moteur d'effets déclaratifs JSON + Hooks scriptés (Option 2A), Continuité Hybride par Import de Cassette (Option 3A) et Plateau Tactique `8×8` à Couverts & Interactifs.*
 
 ---
 
-## 2. Arborescence du Projet
+## 1. Principes Directeurs & Stack Validée
 
-Le projet Godot est isolé dans le sous-dossier `game/` afin que l'éditeur n'indexe ni les PDF volumineux de `Références/`, ni la documentation créative de `docs/`.
+* **Moteur & Langage** : **Godot Engine 4** (`config_version=5`, renderer `GL Compatibility` 4.4–4.7) + **GDScript 2.0** typé strict.
+* **Zéro identifiant métier en dur dans `game/scripts/`** : Le cœur du jeu ne connaît aucun nom de scénario, de commune, d'intérieur, de personnage, d'objet, d'action ni de spécialité spécifique. Le validateur (`process_banlieue_assets.py --mode validate`) vérifie automatiquement l'absence d'identifiants scénaristiques en dur dans tous les scripts `.gd` du moteur.
+* **Option 1B — Packs de Scénarios 100 % isolés (`game/data/scenarios/<scenario_id>/`)** :
+  * Chaque scénario possède son propre dossier autonome contenant son manifeste `scenario.json`, ses règles (`rules/`), ses personnages et profils (`characters/`), ses équipements (`equipment/`), ses dialogues (`dialogues/`), ses rencontres tactiques (`encounters/`), sa bande FM (`radio_fm.json`), son atlas cartographique N1–N3 (`world/`) et ses intérieurs N4 (`maps/interiors/`), ainsi qu'éventuellement ses propres assets ou scripts locaux.
+  * `DataLoader.discover_scenarios()` détecte automatiquement tout dossier contenant un `scenario.json` (ordonné optionnellement via `data/scenarios_index.json`), en ignorant les dossiers gabarits préfixés par `_` ou `.` (tel `_template_scenario/`).
+* **Option 2A — Combat Tactique `8×8`, Briques JSON + Hooks `custom_script`** :
+  * `TensionTimeline` gère les déplacements (`PM 2–3`), portées (`1c / 2–4c / 2–6c`), Charges symétriques avec fenêtre temps réel `10 s`, **couverts/obstacles (`cover_tiles[]`)**, **éléments interactifs du décor (`combat_interactables[]`)** et exécute/prévisualise les briques d'effets déclaratives (`damage_resolve`, `push_ticks`, `cut_counter`, `set_counter_ready`, `modify_escalation_clock`, `advance_escape`, `add_shield`, `modify_moral`, `delay_crises`, `cancel_crisis`, `advance_turn_counter`, `modify_notoriete`, `set_flag`).
+  * Tout bloc (rencontre, action, spécialité, crise, ennemi) peut déclarer `"custom_script": "scripts/mon_hook.gd"` (chemin relatif au pack ou `res://`) pour brancher un comportement boss/atypique sans modifier le cœur.
+* **Option 3A — Continuité Hybride (Bande neuve OU Import de Cassette A/B/C)** :
+  * L'écran `NewGamePanel` permet de choisir le **Scénario** à lancer ainsi que le **Mode de départ** : **Bande neuve** (archétype et casting définis par le pack) ou **Import d'une Cassette sauvegardée** (`SaveManager.read_slot_full`), qui transfère l'identité, l'XP, les compétences, les traits et l'équipement compatibles du Leader, les Francs/Faveurs/Notoriété acquis, le coffre compatible et les compagnons déjà recrutés présents dans le nouveau scénario.
+* **Rendu DA & Son 1980–1984** :
+  * **Atlas Spatial Multi-Zoom N1–N4** : Plans papier IGN/RATP 1982 aux niveaux N1–N3 (`WorldMapView`) + scènes intérieures isométriques `2:1` hybrides `backdrop` / `modular` au niveau N4 (`IsoDistrictView` + `IsoPropNode` piloté par `rules/props_catalog.json`, `occluders[]`, `ambient_fx[]` et `diegetic_signs[]`).
+  * **Pions modulaires 3 parties (`256×526` RGBA)** : Assemblage temps réel en 4 passes (`heads` + `tops` + `bottoms`) mis en cache par `DataLoader.assemble_modular_pawn()` pour tous les PJ et PNJ, couplé au shader de contour `2 px` et à l'ombre portée `4h` (`PawnActor`), tandis que les portraits BD `1024×1024` restent utilisés dans le HUD, la Frise, les dialogues et les fiches.
+  * **Audio procédural** : `AudioRadio` (`AudioStreamGenerator`) pilote les SFX cassette/interruption/alerte Charge 10 s, le grondement du Sas, la basse Cold Wave nocturne et le souffle FM déclaratif (`white_noise_ambience` dans `radio_fm.json`).
+
+---
+
+## 2. Arborescence Modulaire du Projet
 
 ```text
 BANLIEUE/
-├── .agents/                             # Capitalisation locale : agents dédiés & pipeline assets 2D
-│   ├── agents/                          # banlieue-asset-artist.md (2D) & banlieue-combat-ux.md (UX Frise/Combat)
-│   └── skills/banlieue-asset-pipeline/  # Skill + script Python de détourage RGBA & validation Godot
-├── docs/                                # Bible, chantiers créatifs, UX combat (ux_combat_frise.md), Fiches PJ (fiches_personnages_pj.md) et doc technique
-├── Références/                          # Sources JDR Zone (hors indexation Godot)
-└── game/                                # Racine du projet Godot 4 (ouvrir game/project.godot)
-    ├── project.godot                    # Configuration Godot 4.4+ (GL Compatibility) & Autoloads
-    ├── icon.svg                         # Icône du projet
-    ├── assets/                          # Portraits BD (1024px), sprites en pied RGBA (526px), décors & cartes
-    │   ├── portraits/                   # Portraits BD 1024px conservés (leader, player_02..06, karim..so_agent)
-    │   ├── modular/                     # Calques 256×526 RGBA PJ & PNJ assemblés à la volée : heads/, tops/, bottoms/
-    │   ├── pawns/                       # Sprites sources complets de référence (526 px, dont leader_pawn.png)
-    │   ├── locations/                   # 9 décors iso 1200×896 (6 Jalon 0 + garage_bananes, squat_kepons, lisiere_poudrerie)
-    │   └── maps/                        # Cartes IGN État-Major / RER 1982 (map_idf, map_93, map_cradon)
-    ├── data/                            # Cœur Data-Driven 100 % JSON (atlas hiérarchique + systèmes)
-    │   ├── characters.json              # 9 personnages : Compagnons & PNJ (appearance head/default_top/default_bottom, equip 4 slots)
-    │   ├── player_profiles.json         # 4 archétypes sociaux & galerie de 6 portraits/têtes libres
-    │   ├── world/                       # Cartes N1–N3 style IGN / RATP 1982
-    │   │   ├── idf.json                 # N1 : Île-de-France — map_idf.png (seul le 93 playable)
-    │   │   ├── departments/93.json      # N2 : Seine-Saint-Denis — map_93.png (seule Cradon playable)
-    │   │   └── cities/cradon_les_gonesse.json # N3 : Cradon — map_cradon.png (5 secteurs, canal, 9 lieux)
-    │   ├── maps/interiors/              # N4 : 1 JSON par intérieur à taille X×Y libre (9/9 backdrop)
-    │   │   ├── box_garage.json          # 8×8 (backdrop — box_garage.png)
-    │   │   ├── galaxian.json            # 8×8 (backdrop — galaxian.png)
-    │   │   ├── tour_b.json              # 8×8 (backdrop — tour_b.png)
-    │   │   ├── chez_bebert.json         # 8×8 (backdrop — chez_bebert.png)
-    │   │   ├── ruelle_relais.json       # 8×8 (backdrop — ruelle_relais.png)
-    │   │   ├── gare_rer_y.json          # 8×8 (backdrop — gare_rer_y.png)
-    │   │   ├── garage_bananes.json      # 8×8 (backdrop — garage_bananes.png)
-    │   │   ├── squat_kepons.json        # 8×8 (backdrop — squat_kepons.png)
-    │   │   └── lisiere_poudrerie.json   # 8×8 (backdrop — lisiere_poudrerie.png)
-    │   ├── dialogues.json               # 40 nœuds narratifs, Jets de rue (skill_check), conditions (min_skill, require_item, require_action) et effets (XP/Objets/Traits/Recrutement)
-    │   ├── equipment.json               # Catalogue des 10 compétences (-3..+5) et équipements 4 emplacements (look_top / look_bottom / tool / fetish)
-    │   ├── timeline_encounters.json     # Rencontre Gare RER « du Y », ennemis modulaires 3 parties, CRS, Train Fantôme & interruptions
-    │   └── radio_fm.json                # 5 fréquences FM (92.4, 95.8, 98.6, 101.2, 104.7 nuit)
-    ├── shaders/
-    │   ├── film_1982_post.gdshader      # Grain argentique 16mm, bascule Jour/Nuit 4 couleurs-signaux, tremblement Sas
-    │   └── pawn_outline.gdshader        # Contour dynamique 2 px par action du personnage
-    ├── scenes/
-    │   └── main.tscn                    # Scène racine minimaliste assemblée par main.gd
-    └── scripts/
-        ├── main.gd                      # Orchestrateur principal, transitions N1–N4 (Backspace/M), Menu (Échap) & Sas Jour→Nuit
-        ├── autoload/                    # Singletons globaux (sans class_name)
-        │   ├── data_loader.gd           # Chargement hiérarchique idf → 93 → ville → intérieurs, profils joueur & indexation
-        │   ├── settings_manager.gd      # Persistance user://settings.cfg (affichage, audio/FM, grain, secousse, texte)
-        │   ├── game_state.gd            # État vivant (zoom N1-N4, phase, horloge, économie, bande, Moral, flags, profil)
-        │   ├── audio_radio.gd           # Synthèse procédurale (Frise, FM, lit d'accueil, Sas Boeing, Cold Wave, Mute)
-        │   └── save_manager.gd          # Sauvegarde/chargement manuel sur 3 cassettes (user://saves/slot_1..3.json)
-        ├── systems/                     # Logique métier pure découplée des vues
-        │   ├── squad_manager.gd         # Bande modulable (3 / 2+1 / 1+1+1), bascule à la volée, distance « Renfort »
-        │   ├── tension_timeline.gd      # Frise chronologique, Interruptions hors-tour & préavis Crise d'autonomie
-        │   └── dialogue_runner.gd       # Évaluation de conditions et exécution des effets sur GameState
-        ├── world/
-        │   ├── world_map_view.gd        # Vue cartes papier 2D N1–N3, Camera2D, pions bande & liens Renfort
-        │   ├── iso_district_view.gd     # Vue isométrique N4 hybride (backdrop/modular), tailles X×Y, occluders, Camera2D
-        │   ├── iso_prop_node.gd         # Props 3D triés en Y-sort dans _pawn_container en mode modulaire
-        │   └── pawn_actor.gd            # Nœud pion : shader contour 2px, ombre silhouette 4h (+ lights), cartel
-        └── ui/
-            ├── hud_overlay.gd           # Bandeau 1982, fil d'Ariane N1-N4, bouton Menu, bande 1–6 & Tuner Radio FM
-            ├── dialogue_panel.gd        # Boîte de dialogue BD/fanzine avec portrait, badges 🎲 % / ⚠ FAILLE et bandeau _roll_banner
-            ├── timeline_panel.gd        # IHM Combat v0.6 : Frise haute verticale, triptyque bas (Actif / Minutes / Survolé) & ciblage clic pion
-            ├── character_sheet_panel.gd # Carnet de Bande [F] : fiches PJ (Esprit/Corps/Énergie, -3..+5, XP, coffre, relations)
-            ├── title_menu_panel.gd      # Menu Principal / Pause unifié sur fond vivant du Box-Garage
-            ├── new_game_panel.gd        # Écran « Nouvelle partie » (prénom, 6 portraits/pions libres, 4 archétypes)
-            ├── save_load_panel.gd       # Modale 3 cassettes TDK 1982 (sauver, charger, effacer + confirmations)
-            └── options_panel.gd         # Modale Options temps réel reliée à SettingsManager
+├── .agents/                             # Agents dédiés & pipeline assets/validation Python
+│   ├── agents/                          # banlieue-asset-artist.md & banlieue-combat-ux.md
+│   └── skills/banlieue-asset-pipeline/  # SKILL.md + scripts/process_banlieue_assets.py (détourage, découpe 3 parties & validate multi-packs)
+├── docs/                                # Bible créative, UX combat, fiches PJ et architecture technique
+├── Références/                          # Sources documentaires (hors indexation Godot)
+└── game/                                # Racine du projet Godot 4
+    ├── project.godot                    # Configuration GL Compatibility & Autoloads
+    ├── assets/                          # Bibliothèque graphique partagée (portraits, modular/{heads,tops,bottoms}, locations, maps)
+    ├── data/
+    │   ├── scenarios_index.json         # Ordre d'affichage optionnel & scénario par défaut
+    │   └── scenarios/                   # Packs de scénarios 100 % isolés (Option 1B)
+    │       ├── couvre_feu_galaxian/     # Scénario principal : « Couvre-Feu au Galaxian » (11 intérieurs Cradon+Aulnay, 11 persos, 52 équipements)
+    │       │   ├── scenario.json        # Manifeste : départ, phases/sas, modificateurs de trajet, fins multiples
+    │       │   ├── rules/               # skills.json, combat_actions.json, specialties.json, props_catalog.json
+    │       │   ├── characters/          # characters.json (avec blocs crisis) & player_profiles.json (8 profils)
+    │       │   ├── equipment/           # equipment.json (4 slots + actions ★ dont inline combat_action)
+    │       │   ├── dialogues/           # dialogues.json (arbre narratif, conditions & Jets de rue 2d6)
+    │       │   ├── encounters/          # timeline_encounters.json (cover_tiles, combat_interactables, horloge, échappée, outcomes)
+    │       │   ├── radio_fm.json        # Stations FM du scénario (dont white_noise_ambience)
+    │       │   ├── world/               # idf.json, departments/*.json, cities/*.json
+    │       │   └── maps/interiors/      # 1 fichier JSON par décor intérieur N4
+    │       ├── ronde_du_canal/          # 2e pack autonome : « Ronde de Nuit sur l'Ourcq » (4 intérieurs, map_ourcq.png, scripts/ponton_hook.gd)
+    │       ├── greve_citroen_aulnay/    # 3e pack autonome : « Ondes Libres à Citroën Aulnay » (4 intérieurs, map_aulnay.png, scripts/aulnay_hook.gd)
+    │       └── _template_scenario/      # Gabarit prêt à dupliquer (ignoré dans le sélecteur en jeu sur préfixe _)
+    ├── shaders/                         # film_1982_post.gdshader & pawn_outline.gdshader
+    ├── scenes/main.tscn                 # Scène racine minimaliste
+    └── scripts/                         # Cœur moteur 100 % générique (zéro ID métier en dur)
+        ├── main.gd                      # Orchestrateur piloté par scenario.json et outcomes de rencontres
+        ├── autoload/                    # data_loader.gd, settings_manager.gd, game_state.gd, audio_radio.gd, save_manager.gd
+        ├── systems/                     # squad_manager.gd, tension_timeline.gd, dialogue_runner.gd
+        ├── world/                       # world_map_view.gd, iso_district_view.gd, iso_prop_node.gd, pawn_actor.gd
+        └── ui/                          # hud_overlay, dialogue_panel, timeline_panel, character_sheet_panel, title_menu_panel, new_game_panel, save_load_panel, options_panel
 ```
 
 ---
 
-## 3. Systèmes Cœurs & Flux de Données
+## 3. Guide d'Extension Sans Modifier le Cœur (`.gd`)
 
-### Autoloads *(Singletons sans `class_name`)*
-1. **`DataLoader`** : Charge la hiérarchie modulaire (`data/world/idf.json` → `departments/*.json` → `cities/*.json` → `maps/interiors/*.json`), les personnages, dialogues, rencontres, stations FM ainsi que `data/player_profiles.json` et `equipment.json` ; expose les accesseurs typés (`get_region`, `get_department`, `get_city`, `get_interior`, `get_location`, `get_character`, `get_dialogue`, `get_encounter`, `get_portrait_def`, `get_archetype_def`), `apply_leader_profile()`, ainsi que l'assembleur RGBA 4 passes en cache **`assemble_modular_pawn()`** / `get_appearance_pawn_texture()`.
-2. **`SettingsManager`** : Persiste les préférences utilisateur dans `user://settings.cfg` (`ConfigFile`) — mode fenêtré/plein écran, volume général, coupure du son, ambiance FM, grain 16mm, secousse d'écran et taille de police des dialogues.
-3. **`GameState`** : Source unique de vérité pour l'état de la partie (`has_active_session`, `leader_profile`, `current_zoom_level` `1..4`, `current_region_id`, `current_department_id`, `current_city_id`, `phase` `"day" | "twilight" | "night"`, `clock_minutes`, `francs`, `faveurs`, `notoriete`, `aura_bonus`, `flags`, `clues`, `squad_members`, `member_states`, `member_progression`, `box_stash`, `active_group_id`, `current_station_idx`), équipement **4 emplacements (`look_top`, `look_bottom`, `tool`, `fetish`)**, assemblage temps réel **`get_character_modular_paths()` / `get_character_pawn_texture()`**, et moteur centralisé de **Jets de rue `2d6 + Carac + Comp`** (`preview_street_roll`, `perform_street_roll`) ; expose `to_save_dict()` / `load_from_save_dict()` et émet des signaux découplés (`state_changed`, `phase_changed`, `active_group_changed`, `zoom_changed`, `log_added`).
-4. **`AudioRadio`** : Synthétiseur procédural alimenté par `GameState` et `SettingsManager` (tonalité adaptée au changement de phase Jour/Sas/Nuit, lit FM feutré en mode accueil `title_mode` et zapping des 5 fréquences FM).
-5. **`SaveManager`** : Gère les 3 emplacements manuels (`Cassette A`, `Cassette B`, `Cassette C` → `user://saves/slot_1..3.json`, zéro auto-save) avec lecture rapide des métadonnées (`read_slot_meta`), sauvegarde, chargement et suppression.
+> **Manuel détaillé & modèle prêt à copier** : voir [guide\_modding.md](file:///e:/JDR/BANLIEUE/docs/guide_modding.md) et le gabarit autonome [\_template\_scenario](file:///e:/JDR/BANLIEUE/game/data/scenarios/_template_scenario/scenario.json) (ignoré automatiquement dans le sélecteur en jeu tant que son dossier commence par `_`, tout en étant vérifié par `--mode validate`).
 
-### Systèmes Métiers (`scripts/systems/`)
-* **`SquadManager`** : Pilote la bande modulable (`3+`, `2+1`, `1+1+1`), la **bascule libre à la volée** entre sous-groupes (`switch_to_group`), les consignes d'attente (`Guetter`, `Bricoler`, `Attendre`), les déplacements inter-lieux et le calcul de proximité (`compute_reinforcement_ticks`) permettant d'insérer les potes proches comme **« Renfort dans X crans »** sur une Frise nocturne.
-* **`TensionTimeline`** : Orchestre la **Frise chronologique de Tension** (`ux_combat_frise.md`) en crans triés avec ciblage libre (`select_target`, `cycle_target`), prévisualisations non destructives (`preview_player_action`, `preview_interruption`, `preview_restrain` incluant `%` et formule `2d6`), **résolution pas-à-pas stricte (`awaiting_step` / `step_next_beat`)**, Jets de rue (`2d6 + Carac + Comp`) + **8 actions actives d'équipement `★`**, **1 Réaction d'Interruption hors-tour** par personnage et par cycle (modulée par compétences, dont `sang_froid`), contre-interruptions des adversaires vétérans, **préavis diégétique de Crise d'autonomie** à `+2 crans` (couvrant jusqu'aux 6 alliés dont Manu, Zoé et Ludo), compte à rebours des CRS et arrivée du **Train Fantôme RER B**.
-* **`DialogueRunner`** : Interprète les nœuds de `dialogues.json`, vérifie les prérequis (`min_francs`, `require_member`, `require_flag`, `min_aura`, `min_skill`, `require_item`, `require_action`), résout les Jets de rue `skill_check` (`next` / `fail_next` / `fail_effects` / `flaw_extra_effects`), applique leurs effets sur `GameState` puis notifie les vues via signaux.
-
-### Flux de Données & Navigation
-```text
-[data/world/* + data/maps/interiors/* + data/*.json] ──► (DataLoader) ──► [Systèmes Métiers] ◄──► (GameState)
-                                                                                 │                       │
-                                                                         Signaux découplés        Signaux zoom/état
-                                                                                 ▼                       ▼
-                                                  [WorldMapView (N1-N3) / IsoDistrictView (N4) / UI] + (AudioRadio & Shader)
-```
-
-**Contrôles de navigation multi-zoom** :
-* **Fil d'Ariane (`IDF › 93 › Cradon › Intérieur`) & bouton `▲`** en haut de l'écran, ou bouton **`Plan de Cradon (N3) [M]`**.
-* **Clavier** : `Échap` ouvre ou ferme le Menu Principal / Pause (et ferme d'abord la modale active), `Retour arrière (Backspace)` remonte d'un niveau cartographique (`N4 → N3 → N2 → N1`), `M` bascule entre l'intérieur actif (`N4`) et le plan de ville (`N3`), `ZQSD` / flèches pour déplacer la caméra en Niveau 4.
-* **Souris** : clic gauche sur un nœud `playable` / bâtiment pour zoomer/entrer (ou sur une dalle `exits[]` pour sortir au N3), **molette** pour zoomer/dézoomer (en N2/N3, un dézoom répété au plancher remonte d'un niveau), **clic droit maintenu** pour faire glisser la carte.
+1. **Ajouter un nouveau Scénario complet** :
+   * Dupliquer un dossier sous `game/data/scenarios/<mon_scenario>/` et ajuster `scenario.json` (`id`, `title`, `subtitle`, `start_hierarchy`, `start_state`, `intro_dialogue_id`, `phase_transitions`, `endings`). Aucun enregistrement dans le code n'est nécessaire : `DataLoader.discover_scenarios()` l'affiche automatiquement dans `NewGamePanel` (et gère l'import optionnel d'une Cassette A/B/C).
+2. **Ajouter un Personnage (Compagnon ou PNJ)** :
+   * Ajouter sa fiche dans `characters/characters.json` (ou un fichier dédié `characters/<nom>.json` — tous les `.json` du sous-dossier sont fusionnés automatiquement) avec son `portrait`, son `appearance` (`head`, `default_top`, `default_bottom` en `256×526` RGBA), son `specialty_id` et son bloc déclaratif `crisis`. Pour le placer dans un décor N4, l'ajouter au tableau `npcs[]` du lieu avec `phase`, `require_flag` / `hide_if_flag` / `hide_if_in_squad` et `dialogue_id`.
+3. **Ajouter un Décor N4 ou une Commune N2/N3** :
+   * Créer `maps/interiors/<lieu>.json` (`render_mode: "backdrop"` avec `occluders[]`, ou `"modular"` utilisant les types de `rules/props_catalog.json`), puis référencer ce fichier dans `children[]` de la ville N3 (avec `completed_if_flag` optionnel). Un nœud `"status": "locked"` peut être ouvert en jeu via l'effet dialogue `"unlock_location": "<id>"`.
+4. **Ajouter un Équipement, une Action de Combat ou une Spécialité** :
+   * Déclarer l'objet dans `equipment/*.json` (`look_top`, `look_bottom`, `tool` ou `fetish`). S'il débloque une action active `★`, définir ses briques d'effets dans `rules/combat_actions.json` ou directement en ligne via `"combat_action": { ... }` dans `unlocks_actions[]`.
+   * Déclarer toute nouvelle spécialité hors-tour dans `rules/specialties.json` (`intercept_skills` + `modes[]`).
 
 ---
 
-## 4. Plan du Premier Prototype Jouable (Jalon 0 — *« Couvre-Feu au Galaxian »*)
+## 4. Validation Automatisée & Tests Headless
 
-### Séquences livrées et testables dès le Jalon 0
-1. **Box-Garage de la Cité *(Jour)*** : Accueil du trio de départ (**Leader, Karim, Nadia**), briefing, choix d'équipement (blouson *Aura +1* ou bricole *103 SP*) et test du tuner **5 stations FM**.
-2. **Le Galaxian *(Jour)*** : Découverte de l'avis de fermeture du S.O., discussion avec **Ludo** et déblocage des 3 pistes de ville.
-3. **Enquête scindée en bascule libre (`1–6`)** : Répartition entre **Tour B** (ruse électrique de Nadia face à la loge de la Concierge), **Chez Bébert** (négociation de Faveur avec **Franck** et coup de chaud sur le Moral de Karim) et **Ruelle du Relais Municipal** (dilemme familial de **Ludo** avec son cousin S.O.), complétée par le **Garage des Bananes** (**Manu**) et le **Squat des Kepons** (**Zoé**).
-4. **Sas Sensoriel Crépusculaire** : Transition physique Jour → Nuit déclenchée par le crépuscule (grondement Boeing, secousse de cadre, passage au rendu N&B + 4 couleurs-signaux et basse Cold Wave).
-5. **Frise Chronologique Nocturne — Gare RER « du Y »** : Confrontation sur le quai contre Skin nerveux, cousin S.O. et S.O. vétéran, gestion des **Interruptions hors-tour**, préavis et arbitrage de la **Crise d'autonomie de Karim**, arrivée des CRS et apparition du **Train Fantôme du RER B**.
-6. **Retour au Box-Garage & Bilan** : Résolution humaine de la crise, choix d'ouvrir ou non la porte à **Ludo** (recrutement), bref signal sur la **104.7 FM** et récapitulatif du Jalon 0.
-
-### Structure des Menus, Persistance & Création de Partie *(livré en v0.2.0 / v0.2.1)*
-Conformément à la spécification validée dans [structure_menus_et_ecrans.md](file:///e:/JDR/BANLIEUE/docs/structure_menus_et_ecrans.md), la couche accueil, sauvegarde, options et sélection du protagoniste s'appuie sur les modules suivants :
-* **Données & Assets** : `data/player_profiles.json` (4 archétypes sociaux dont la spécialité Frise `sang_froid` câblée dans `tension_timeline.gd` + galerie complète et opérationnelle de **6 profils visuels `player_01..06`** associant chacun un **portrait BD `1024 px` conservé** et sa tête + tenue modulaire **`256×526` RGBA** dans `assets/modular/`).
-* **Persistance *(Autoloads)*** : `scripts/autoload/save_manager.gd` (3 emplacements manuels `user://saves/slot_1.json`..`slot_3.json`, zéro auto-save) et `scripts/autoload/settings_manager.gd` (`user://settings.cfg` pour affichage, audio/FM, grain 16mm, secousse écran et taille de texte).
-* **Écrans UI** : `scripts/ui/title_menu_panel.gd` (menu unifié Accueil/Pause sur fond vivant du Box-Garage piloté par `AppState` dans `main.gd`), `scripts/ui/save_load_panel.gd`, `scripts/ui/options_panel.gd` et `scripts/ui/new_game_panel.gd`.
-
-### Jalons ultérieurs
-* **Jalon 1 *(Fiches PJ, Équipements & Audio — socle `v0.5.0 / v0.5.1` livré)*** : Implémentation du **Carnet de Bande `[F]`** ([fiches_personnages_pj.md](file:///e:/JDR/BANLIEUE/docs/fiches_personnages_pj.md) — `Esprit/Corps/Énergie`, 10 compétences `-3..+5`, XP et `equipment.json` à effets actifs) et câblage complet des **Jets de rue `2d6`** et des **8 actions actives d'équipement `★`** en dialogue et sur la Frise ; reste l'enrichissement des stems audio Cold Wave / FM (les 9 décors isométriques N4 et 3 cartes IGN N1–N3 étant déjà illustrés).
-* **Jalon 2 *(Chantier D — Campagne Complète)*** : Ouverture du **Chantier D** dans `docs/` pour injecter le scénario principal, les 4 autres compagnons recrutables et les 4 fins directement via de nouveaux fichiers JSON sans refondre le moteur.
+```powershell
+python "e:\JDR\BANLIEUE\.agents\skills\banlieue-asset-pipeline\scripts\process_banlieue_assets.py" --mode validate --game-root "e:\JDR\BANLIEUE\game"
+g:\Programmes\Godot\Godot_v4.7.2-stable_win64_console.exe --headless --path "e:\JDR\BANLIEUE\game" --script "C:\Users\jmjou\.gemini\antigravity\brain\23b0f781-d36a-455c-bc8a-bdd20bfd22a8\scratch\smoke_test_menus.gd"
+```

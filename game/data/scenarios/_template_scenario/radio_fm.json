@@ -1,0 +1,32 @@
+{
+  "stations": [
+    {
+      "freq": "94.3 FM",
+      "name": "Radio Locale (Modèle)",
+      "style": "Post-punk & chroniques de quartier",
+      "night_only": false,
+      "white_noise_ambience": false,
+      "base_tone_hz": 212.0,
+      "day_lines": [
+        "94.3 FM — « Infos locales du jour : gardez un œil sur les accès de la gare. »"
+      ],
+      "night_lines": [
+        "94.3 FM — « Émission nocturne : les rondes tournent autour des entrepôts. »"
+      ]
+    },
+    {
+      "freq": "104.7 FM",
+      "name": "Fréquence Blanche",
+      "style": "Souffle magnétique",
+      "night_only": true,
+      "white_noise_ambience": true,
+      "base_tone_hz": 144.0,
+      "day_lines": [
+        "104.7 FM — [Grésillement faible en plein jour.]"
+      ],
+      "night_lines": [
+        "104.7 FM — « ...fréquence nocturne active dans ce secteur... »"
+      ]
+    }
+  ]
+}

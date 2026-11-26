@@ -1,0 +1,160 @@
+{
+  "props": {
+    "box": {
+      "height_px": 24.0,
+      "shape": "box",
+      "day_color": "#a69480",
+      "night_color": "#6d6256"
+    },
+    "wall_back": {
+      "height_px": 46.0,
+      "shape": "wall_back",
+      "day_color": "#8a8075",
+      "night_color": "#2e2e38"
+    },
+    "mob": {
+      "height_px": 18.0,
+      "shape": "box",
+      "day_color": "#f28529",
+      "night_color": "#b8621c"
+    },
+    "sofa": {
+      "height_px": 16.0,
+      "shape": "box",
+      "day_color": "#b83338",
+      "night_color": "#7d2226"
+    },
+    "radio": {
+      "height_px": 14.0,
+      "shape": "box",
+      "day_color": "#388fd9",
+      "night_color": "#2b6ca6"
+    },
+    "workbench": {
+      "height_px": 22.0,
+      "shape": "box",
+      "day_color": "#8c6d46",
+      "night_color": "#59452c"
+    },
+    "arcade": {
+      "height_px": 32.0,
+      "shape": "box",
+      "day_color": "#388aeb",
+      "night_color": "#2862a8"
+    },
+    "babyfoot": {
+      "height_px": 20.0,
+      "shape": "box",
+      "day_color": "#9e7542",
+      "night_color": "#6b4f2d"
+    },
+    "counter": {
+      "height_px": 20.0,
+      "shape": "box",
+      "day_color": "#ebc747",
+      "night_color": "#9e8630"
+    },
+    "jukebox": {
+      "height_px": 30.0,
+      "shape": "box",
+      "day_color": "#d94f38",
+      "night_color": "#9c3828"
+    },
+    "table": {
+      "height_px": 16.0,
+      "shape": "box",
+      "day_color": "#967856",
+      "night_color": "#5e4b36"
+    },
+    "notice": {
+      "height_px": 28.0,
+      "shape": "box",
+      "day_color": "#d92e2e",
+      "night_color": "#9e2020"
+    },
+    "lodge": {
+      "height_px": 36.0,
+      "shape": "box",
+      "day_color": "#949ead",
+      "night_color": "#59606b"
+    },
+    "fusebox": {
+      "height_px": 26.0,
+      "shape": "box",
+      "day_color": "#788591",
+      "night_color": "#464f59"
+    },
+    "stair_down": {
+      "height_px": 10.0,
+      "shape": "box",
+      "day_color": "#5c5954",
+      "night_color": "#32302e"
+    },
+    "van": {
+      "height_px": 28.0,
+      "shape": "box",
+      "day_color": "#526bad",
+      "night_color": "#34446e"
+    },
+    "sign_rer": {
+      "height_px": 34.0,
+      "shape": "box",
+      "day_color": "#2e5cd1",
+      "night_color": "#244aa8"
+    },
+    "subway": {
+      "height_px": 14.0,
+      "shape": "box",
+      "day_color": "#4f5661",
+      "night_color": "#2b3038"
+    },
+    "trash": {
+      "height_px": 22.0,
+      "shape": "box",
+      "day_color": "#7a858f",
+      "night_color": "#4a5157"
+    },
+    "rails": {
+      "height_px": 0.0,
+      "shape": "rails",
+      "day_color": "#8c9eb8",
+      "night_color": "#8c9eb8"
+    },
+    "platform": {
+      "height_px": 8.0,
+      "shape": "platform",
+      "day_color": "#858a8f",
+      "night_color": "#3d4047"
+    },
+    "lock_gate": {
+      "height_px": 34.0,
+      "shape": "box",
+      "day_color": "#455a66",
+      "night_color": "#26333b"
+    },
+    "pallet_stack": {
+      "height_px": 20.0,
+      "shape": "box",
+      "day_color": "#9c7a4c",
+      "night_color": "#5e492d"
+    },
+    "oil_drum": {
+      "height_px": 24.0,
+      "shape": "box",
+      "day_color": "#8c5843",
+      "night_color": "#543427"
+    },
+    "brazier": {
+      "height_px": 22.0,
+      "shape": "box",
+      "day_color": "#d96b27",
+      "night_color": "#f28529"
+    },
+    "bollards": {
+      "height_px": 14.0,
+      "shape": "box",
+      "day_color": "#707880",
+      "night_color": "#40464d"
+    }
+  }
+}

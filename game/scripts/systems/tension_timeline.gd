@@ -1,9 +1,10 @@
-## Gestionnaire tactique de la Frise Chronologique de Tension (bande magnétique 1982, pas-à-pas strict 3B, prévisualisation 2A).
+## Moteur tactique déclaratif de la Frise Chronologique de Tension (Option 2A : briques d'effets JSON + hook custom_script optionnel).
 extends Node
 
 signal timeline_updated
 signal encounter_finished(outcome_id: String, summary: String)
 signal train_fantome_arrived_sig
+signal stage_fx_triggered(fx_id: String)
 signal combat_feedback_emitted(event_data: Dictionary)
 signal charge_window_started(charge_data: Dictionary)
 signal charge_window_ticked(time_left: float, time_max: float)
@@ -20,7 +21,6 @@ var encounter_title: String = ""
 var intro_text: String = ""
 var turn_count: int = 0
 var crs_ticks: int = 4
-var train_fantome_turn: int = 3
 var train_fantome_arrived: bool = false
 var escape_progress: int = 0
 var interposition_shield: int = 0
@@ -45,18 +45,15 @@ var _interposition_absorb: int = 6
 var _explicit_ally_target_id: String = ""
 var _explicit_crisis_target_id: String = ""
 var _combat_blocked_cells: Dictionary = {}
-var _combat_location_id: String = "gare_rer_y"
+var _combat_location_id: String = ""
+var cover_tiles: Array[Dictionary] = []
+var combat_interactables: Array[Dictionary] = []
 
-const _EQUIP_ACTION_META: Dictionary = {
-	"act_equip_intimidation_look": {"short": "Intimidation Look", "title": "Intimidation Look (Perfecto 1982)", "skill": "baston_pression", "bonus": 2, "bonus_label": "Perfecto", "needs_target": true},
-	"act_equip_infiltration": {"short": "Infiltration", "title": "Infiltration discrète (Parka)", "skill": "caves_esquive", "bonus": 2, "bonus_label": "Parka", "needs_target": false},
-	"act_equip_boombox": {"short": "Son de Dalle", "title": "Son de Dalle (Ghetto-blaster K7)", "skill": "solidarite_bande", "bonus": 1, "bonus_label": "Boombox", "needs_target": false},
-	"act_equip_pochoir": {"short": "Pochoir", "title": "Bomber un mot d'ordre (Pochoir)", "skill": "systeme_d", "bonus": 1, "bonus_label": "Pochoir", "needs_target": true},
-	"act_equip_record_fm": {"short": "Capter FM", "title": "Enregistrer la Fréquence (Walkman FM)", "skill": "ondes_radio", "bonus": 1, "bonus_label": "Walkman FM", "needs_target": false},
-	"act_equip_pass_mjc": {"short": "Pass Mairie", "title": "Pass Mairie / Carte MJC", "skill": "lecture_rue", "bonus": 2, "bonus_label": "Pass Mairie", "needs_target": true},
-	"act_equip_pause_musique": {"short": "Pause TDK", "title": "Pause musique (Cassettes TDK)", "skill": "sang_froid_nerfs", "bonus": 1, "bonus_label": "TDK", "needs_target": false},
-	"act_equip_pass_tour": {"short": "Gaine Tour B", "title": "Gaine Tour B (Trousseau)", "skill": "systeme_d", "bonus": 1, "bonus_label": "Trousseau", "needs_target": false}
-}
+var _escalation_cfg: Dictionary = {}
+var _escape_cfg: Dictionary = {}
+var _timed_events: Array[Dictionary] = []
+var _fired_timed_events: Dictionary = {}
+var _escape_unlocked_by_event: bool = false
 
 func set_squad_manager(sm: Node) -> void:
 	_squad_manager = sm
@@ -74,7 +71,31 @@ func _process(delta: float) -> void:
 		pending_enemy_charge["time_left"] = tl
 		charge_window_ticked.emit(tl, tm)
 
-## Initialise une confrontation sur la frise à partir des données JSON et des présents sur zone.
+## Indique si l'horloge d'escalade (ex. CRS, Fourgon) est activée sur la rencontre active.
+func is_escalation_enabled() -> bool:
+	return bool(_escalation_cfg.get("enabled", true))
+
+## Retourne le libellé court de l'horloge d'escalade pour l'affichage HUD.
+func get_escalation_short_label() -> String:
+	var sl: String = str(_escalation_cfg.get("short_label", "CRS"))
+	return sl if sl != "" else "CRS"
+
+## Indique si la mécanique d'Échappée est activée sur la rencontre active.
+func is_escape_enabled() -> bool:
+	return bool(_escape_cfg.get("enabled", true))
+
+## Retourne le seuil de progression requis pour ouvrir l'Échappée.
+func get_escape_required_progress() -> int:
+	return maxi(1, int(_escape_cfg.get("required_progress", 2)))
+
+## Retourne le texte d'état de l'Échappée pour le bandeau supérieur de la Frise.
+func get_escape_status_label() -> String:
+	if train_fantome_arrived or _escape_unlocked_by_event:
+		var rlbl: String = str(_escape_cfg.get("status_ready_label", "VOIE DÉGAGÉE !"))
+		return rlbl if rlbl != "" else "VOIE DÉGAGÉE !"
+	return "Échappée : %d/%d" % [escape_progress, get_escape_required_progress()]
+
+## Initialise une confrontation sur la frise à partir des données JSON du pack scénario actif.
 func start_encounter(enc_id: String) -> void:
 	var enc: Dictionary = DataLoader.get_encounter(enc_id)
 	if enc.is_empty():
@@ -84,10 +105,29 @@ func start_encounter(enc_id: String) -> void:
 	encounter_title = str(enc.get("title", "Confrontation"))
 	intro_text = str(enc.get("intro_text", ""))
 	turn_count = 1
-	crs_ticks = int(enc.get("crs_start_ticks", 4))
-	train_fantome_turn = int(enc.get("train_fantome_turn", 3))
+
+	var esc_v: Variant = enc.get("escalation_clock", {})
+	_escalation_cfg = (esc_v as Dictionary).duplicate(true) if esc_v is Dictionary else {}
+	if not _escalation_cfg.has("enabled"):
+		_escalation_cfg["enabled"] = true
+	crs_ticks = int(_escalation_cfg.get("start_ticks", int(enc.get("crs_start_ticks", 4))))
+
+	var ecfg_v: Variant = enc.get("escape_config", {})
+	_escape_cfg = (ecfg_v as Dictionary).duplicate(true) if ecfg_v is Dictionary else {}
+	if not _escape_cfg.has("enabled"):
+		_escape_cfg["enabled"] = true
+
+	_timed_events.clear()
+	_fired_timed_events.clear()
+	_escape_unlocked_by_event = false
 	train_fantome_arrived = false
-	escape_progress = 1 if GameState.has_flag("has_caves_key") else 0
+	var te_var: Variant = enc.get("timed_events", [])
+	if te_var is Array:
+		for tev in (te_var as Array):
+			if tev is Dictionary:
+				_timed_events.append((tev as Dictionary).duplicate(true))
+
+	escape_progress = 0
 	interposition_shield = 0
 	selected_target_id = ""
 	awaiting_step = false
@@ -106,8 +146,13 @@ func start_encounter(enc_id: String) -> void:
 	_explicit_ally_target_id = ""
 	_explicit_crisis_target_id = ""
 	_combat_blocked_cells.clear()
+	cover_tiles.clear()
+	combat_interactables.clear()
 
-	var enc_loc: String = str(enc.get("location_id", "gare_rer_y"))
+	var default_loc: String = DataLoader.get_start_location_id()
+	var enc_loc: String = str(enc.get("location_id", GameState.get_active_location_id()))
+	if enc_loc == "":
+		enc_loc = default_loc
 	_combat_location_id = enc_loc
 	var loc_def: Dictionary = DataLoader.get_location(enc_loc)
 	var raw_blocked: Variant = loc_def.get("blocked_cells", [])
@@ -117,23 +162,40 @@ func start_encounter(enc_id: String) -> void:
 				var ca: Array = cv as Array
 				_combat_blocked_cells["%d,%d" % [int(ca[0]), int(ca[1])]] = true
 
+	var raw_covers: Variant = enc.get("cover_tiles", [])
+	if raw_covers is Array:
+		for cov_v in (raw_covers as Array):
+			if cov_v is Dictionary:
+				var cov_d: Dictionary = (cov_v as Dictionary).duplicate(true)
+				var cx_c: int = clampi(int(cov_d.get("x", 0)), 0, COMBAT_GRID_W - 1)
+				var cy_c: int = clampi(int(cov_d.get("y", 1)), 1, COMBAT_GRID_H - 1)
+				cov_d["x"] = cx_c
+				cov_d["y"] = cy_c
+				cover_tiles.append(cov_d)
+				if bool(cov_d.get("blocks_movement", false)):
+					_combat_blocked_cells["%d,%d" % [cx_c, cy_c]] = true
+
+	var raw_inter: Variant = enc.get("combat_interactables", [])
+	if raw_inter is Array:
+		for iv in (raw_inter as Array):
+			if iv is Dictionary:
+				var idict: Dictionary = (iv as Dictionary).duplicate(true)
+				idict["x"] = clampi(int(idict.get("x", 0)), 0, COMBAT_GRID_W - 1)
+				idict["y"] = clampi(int(idict.get("y", 1)), 1, COMBAT_GRID_H - 1)
+				idict["used"] = false
+				combat_interactables.append(idict)
+
 	# Ennemis depuis JSON avec positions initiales sur la grille 8x8
 	var e_list_var: Variant = enc.get("enemies", [])
 	if e_list_var is Array:
 		for item in (e_list_var as Array):
 			if item is Dictionary:
 				var ed: Dictionary = (item as Dictionary).duplicate(true)
-				var eid: String = str(ed.get("id", ""))
-				var res_max: int = int(ed.get("resolve_max", 3))
-				if eid == "cousin_so" and GameState.has_flag("ludo_bluffed_cousin"):
-					res_max = maxi(2, res_max - 1)
+				var res_max: int = maxi(1, int(ed.get("resolve_max", 3)))
 				ed["resolve"] = res_max
 				ed["resolve_max"] = res_max
 				ed["next_tick"] = int(ed.get("initial_tick", 2))
-				var c_ready: bool = bool(ed.get("has_counter_interrupt", false))
-				if eid == "so_veteran" and GameState.has_flag("so_veteran_spotted"):
-					c_ready = false
-				ed["counter_ready"] = c_ready
+				ed["counter_ready"] = bool(ed.get("has_counter_interrupt", false))
 				ed["defeated"] = false
 				ed["stunned"] = false
 				ed["move_points"] = int(ed.get("move_points", 2))
@@ -165,7 +227,7 @@ func start_encounter(enc_id: String) -> void:
 	for cid in GameState.squad_members:
 		var cdef: Dictionary = DataLoader.get_character(cid)
 		var st: Dictionary = GameState.get_member_state(cid)
-		var loc_id: String = str(st.get("location_id", "box_garage"))
+		var loc_id: String = str(st.get("location_id", default_loc))
 		var is_here: bool = (int(st.get("group_id", 0)) == GameState.active_group_id) or (loc_id == enc_loc)
 		var r_ticks: int = 0 if is_here else int(reinforce_map.get(cid, 2))
 		var mp_max: int = compute_ally_move_points(cid)
@@ -196,21 +258,10 @@ func start_encounter(enc_id: String) -> void:
 			idx += 1
 
 	_push_log(intro_text)
-	if GameState.has_flag("ludo_guetteur"):
-		crs_ticks += 1
-		_push_log("Ludo fait le guet sur l'avenue : les CRS gagnent +1 cran de retard.")
-	if GameState.has_flag("ludo_bluffed_cousin"):
-		_push_log("Le baratin de Ludo a déjà semé le doute chez son cousin S.O. (-1 Résolution).")
-	if GameState.has_flag("so_veteran_spotted"):
-		_push_log("Repérage ruelle : la contre-interruption initiale du Chef S.O. Vétéran est neutralisée !")
-	for a_item in allies:
-		if bool(a_item.get("present", false)):
-			var acid: String = str(a_item.get("char_id", ""))
-			for act_d in GameState.get_unlocked_equipment_actions(acid):
-				if str(act_d.get("id", "")) == "act_equip_caves":
-					escape_progress += 1
-					_push_log("Passe des chaufferies équipé (%s) : +1 progression Échappée !" % str(a_item.get("name", acid)))
-					break
+	_apply_encounter_pre_modifiers(enc)
+	var enc_hook: String = str(enc.get("custom_script", ""))
+	if enc_hook != "":
+		_invoke_custom_hook(enc_hook, "on_encounter_start", {"encounter_id": enc_id})
 
 	_ensure_valid_target()
 	_check_crisis_triggers()
@@ -218,6 +269,79 @@ func start_encounter(enc_id: String) -> void:
 	_emit_feedback("intro", "", encounter_title, intro_text, false)
 	AudioRadio.play_cassette_click()
 	timeline_updated.emit()
+
+func _apply_encounter_pre_modifiers(enc: Dictionary) -> void:
+	var pms_var: Variant = enc.get("pre_modifiers", [])
+	if not (pms_var is Array):
+		return
+	for pm_v in (pms_var as Array):
+		if not (pm_v is Dictionary):
+			continue
+		var pm: Dictionary = pm_v as Dictionary
+		var req_flag: String = str(pm.get("if_flag", ""))
+		if req_flag != "" and not GameState.has_flag(req_flag):
+			continue
+		var req_eq_act: String = str(pm.get("if_equipped_action", ""))
+		var holder_name: String = ""
+		if req_eq_act != "":
+			var found_holder: bool = false
+			for a_item in allies:
+				if bool(a_item.get("present", false)):
+					var acid: String = str(a_item.get("char_id", ""))
+					for act_d in GameState.get_unlocked_equipment_actions(acid):
+						if str(act_d.get("id", "")) == req_eq_act:
+							found_holder = true
+							holder_name = str(a_item.get("name", acid))
+							break
+					if found_holder:
+						break
+			if not found_holder:
+				continue
+
+		if pm.has("escape_delta"):
+			escape_progress += int(pm.get("escape_delta", 0))
+		if pm.has("clock_delta") and is_escalation_enabled():
+			crs_ticks += int(pm.get("clock_delta", 0))
+
+		var t_tag: String = str(pm.get("target_tag", ""))
+		if t_tag != "":
+			for en in enemies:
+				if _enemy_has_tag(en, t_tag):
+					if pm.has("resolve_delta"):
+						var min_res: int = maxi(1, int(pm.get("min_resolve", 1)))
+						var new_max: int = maxi(min_res, int(en.get("resolve_max", 3)) + int(pm.get("resolve_delta", 0)))
+						en["resolve_max"] = new_max
+						en["resolve"] = new_max
+					if bool(pm.get("clear_counter", false)):
+						en["counter_ready"] = false
+
+		var pm_log: String = str(pm.get("log", ""))
+		if pm_log != "":
+			_push_log(pm_log.replace("{holder}", holder_name))
+
+func _enemy_has_tag(enemy: Dictionary, tag: String) -> bool:
+	if tag == "" or enemy.is_empty():
+		return false
+	if str(enemy.get("id", "")) == tag:
+		return true
+	var tags_v: Variant = enemy.get("tags", [])
+	if tags_v is Array:
+		for tv in (tags_v as Array):
+			if str(tv) == tag:
+				return true
+	return false
+
+## Exécute optionnellement un script personnalisé du pack scénario (Option 2A — Hook custom_script).
+func _invoke_custom_hook(script_path: String, method_name: String, ctx: Dictionary) -> Variant:
+	var resolved: String = DataLoader.resolve_scenario_path(script_path)
+	if resolved == "" or not ResourceLoader.exists(resolved):
+		return null
+	var scr_res: Resource = load(resolved)
+	if scr_res is GDScript:
+		var inst: RefCounted = (scr_res as GDScript).new()
+		if inst != null and inst.has_method(method_name):
+			return inst.call(method_name, self, GameState, DataLoader, ctx)
+	return null
 
 ## Retourne l'allié présent prêt à agir au cran 0, ou un dictionnaire vide.
 func get_acting_ally() -> Dictionary:
@@ -354,6 +478,158 @@ func move_active_ally_to(gx: int, gy: int) -> bool:
 	timeline_updated.emit()
 	return true
 
+## Retourne le meilleur couvert tactique actif sur une case donnée (couvert bas sur place ou obstacle adjacent).
+func get_cover_at_cell(gx: int, gy: int) -> Dictionary:
+	var best: Dictionary = {"in_cover": false, "label": "", "defense_bonus": 0, "moral_absorb": 0}
+	if gx < 0 or gy < 1:
+		return best
+	var best_score: int = 0
+	for cov in cover_tiles:
+		var cx_c: int = int(cov.get("x", -1))
+		var cy_c: int = int(cov.get("y", -1))
+		var blocks_mv: bool = bool(cov.get("blocks_movement", false))
+		var applies: bool = (cx_c == gx and cy_c == gy and not blocks_mv) or (blocks_mv and grid_distance(gx, gy, cx_c, cy_c) == 1)
+		if not applies:
+			continue
+		var def_b: int = maxi(0, int(cov.get("defense_bonus", 1)))
+		var mor_a: int = maxi(0, int(cov.get("moral_absorb", 2)))
+		var sc: int = def_b * 10 + mor_a
+		if sc > best_score:
+			best_score = sc
+			best = {
+				"in_cover": true,
+				"label": str(cov.get("label", "Couvert")),
+				"defense_bonus": def_b,
+				"moral_absorb": mor_a
+			}
+	return best
+
+## Retourne les informations de couvert tactique applicables à un pion PJ ou PNJ.
+func get_entity_cover_info(kind: String, entity_id: String) -> Dictionary:
+	var pos: Vector2i = get_entity_grid_pos(kind, entity_id)
+	return get_cover_at_cell(pos.x, pos.y)
+
+## Retourne l'élément interactif non consommé situé à la case (gx, gy), ou {} s'il n'y en a aucun.
+func get_combat_interactable_at(gx: int, gy: int) -> Dictionary:
+	for item in combat_interactables:
+		if not bool(item.get("used", false)) and int(item.get("x", -1)) == gx and int(item.get("y", -1)) == gy:
+			return item
+	return {}
+
+## Retourne les éléments interactifs du décor avec portée et probabilité pour le PJ actif.
+func get_available_combat_interactables() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if not active or awaiting_step or is_charge_window_active():
+		return out
+	var actor: Dictionary = get_acting_ally()
+	if actor.is_empty() or bool(actor.get("stunned", false)):
+		return out
+	var actor_id: String = str(actor.get("char_id", DataLoader.get_leader_char_id()))
+	var ap: Vector2i = Vector2i(int(actor.get("grid_x", 3)), int(actor.get("grid_y", 6)))
+	for item in combat_interactables:
+		var ix: int = int(item.get("x", 0))
+		var iy: int = int(item.get("y", 1))
+		var dist: int = grid_distance(ap.x, ap.y, ix, iy)
+		var max_r: int = maxi(1, int(item.get("max_range", 2)))
+		var used_flag: bool = bool(item.get("used", false))
+		var sk_id: String = str(item.get("skill", "systeme_d"))
+		var dc_val: int = int(item.get("dc", 9))
+		var rp: Dictionary = GameState.preview_street_roll(actor_id, sk_id, dc_val, 0, "")
+		out.append({
+			"id": str(item.get("id", "")),
+			"label": str(item.get("label", "Interactif")),
+			"x": ix,
+			"y": iy,
+			"distance": dist,
+			"max_range": max_r,
+			"in_range": (not used_flag) and dist <= max_r,
+			"used": used_flag,
+			"chance_pct": int(rp.get("chance_pct", 50)),
+			"roll_formula": str(rp.get("roll_formula", "")),
+			"skill_name": str(rp.get("skill_name", sk_id)),
+			"dc": dc_val
+		})
+	return out
+
+## Déclenche un élément interactif du décor (Jet de rue 2d6 + briques d'effets JSON).
+func trigger_combat_interactable(prop_id: String) -> Dictionary:
+	if not active or awaiting_step or is_charge_window_active():
+		return {"executed": false, "reason": "Action impossible maintenant"}
+	var actor: Dictionary = get_acting_ally()
+	if actor.is_empty() or bool(actor.get("stunned", false)):
+		return {"executed": false, "reason": "Aucun PJ actif"}
+	var target_idx: int = -1
+	for i in range(combat_interactables.size()):
+		if str(combat_interactables[i].get("id", "")) == prop_id:
+			target_idx = i
+			break
+	if target_idx < 0:
+		return {"executed": false, "reason": "Élément introuvable"}
+	var item: Dictionary = combat_interactables[target_idx]
+	if bool(item.get("used", false)):
+		return {"executed": false, "reason": "Déjà utilisé"}
+	var actor_id: String = str(actor.get("char_id", DataLoader.get_leader_char_id()))
+	var actor_name: String = str(actor.get("name", actor_id))
+	var dist: int = grid_distance(int(actor.get("grid_x", 3)), int(actor.get("grid_y", 6)), int(item.get("x", 0)), int(item.get("y", 1)))
+	var max_r: int = maxi(1, int(item.get("max_range", 2)))
+	if dist > max_r:
+		return {"executed": false, "reason": "Hors portée (%d > %dc)" % [dist, max_r]}
+
+	var sk_id: String = str(item.get("skill", "systeme_d"))
+	var dc_val: int = int(item.get("dc", 9))
+	var lbl: String = str(item.get("label", prop_id))
+	var roll_res: Dictionary = GameState.perform_street_roll(actor_id, sk_id, dc_val, 0, lbl)
+	var success: bool = bool(roll_res.get("success", false))
+	var is_bril: bool = bool(roll_res.get("is_brilliant", false))
+	var is_crit_s: bool = bool(roll_res.get("is_crit_success", false))
+	var r_hdr: String = str(roll_res.get("roll_summary", "%s [%s]" % [actor_name, lbl]))
+	_push_log(r_hdr)
+
+	var tgt_e: Dictionary = _ensure_valid_target()
+	var ctx: Dictionary = {
+		"actor_id": actor_id,
+		"actor": actor_name,
+		"target": str(tgt_e.get("name", "")),
+		"target_enemy": tgt_e,
+		"tool": lbl,
+		"is_brilliant": is_bril,
+		"is_crit_success": is_crit_s,
+		"roll_bonus": 0,
+		"scaled_active": false,
+		"dmg": 0,
+		"push": 0,
+		"clock": 0,
+		"moral": 0,
+		"cut_suffix": ""
+	}
+	var eff_arr: Variant = item.get("effects" if success else "fail_effects", [])
+	_execute_effect_bricks(eff_arr, ctx)
+	var tpl_msg: String = str(item.get("log_success" if success else "log_fail", ""))
+	if tpl_msg == "":
+		tpl_msg = "⚙ %s active %s !" % [actor_name, lbl] if success else "⚙ %s rate l'activation de %s." % [actor_name, lbl]
+	var final_msg: String = _format_combat_log(tpl_msg, ctx)
+	_push_log(final_msg)
+
+	if bool(item.get("one_shot", true)):
+		item["used"] = true
+		combat_interactables[target_idx] = item
+
+	var tick_cost: int = maxi(1, int(item.get("cost_tick", 2)))
+	actor["next_tick"] = int(actor.get("next_tick", 0)) + tick_cost
+	actor["move_points_left"] = 0
+	AudioRadio.play_cassette_click() if success else AudioRadio.play_crisis_buzz()
+	_emit_feedback("ally_brilliant" if success else "ally_flaw", actor_id, actor_name, final_msg, success)
+
+	if _all_enemies_defeated():
+		_finish("social_win", _get_win_summary())
+		return {"executed": true, "success": success, "summary": final_msg}
+
+	_ensure_valid_target()
+	_check_crisis_triggers()
+	_sync_step_state()
+	timeline_updated.emit()
+	return {"executed": true, "success": success, "summary": final_msg}
+
 ## Met fin au tour du PJ actif sans attaquer (après déplacement ou attente, coût réduit +1 cran).
 func end_active_ally_turn_wait() -> void:
 	if not active or awaiting_step or is_charge_window_active():
@@ -444,7 +720,335 @@ func cycle_target() -> void:
 func get_selected_target() -> Dictionary:
 	return _ensure_valid_target()
 
-## Exécute une action tactique du tour actif (Jet de rue 2d6 + Carac + Comp) puis prépare le pas-à-pas suivant.
+func _compute_action_roll_params(adef: Dictionary, actor_id: String, target: Dictionary) -> Dictionary:
+	var skill_id: String = str(adef.get("skill", "tchatche"))
+	var dc_source: String = str(adef.get("dc_source", "fixed"))
+	var dc: int = int(adef.get("dc_base", 10))
+	if dc_source == "enemy_pression":
+		dc = int(target.get("dc_pression", 11))
+	elif dc_source == "enemy_social":
+		dc = int(target.get("dc_social", 11))
+
+	var dmods_v: Variant = adef.get("dc_modifiers", [])
+	if dmods_v is Array:
+		for dmv in (dmods_v as Array):
+			if not (dmv is Dictionary):
+				continue
+			var dm: Dictionary = dmv as Dictionary
+			if dm.has("if_escalation_lte") and crs_ticks > int(dm.get("if_escalation_lte", 0)):
+				continue
+			var req_fl: String = str(dm.get("if_flag", ""))
+			if req_fl != "" and not GameState.has_flag(req_fl):
+				continue
+			var req_tag: String = str(dm.get("if_target_tag", ""))
+			if req_tag != "" and not _enemy_has_tag(target, req_tag):
+				continue
+			dc += int(dm.get("delta", 0))
+
+	var rprof: Dictionary = GameState.get_ranged_combat_profile(actor_id)
+	var has_ranged: bool = bool(rprof.get("has_ranged", false))
+	var bonus: int = 0
+	var bonus_lbl: String = ""
+	var tool_lbl: String = str(adef.get("default_tool_label", ""))
+
+	if bool(adef.get("requires_ranged_tool", false)):
+		if has_ranged:
+			bonus += int(rprof.get("ranged_bonus", 0))
+			bonus_lbl = str(rprof.get("ranged_label", ""))
+			if bonus_lbl != "":
+				tool_lbl = bonus_lbl
+	elif bool(adef.get("uses_throw_bonus", false)):
+		var tb: int = int(rprof.get("throw_bonus", 0))
+		if tb > 0:
+			bonus += tb
+			bonus_lbl = str(rprof.get("throw_label", ""))
+			if bonus_lbl != "":
+				tool_lbl = bonus_lbl
+
+	var rbs_v: Variant = adef.get("roll_bonuses", [])
+	if rbs_v is Array:
+		for rbv in (rbs_v as Array):
+			if not (rbv is Dictionary):
+				continue
+			var rb: Dictionary = rbv as Dictionary
+			var btype: String = str(rb.get("type", "fixed"))
+			if btype == "fixed":
+				bonus += int(rb.get("val", 0))
+				if bonus_lbl == "":
+					bonus_lbl = str(rb.get("label", ""))
+			elif btype == "any_faveur_or_flag":
+				var fl_b: String = str(rb.get("flag", ""))
+				if GameState.faveurs > 0 or (fl_b != "" and GameState.has_flag(fl_b)):
+					bonus += int(rb.get("val", 1))
+					if bonus_lbl == "":
+						bonus_lbl = str(rb.get("label", ""))
+			elif btype == "if_flag":
+				var fl_only: String = str(rb.get("flag", ""))
+				if fl_only != "" and GameState.has_flag(fl_only):
+					bonus += int(rb.get("val", 1))
+					if bonus_lbl == "":
+						bonus_lbl = str(rb.get("label", ""))
+			elif btype == "aura_tiers":
+				var aura_tot: int = GameState.get_total_aura()
+				var tiers_v: Variant = rb.get("tiers", [])
+				if tiers_v is Array:
+					for tv in (tiers_v as Array):
+						if tv is Dictionary:
+							var td: Dictionary = tv as Dictionary
+							if aura_tot >= int(td.get("min_aura", 99)):
+								bonus += int(td.get("val", 0))
+								if bonus_lbl == "":
+									bonus_lbl = "%s %d" % [str(rb.get("label_prefix", "Aura")), aura_tot]
+								break
+
+	var cover_dc_bonus: int = 0
+	if int(adef.get("min_range", 0)) >= 2 and not target.is_empty():
+		var cov_tgt: Dictionary = get_entity_cover_info("enemy", str(target.get("id", "")))
+		if bool(cov_tgt.get("in_cover", false)):
+			cover_dc_bonus = int(cov_tgt.get("defense_bonus", 1))
+			dc += cover_dc_bonus
+
+	return {
+		"skill_id": skill_id,
+		"dc": dc,
+		"bonus": bonus,
+		"bonus_label": bonus_lbl,
+		"tool_label": tool_lbl,
+		"has_ranged_tool": has_ranged,
+		"cover_dc_bonus": cover_dc_bonus
+	}
+
+func _format_combat_log(tpl: String, ctx: Dictionary) -> String:
+	if tpl == "":
+		return ""
+	var s: String = tpl
+	s = s.replace("{actor}", str(ctx.get("actor", "")))
+	s = s.replace("{enemy}", str(ctx.get("enemy", "")))
+	s = s.replace("{target}", str(ctx.get("target", "")))
+	s = s.replace("{tool}", str(ctx.get("tool", "")))
+	s = s.replace("{dmg}", str(ctx.get("dmg", 0)))
+	s = s.replace("{push}", str(ctx.get("push", 0)))
+	s = s.replace("{clock}", str(ctx.get("clock", 0)))
+	s = s.replace("{clock_short}", get_escalation_short_label())
+	s = s.replace("{escape}", str(escape_progress))
+	s = s.replace("{escape_req}", str(get_escape_required_progress()))
+	s = s.replace("{moral}", str(ctx.get("moral", 0)))
+	s = s.replace("{absorb}", str(ctx.get("absorb", _interposition_absorb)))
+	s = s.replace("{cut_suffix}", str(ctx.get("cut_suffix", "")))
+	s = s.replace("{from_tick}", str(ctx.get("from_tick", 0)))
+	s = s.replace("{to_tick}", str(ctx.get("to_tick", 0)))
+	return s
+
+func _execute_effect_bricks(effects_var: Variant, ctx: Dictionary) -> void:
+	if not (effects_var is Array):
+		return
+	var is_bril: bool = bool(ctx.get("is_brilliant", false))
+	var is_crit_s: bool = bool(ctx.get("is_crit_success", false))
+	var roll_bonus: int = int(ctx.get("roll_bonus", 0))
+	var scaled_active: bool = bool(ctx.get("scaled_active", false))
+	var actor_id: String = str(ctx.get("actor_id", ""))
+	var target_enemy: Dictionary = ctx.get("target_enemy", {}) as Dictionary if ctx.get("target_enemy", {}) is Dictionary else {}
+	var source_enemy: Dictionary = ctx.get("source_enemy", {}) as Dictionary if ctx.get("source_enemy", {}) is Dictionary else {}
+
+	for eff_v in (effects_var as Array):
+		if not (eff_v is Dictionary):
+			continue
+		var eff: Dictionary = eff_v as Dictionary
+		var op: String = str(eff.get("op", ""))
+
+		if op == "damage_resolve":
+			var base_d: int = int(eff.get("amount", 1))
+			if roll_bonus > 0 and eff.has("bonus_if_roll_bonus"):
+				base_d += int(eff.get("bonus_if_roll_bonus", 0))
+			if is_bril and eff.has("brilliant_amount"):
+				base_d = maxi(base_d, int(eff.get("brilliant_amount", base_d)))
+			if is_crit_s and eff.has("crit_bonus"):
+				base_d += int(eff.get("crit_bonus", 0))
+			if scaled_active and eff.has("scaled_bonus"):
+				base_d += int(eff.get("scaled_bonus", 0))
+			var scope: String = str(eff.get("scope", "target"))
+			if scope == "target":
+				if not target_enemy.is_empty():
+					_damage_enemy(target_enemy, base_d)
+					ctx["dmg"] = base_d
+			elif scope == "other_enemies":
+				var main_eid: String = str(target_enemy.get("id", ""))
+				for oe in enemies:
+					if str(oe.get("id", "")) != main_eid and not bool(oe.get("defeated", false)):
+						_damage_enemy(oe, base_d)
+			elif scope == "all_enemies":
+				for ae in enemies:
+					if not bool(ae.get("defeated", false)):
+						_damage_enemy(ae, base_d)
+
+		elif op == "push_ticks":
+			if bool(eff.get("only_if_brilliant", false)) and not is_bril:
+				continue
+			var push_c: int = int(eff.get("amount", 1))
+			if is_crit_s and eff.has("crit_amount"):
+				push_c = int(eff.get("crit_amount", push_c))
+			if scaled_active and eff.has("scaled_bonus"):
+				push_c += int(eff.get("scaled_bonus", 0))
+			if not target_enemy.is_empty():
+				target_enemy["next_tick"] = int(target_enemy.get("next_tick", 1)) + push_c
+				_remove_pending_enemy(str(target_enemy.get("id", "")))
+				ctx["push"] = push_c
+
+		elif op == "cut_counter":
+			if bool(eff.get("only_if_brilliant", false)) and not (is_bril or is_crit_s):
+				continue
+			if not target_enemy.is_empty() and bool(target_enemy.get("counter_ready", false)):
+				target_enemy["counter_ready"] = false
+				ctx["cut_suffix"] = " + garde coupée !"
+
+		elif op == "set_counter_ready":
+			var val_cr: bool = bool(eff.get("value", true))
+			if not source_enemy.is_empty():
+				source_enemy["counter_ready"] = val_cr
+			elif not target_enemy.is_empty():
+				target_enemy["counter_ready"] = val_cr
+
+		elif op == "modify_escalation_clock":
+			if not is_escalation_enabled():
+				continue
+			var c_amt: int = int(eff.get("amount", 0))
+			if is_bril and eff.has("brilliant_amount"):
+				c_amt = int(eff.get("brilliant_amount", c_amt))
+			if scaled_active and eff.has("scaled_bonus"):
+				c_amt += int(eff.get("scaled_bonus", 0))
+			if eff.has("min_val"):
+				crs_ticks = maxi(int(eff.get("min_val", 0)), crs_ticks + c_amt)
+			else:
+				crs_ticks += c_amt
+			ctx["clock"] = c_amt
+
+		elif op == "advance_escape":
+			var e_amt: int = int(eff.get("amount", 1))
+			escape_progress += e_amt
+
+		elif op == "add_shield":
+			var sh_amt: int = int(eff.get("amount", 1))
+			var abs_pow: int = int(ctx.get("absorb", int(eff.get("absorb", 6))))
+			_interposition_absorb = maxi(_interposition_absorb, abs_pow)
+			interposition_shield += sh_amt
+
+		elif op == "modify_moral":
+			var m_amt: int = int(eff.get("amount", 0))
+			if is_bril and eff.has("brilliant_amount"):
+				m_amt = int(eff.get("brilliant_amount", m_amt))
+			if scaled_active and eff.has("scaled_bonus"):
+				m_amt += int(eff.get("scaled_bonus", 0))
+			var use_sh: bool = bool(eff.get("use_shield", m_amt < 0))
+			var m_tgt: String = str(eff.get("target", "self"))
+			var resolved_cid: String = actor_id
+			if m_tgt == "all_allies" or m_tgt == "all":
+				resolved_cid = "all"
+			elif m_tgt == "ally_target":
+				resolved_cid = str(ctx.get("ally_target_id", actor_id))
+			elif m_tgt == "crisis_ally":
+				resolved_cid = str(ctx.get("crisis_ally_id", actor_id))
+			elif m_tgt == "target_ally":
+				resolved_cid = str(ctx.get("enemy_target_ally_id", actor_id))
+			elif m_tgt == "second_ally":
+				resolved_cid = _pick_secondary_present_ally_id(str(ctx.get("enemy_target_ally_id", "")))
+			if resolved_cid != "":
+				if use_sh and m_amt < 0:
+					_apply_moral_hit(resolved_cid, m_amt)
+				else:
+					GameState.modify_moral(resolved_cid, m_amt)
+				ctx["moral"] = m_amt
+
+		elif op == "delay_crises":
+			var d_amt: int = int(eff.get("amount", 1))
+			var d_tgt: String = str(eff.get("target", "all"))
+			if d_tgt == "all":
+				_delay_crises_by(d_amt)
+			elif d_tgt == "ally_target":
+				_delay_crisis_for(str(ctx.get("ally_target_id", actor_id)), d_amt)
+			else:
+				_delay_crisis_for(actor_id, d_amt)
+
+		elif op == "cancel_crisis":
+			var cr_cid: String = str(ctx.get("crisis_ally_id", ""))
+			if cr_cid != "":
+				for ci in range(crisis_queue.size() - 1, -1, -1):
+					if str((crisis_queue[ci] as Dictionary).get("char_id", "")) == cr_cid:
+						crisis_queue.remove_at(ci)
+				_remove_pending_crisis(cr_cid)
+
+		elif op == "advance_turn_counter":
+			turn_count += int(eff.get("amount", 1))
+			_check_timed_events()
+
+		elif op == "modify_notoriete":
+			GameState.notoriete = maxi(0, GameState.notoriete + int(eff.get("amount", 1)))
+
+		elif op == "set_flag":
+			var fl_n: String = str(eff.get("flag", ""))
+			if fl_n != "":
+				GameState.set_flag(fl_n, bool(eff.get("value", true)))
+
+func _simulate_effect_bricks(effects_var: Variant, roll_bonus: int, scaled_active: bool) -> Dictionary:
+	var res: Dictionary = {
+		"resolve_delta": 0,
+		"push_delta": 0,
+		"crs_delta": 0,
+		"escape_delta": 0,
+		"shield_delta": 0,
+		"moral_delta": 0,
+		"cuts_counter": false,
+		"other_dmg": 0,
+		"notoriete_delta": 0,
+		"delays_crisis": false
+	}
+	if not (effects_var is Array):
+		return res
+	for eff_v in (effects_var as Array):
+		if not (eff_v is Dictionary):
+			continue
+		var eff: Dictionary = eff_v as Dictionary
+		var op: String = str(eff.get("op", ""))
+		if bool(eff.get("only_if_brilliant", false)):
+			continue
+		if op == "damage_resolve":
+			var d: int = int(eff.get("amount", 1))
+			if roll_bonus > 0 and eff.has("bonus_if_roll_bonus"):
+				d += int(eff.get("bonus_if_roll_bonus", 0))
+			if scaled_active and eff.has("scaled_bonus"):
+				d += int(eff.get("scaled_bonus", 0))
+			var sc: String = str(eff.get("scope", "target"))
+			if sc == "target":
+				res["resolve_delta"] = int(res["resolve_delta"]) - d
+			else:
+				res["other_dmg"] = int(res["other_dmg"]) + d
+		elif op == "push_ticks":
+			var p: int = int(eff.get("amount", 1))
+			if scaled_active and eff.has("scaled_bonus"):
+				p += int(eff.get("scaled_bonus", 0))
+			res["push_delta"] = int(res["push_delta"]) + p
+		elif op == "cut_counter":
+			res["cuts_counter"] = true
+		elif op == "modify_escalation_clock":
+			var c: int = int(eff.get("amount", 0))
+			if scaled_active and eff.has("scaled_bonus"):
+				c += int(eff.get("scaled_bonus", 0))
+			res["crs_delta"] = int(res["crs_delta"]) + c
+		elif op == "advance_escape":
+			res["escape_delta"] = int(res["escape_delta"]) + int(eff.get("amount", 1))
+		elif op == "add_shield":
+			res["shield_delta"] = int(res["shield_delta"]) + int(eff.get("amount", 1))
+		elif op == "modify_moral":
+			var m: int = int(eff.get("amount", 0))
+			if scaled_active and eff.has("scaled_bonus"):
+				m += int(eff.get("scaled_bonus", 0))
+			res["moral_delta"] = int(res["moral_delta"]) + m
+		elif op == "modify_notoriete":
+			res["notoriete_delta"] = int(res["notoriete_delta"]) + int(eff.get("amount", 1))
+		elif op == "delay_crises":
+			res["delays_crisis"] = true
+	return res
+
+## Exécute une action tactique du tour actif (Jet de rue 2d6 + briques d'effets JSON) puis prépare le pas-à-pas suivant.
 func execute_player_action(action_id: String) -> void:
 	if not active or is_charge_window_active():
 		return
@@ -457,22 +1061,29 @@ func execute_player_action(action_id: String) -> void:
 		timeline_updated.emit()
 		return
 
-	var actor_id: String = str(actor.get("char_id", "leader"))
-	var actor_name: String = str(actor.get("name", "Leader"))
+	var default_leader: String = DataLoader.get_leader_char_id()
+	var actor_id: String = str(actor.get("char_id", default_leader))
+	var actor_name: String = str(actor.get("name", actor_id))
 	if action_id == "act_wait":
 		end_active_ally_turn_wait()
 		return
 	if action_id == "act_escape_now":
 		if can_escape_now():
-			_finish("escaped", "Échappée nocturne réussie ! Profitant de la rame du Train Fantôme et de l'ombre du quai, la bande sème le S.O. et les CRS avant de filer sous la Dalle.")
+			var esc_out: String = str(_escape_cfg.get("outcome_id", "escaped"))
+			var esc_sum: String = str(_escape_cfg.get("summary", "Échappée réussie !"))
+			_finish(esc_out, esc_sum)
 		return
 
+	var adef: Dictionary = DataLoader.get_combat_action_def(action_id)
+	if adef.is_empty():
+		return
 	var pv: Dictionary = _build_action_preview(action_id, actor_id)
 	if not bool(pv.get("valid", false)):
 		return
 
-	var target: Dictionary = _ensure_valid_target()
-	if action_id == "act_charge":
+	var tk: String = get_action_target_kind(action_id)
+	var target: Dictionary = _ensure_valid_target() if tk == "enemy" else {}
+	if str(adef.get("movement_mode", "")) == "charge" and not target.is_empty():
 		var ax_c: int = int(actor.get("grid_x", 3))
 		var ay_c: int = int(actor.get("grid_y", 6))
 		var tx_c: int = int(target.get("grid_x", 4))
@@ -495,12 +1106,13 @@ func execute_player_action(action_id: String) -> void:
 			]
 			_push_log(int_hdr)
 			if int_ok:
+				var base_cost: int = maxi(1, int(adef.get("cost_tick", 2)))
 				actor["stunned"] = true
 				actor["reaction_ready"] = false
 				actor["move_points_left"] = 0
-				actor["next_tick"] = 2 + CHARGE_STUN_RANK_PENALTY
+				actor["next_tick"] = base_cost + CHARGE_STUN_RANK_PENALTY
 				var stun_msg: String = "💥 INTERCEPTION ! %s brise la charge de %s : %s est ASSOMMÉ et perd 2 rangs (+%d crans) !" % [
-					str(target.get("name", "")), actor_name, actor_name, 2 + CHARGE_STUN_RANK_PENALTY
+					str(target.get("name", "")), actor_name, actor_name, base_cost + CHARGE_STUN_RANK_PENALTY
 				]
 				_push_log(stun_msg)
 				AudioRadio.play_interrupt_hit()
@@ -517,10 +1129,20 @@ func execute_player_action(action_id: String) -> void:
 		actor["grid_y"] = landing.y
 		actor["move_points_left"] = 0
 
+	var ally_tid: String = _explicit_ally_target_id
+	_explicit_ally_target_id = ""
+	if tk == "ally":
+		if ally_tid == "" or _find_ally(ally_tid).is_empty() or not bool(_find_ally(ally_tid).get("present", false)):
+			if str(adef.get("ally_target_default", "lowest_moral")) == "lowest_moral":
+				ally_tid = _get_lowest_moral_present_ally_id(actor_id)
+			else:
+				ally_tid = actor_id
+
 	var skill_id: String = str(pv.get("skill_id", "tchatche"))
 	var dc: int = int(pv.get("dc", 10))
 	var bonus: int = int(pv.get("bonus", 0))
 	var bonus_lbl: String = str(pv.get("bonus_label", ""))
+	var tool_lbl: String = str(pv.get("tool_label", bonus_lbl))
 	var roll_res: Dictionary = GameState.perform_street_roll(actor_id, skill_id, dc, bonus, bonus_lbl)
 	var ok: bool = bool(roll_res.get("success", false))
 	var is_bril: bool = bool(roll_res.get("is_brilliant", false))
@@ -528,269 +1150,61 @@ func execute_player_action(action_id: String) -> void:
 	var is_flaw_b: bool = bool(roll_res.get("is_flaw_blunder", false))
 	var roll_hdr: String = str(roll_res.get("roll_summary", ""))
 	var fb_kind: String = "ally_brilliant" if is_bril else ("ally_action" if ok else ("ally_flaw" if is_flaw_b else "ally_action"))
-	var shake_flag: bool = false
-	var effect_msg: String = ""
 
-	if _EQUIP_ACTION_META.has(action_id):
+	if bool(adef.get("once_per_encounter", bool(adef.get("is_equipment", false)))):
 		var u_key: String = "%s:%s" % [actor_id, action_id]
 		_used_equip_actions[u_key] = true
 
-	if action_id == "act_tchatche":
-		if not target.is_empty():
-			var base_dmg: int = 3 if (GameState.faveurs > 0 or GameState.has_flag("tour_b_done")) else 2
-			if ok:
-				var dmg_t: int = (base_dmg + 1) if is_crit_s else (maxi(3, base_dmg) if is_bril else base_dmg)
-				_damage_enemy(target, dmg_t)
-				effect_msg = "%s balance les preuves ! %s perd %d de résolution." % [actor_name, str(target.get("name", "")), dmg_t]
-				shake_flag = is_bril
-			elif is_flaw_b:
-				_apply_moral_hit(actor_id, -4)
-				effect_msg = "Couac de tchatche (%s) : bafouillage devant le quai (0 dégât, -4 Moral) !" % actor_name
-				AudioRadio.play_crisis_buzz()
-				shake_flag = true
-			else:
-				_damage_enemy(target, 1)
-				effect_msg = "Tchatche tiède de %s : %s encaisse seulement -1 de résolution." % [actor_name, str(target.get("name", ""))]
-	elif action_id == "act_pression":
-		if not target.is_empty():
-			if ok:
-				var dmg_p: int = 3 if is_bril else 2
-				var push_c: int = 2 if is_crit_s else 1
-				_damage_enemy(target, dmg_p)
-				target["next_tick"] = int(target.get("next_tick", 1)) + push_c
-				_remove_pending_enemy(str(target.get("id", "")))
-				effect_msg = "%s impose son Aura : %s recule (-%d résol., +%d cran) !" % [actor_name, str(target.get("name", "")), dmg_p, push_c]
-				shake_flag = true
-			elif is_flaw_b:
-				_apply_moral_hit(actor_id, -5)
-				effect_msg = "Couac de pression (%s) : le S.O. rigole sous ton nez (0 dégât, -5 Moral) !" % actor_name
-				AudioRadio.play_crisis_buzz()
-				shake_flag = true
-			else:
-				_damage_enemy(target, 1)
-				effect_msg = "Pression hésitante (%s) : -1 résolution sur %s sans le faire reculer." % [actor_name, str(target.get("name", ""))]
-	elif action_id == "act_lancer":
-		if not target.is_empty():
-			var throw_lbl: String = bonus_lbl if bonus_lbl != "" else "Pavé / Canette"
-			if ok:
-				var dmg_l: int = 3 if is_bril else 2
-				_damage_enemy(target, dmg_l)
-				if is_bril:
-					target["next_tick"] = int(target.get("next_tick", 1)) + 1
-					_remove_pending_enemy(str(target.get("id", "")))
-					effect_msg = "%s lance au but (%s) ! %s prend -%d résol. et +1 cran !" % [actor_name, throw_lbl, str(target.get("name", "")), dmg_l]
-				else:
-					effect_msg = "%s touche à distance (%s) : %s perd %d de résolution." % [actor_name, throw_lbl, str(target.get("name", "")), dmg_l]
-				shake_flag = is_bril
-			elif is_flaw_b:
-				_apply_moral_hit(actor_id, -4)
-				effect_msg = "Lancer raté (%s) : le projectile file dans la tôle (0 dégât, -4 Moral) !" % actor_name
-				AudioRadio.play_crisis_buzz()
-				shake_flag = true
-			else:
-				_damage_enemy(target, 1)
-				effect_msg = "Lancer court (%s) : %s encaisse seulement -1 de résolution." % [actor_name, str(target.get("name", ""))]
-	elif action_id == "act_tir":
-		if not target.is_empty():
-			var shoot_lbl: String = bonus_lbl if bonus_lbl != "" else "Outil tir"
-			if ok:
-				var dmg_s: int = 3 if is_bril else 2
-				_damage_enemy(target, dmg_s)
-				var cut_msg: String = ""
-				if (is_bril or is_crit_s) and bool(target.get("counter_ready", false)):
-					target["counter_ready"] = false
-					cut_msg = " + garde coupée !"
-				effect_msg = "[%s] %s ajuste %s : -%d Résol.%s" % [shoot_lbl, actor_name, str(target.get("name", "")), dmg_s, cut_msg]
-				shake_flag = is_bril
-			elif is_flaw_b:
-				_apply_moral_hit(actor_id, -4)
-				effect_msg = "[%s] Tir manqué (%s) : -4 Moral !" % [shoot_lbl, actor_name]
-				AudioRadio.play_crisis_buzz()
-				shake_flag = true
-			else:
-				_damage_enemy(target, 1)
-				effect_msg = "[%s] Tir frôlant %s (-1 Résol.)." % [shoot_lbl, str(target.get("name", ""))]
-	elif action_id == "act_charge":
-		if not target.is_empty():
-			if ok:
-				var dmg_ch: int = 4 if is_bril else 3
-				var push_ch: int = 2 if is_crit_s else 1
-				_damage_enemy(target, dmg_ch)
-				target["next_tick"] = int(target.get("next_tick", 1)) + push_ch
-				_remove_pending_enemy(str(target.get("id", "")))
-				effect_msg = "⚡ CHARGE ! %s percute %s (-%d résol., +%d cran) !" % [actor_name, str(target.get("name", "")), dmg_ch, push_ch]
-				shake_flag = true
-			elif is_flaw_b:
-				_apply_moral_hit(actor_id, -5)
-				effect_msg = "Charge déséquilibrée (%s) : esquive adverse (0 dégât, -5 Moral) !" % actor_name
-				AudioRadio.play_crisis_buzz()
-				shake_flag = true
-			else:
-				_damage_enemy(target, 1)
-				effect_msg = "Charge contenue (%s) sur %s (-1 résol.)." % [actor_name, str(target.get("name", ""))]
-	elif action_id == "act_repli":
-		if ok:
-			var crs_g: int = 3 if is_bril else 2
-			crs_ticks += crs_g
-			escape_progress += 1
-			effect_msg = "%s ouvre la voie vers le quai / les caves (+%d crans CRS, échappée %d/2)." % [actor_name, crs_g, escape_progress]
-		elif is_flaw_b:
-			_apply_moral_hit(actor_id, -4)
-			effect_msg = "Couac d'esquive (%s) : grille bloquée, zéro cran gagné (-4 Moral) !" % actor_name
-			AudioRadio.play_crisis_buzz()
-			shake_flag = true
-		else:
-			crs_ticks += 1
-			effect_msg = "%s contourne à demi (+1 cran CRS seulement, échappée %d/2)." % [actor_name, escape_progress]
-	elif action_id == "act_equip_intimidation_look":
-		if not target.is_empty():
-			if ok:
-				var dmg_il: int = 4 if is_bril else 3
-				_damage_enemy(target, dmg_il)
-				target["next_tick"] = int(target.get("next_tick", 1)) + 2
-				target["counter_ready"] = false
-				_remove_pending_enemy(str(target.get("id", "")))
-				effect_msg = "[Perfecto] %s glace %s (-%d résol., +2 crans, contre coupé) !" % [actor_name, str(target.get("name", "")), dmg_il]
-				shake_flag = true
-			elif is_flaw_b:
-				_apply_moral_hit(actor_id, -4)
-				effect_msg = "[Perfecto] Couac de dégaine (%s) : 0 dégât, -4 Moral !" % actor_name
-				AudioRadio.play_crisis_buzz()
-				shake_flag = true
-			else:
-				_damage_enemy(target, 1)
-				target["next_tick"] = int(target.get("next_tick", 1)) + 1
-				_remove_pending_enemy(str(target.get("id", "")))
-				effect_msg = "[Perfecto] Pression partielle sur %s (-1 résol., +1 cran)." % str(target.get("name", ""))
-	elif action_id == "act_equip_infiltration":
-		if ok:
-			var crs_inf: int = 3 if is_bril else 2
-			crs_ticks += crs_inf
-			escape_progress += 1
-			interposition_shield += 1
-			effect_msg = "[Parka anonyme] %s se fond dans l'ombre (+%d crans CRS, +1 échappée, +1 bouclier) !" % [actor_name, crs_inf]
-		elif is_flaw_b:
-			_apply_moral_hit(actor_id, -6)
-			effect_msg = "[Parka anonyme] Lampadaire en pleine poire ! (-6 Moral, +0 CRS)"
-			AudioRadio.play_crisis_buzz()
-			shake_flag = true
-		else:
-			crs_ticks += 1
-			escape_progress += 1
-			_apply_moral_hit(actor_id, -3)
-			effect_msg = "[Parka anonyme] Passage serré (+1 CRS, +1 échappée, -3 Moral)."
-	elif action_id == "act_equip_boombox":
-		if ok:
-			var mor_b: int = 12 if is_bril else 8
-			GameState.modify_moral("all", mor_b)
-			_delay_crises_by(1)
-			effect_msg = "[Ghetto-blaster] Le son retourne la dalle ! (+%d Moral à tous, crises retardées +1 cran)" % mor_b
-		else:
-			GameState.modify_moral("all", 4)
-			crs_ticks = maxi(1, crs_ticks - 1)
-			effect_msg = "[Ghetto-blaster] Vacarme sur le quai (+4 Moral à tous, mais -1 cran CRS !)."
-			if is_flaw_b:
-				AudioRadio.play_crisis_buzz()
-				shake_flag = true
-	elif action_id == "act_equip_pochoir":
-		if not target.is_empty():
-			if ok:
-				var dmg_p1: int = 3 if is_bril else 2
-				_damage_enemy(target, dmg_p1)
-				for oe in enemies:
-					if str(oe.get("id", "")) != str(target.get("id", "")) and not bool(oe.get("defeated", false)):
-						_damage_enemy(oe, 1)
-				GameState.notoriete += 1
-				effect_msg = "[Pochoir] Mot d'ordre claqué sous leur nez (-%d résol. cible, -1 aux autres, +1 Notoriété) !" % dmg_p1
-				shake_flag = true
-			elif is_flaw_b:
-				_apply_moral_hit(actor_id, -6)
-				effect_msg = "[Pochoir] Buse bouchée en pleine rue ! (-6 Moral)"
-				AudioRadio.play_crisis_buzz()
-				shake_flag = true
-			else:
-				_damage_enemy(target, 1)
-				_apply_moral_hit(actor_id, -3)
-				effect_msg = "[Pochoir] Slogan baveux sur %s (-1 résol., -3 Moral)." % str(target.get("name", ""))
-	elif action_id == "act_equip_record_fm":
-		if ok:
-			crs_ticks += 2
-			escape_progress += 1
-			turn_count += 2
-			effect_msg = "[Walkman FM] Onde calée sur le quai (+2 CRS, +1 échappée, signal Train Fantôme rapproché) !"
-			_maybe_trigger_train_fantome()
-		elif is_flaw_b:
-			_apply_moral_hit(actor_id, -8)
-			effect_msg = "[Walkman FM] Larsen glaçant sur 104.7 FM ! (-8 Moral)"
-			AudioRadio.play_crisis_buzz()
-			shake_flag = true
-		else:
-			crs_ticks += 1
-			_apply_moral_hit(actor_id, -5)
-			effect_msg = "[Walkman FM] Friture parasite (+1 CRS, -5 Moral)."
-	elif action_id == "act_equip_pass_mjc":
-		if not target.is_empty():
-			if ok:
-				var dmg_mjc: int = 3 if is_bril else 2
-				_damage_enemy(target, dmg_mjc)
-				target["counter_ready"] = false
-				crs_ticks += 1
-				effect_msg = "[Pass Mairie] %s sort la carte officielle : %s se fige (-%d résol., contre coupé, +1 CRS) !" % [actor_name, str(target.get("name", "")), dmg_mjc]
-			elif is_flaw_b:
-				_apply_moral_hit(actor_id, -7)
-				effect_msg = "[Pass Mairie] Le tampon sonne faux ! (-7 Moral)"
-				AudioRadio.play_crisis_buzz()
-				shake_flag = true
-			else:
-				_damage_enemy(target, 1)
-				_apply_moral_hit(actor_id, -4)
-				effect_msg = "[Pass Mairie] Papier contesté (-1 résol., -4 Moral)."
-	elif action_id == "act_equip_pause_musique":
-		var low_id: String = _explicit_ally_target_id
-		_explicit_ally_target_id = ""
-		if low_id == "" or _find_ally(low_id).is_empty() or not bool(_find_ally(low_id).get("present", false)):
-			low_id = _get_lowest_moral_present_ally_id(actor_id)
-		if ok:
-			var mor_t: int = 14 if is_bril else 10
-			GameState.modify_moral(low_id, mor_t)
-			_delay_crisis_for(low_id, 1)
-			var lname: String = str(DataLoader.get_character(low_id).get("name", low_id))
-			effect_msg = "[Cassettes TDK] Quelques mesures apaisent %s (+%d Moral, crise retardée +1 cran) !" % [lname, mor_t]
-		elif is_flaw_b:
-			effect_msg = "[Cassettes TDK] Bande emmêlée dans le boîtier (0 Moral récupéré) !"
-			AudioRadio.play_crisis_buzz()
-		else:
-			GameState.modify_moral(actor_id, 5)
-			effect_msg = "[Cassettes TDK] Souffle court retrouvé (+5 Moral pour %s)." % actor_name
-	elif action_id == "act_equip_pass_tour":
-		if ok:
-			var crs_pt: int = 3 if is_bril else 2
-			crs_ticks += crs_pt
-			escape_progress += 1
-			effect_msg = "[Trousseau caves] Trappe technique ouverte (+%d crans CRS, échappée %d/2) !" % [crs_pt, escape_progress]
-		elif is_flaw_b:
-			_apply_moral_hit(actor_id, -6)
-			effect_msg = "[Trousseau caves] Clé tordue dans la serrure (-6 Moral, +0 CRS) !"
-			AudioRadio.play_crisis_buzz()
-			shake_flag = true
-		else:
-			crs_ticks += 1
-			_apply_moral_hit(actor_id, -3)
-			effect_msg = "[Trousseau caves] Trappe grinçante (+1 CRS, -3 Moral)."
+	var branch_key: String = "on_success" if ok else ("on_flaw" if (is_flaw_b and adef.has("on_flaw")) else "on_fail")
+	var branch_v: Variant = adef.get(branch_key, {})
+	var branch: Dictionary = branch_v as Dictionary if branch_v is Dictionary else {}
+
+	var t_display: String = str(target.get("name", "")) if tk == "enemy" else (str(DataLoader.get_character(ally_tid).get("name", ally_tid)) if tk == "ally" else "")
+	var ctx: Dictionary = {
+		"action_id": action_id,
+		"actor_id": actor_id,
+		"actor": actor_name,
+		"target": t_display,
+		"tool": tool_lbl,
+		"target_enemy": target,
+		"ally_target_id": ally_tid,
+		"is_brilliant": is_bril,
+		"is_crit_success": is_crit_s,
+		"is_flaw": is_flaw_b,
+		"roll_bonus": bonus,
+		"scaled_active": false,
+		"dmg": 0,
+		"push": 0,
+		"clock": 0,
+		"moral": 0,
+		"cut_suffix": ""
+	}
+
+	var custom_scr: String = str(adef.get("custom_script", ""))
+	if custom_scr != "":
+		_invoke_custom_hook(custom_scr, "execute_action", ctx)
+	else:
+		_execute_effect_bricks(branch.get("effects", []), ctx)
+
+	if bool(branch.get("buzz", false)):
+		AudioRadio.play_crisis_buzz()
+	var shake_flag: bool = bool(branch.get("shake", false)) or (is_bril and bool(branch.get("shake_on_brilliant", false)))
+	var log_tpl: String = str(branch.get("brilliant_log", "")) if (is_bril and str(branch.get("brilliant_log", "")) != "") else str(branch.get("log", ""))
+	var effect_msg: String = _format_combat_log(log_tpl, ctx)
 
 	_push_log(roll_hdr)
 	if effect_msg != "":
 		_push_log(effect_msg)
 	_emit_feedback(fb_kind, actor_id, actor_name, "%s | %s" % [roll_hdr, effect_msg], shake_flag)
 
-	# Recharge réaction de l'allié qui vient de jouer son tour et le replace à +2 crans
+	var tick_cost: int = maxi(1, int(adef.get("cost_tick", 2)))
 	actor["reaction_ready"] = true
 	actor["move_points_left"] = 0
-	actor["next_tick"] = 2
+	actor["next_tick"] = tick_cost
 	AudioRadio.play_cassette_click()
 
 	if _all_enemies_defeated():
-		_finish("social_win", "Le S.O. municipal plie devant vos preuves et la réputation du quartier ! L'arrêté bidon du Galaxian tombe à l'eau avant même l'arrivée des CRS.")
+		_finish("social_win", _get_win_summary())
 		return
 
 	_ensure_valid_target()
@@ -798,7 +1212,47 @@ func execute_player_action(action_id: String) -> void:
 	_sync_step_state()
 	timeline_updated.emit()
 
-## Déclenche une Interruption hors-tour pour l'allié choisi si sa Réaction est prête.
+func _select_specialty_mode(spec_def: Dictionary) -> Dictionary:
+	var modes_v: Variant = spec_def.get("modes", [])
+	if not (modes_v is Array):
+		return {}
+	var has_cr: bool = not crisis_queue.is_empty()
+	var has_en: bool = not get_valid_target_ids("enemy").is_empty()
+	for mv in (modes_v as Array):
+		if not (mv is Dictionary):
+			continue
+		var md: Dictionary = mv as Dictionary
+		var cond: String = str(md.get("when", "always"))
+		if cond == "has_crisis" and has_cr:
+			return md
+		if cond == "has_enemy" and has_en:
+			return md
+		if cond == "always":
+			return md
+	return {}
+
+func _eval_specialty_scaling(char_id: String, mode: Dictionary) -> Dictionary:
+	var scaled_ok: bool = false
+	var sk_sc_v: Variant = mode.get("skill_scaling", {})
+	if sk_sc_v is Dictionary and not (sk_sc_v as Dictionary).is_empty():
+		var sk_sc: Dictionary = sk_sc_v as Dictionary
+		var sk_id: String = str(sk_sc.get("skill", ""))
+		if sk_id != "" and GameState.get_effective_skill(char_id, sk_id) >= int(sk_sc.get("min_val", 3)):
+			scaled_ok = true
+	var absorb_val: int = _interposition_absorb
+	var ab_sc_v: Variant = mode.get("absorb_scaling", {})
+	if ab_sc_v is Dictionary and not (ab_sc_v as Dictionary).is_empty():
+		var ab_sc: Dictionary = ab_sc_v as Dictionary
+		var base_a: int = int(ab_sc.get("base_absorb", 6))
+		var boost_a: int = int(ab_sc.get("boosted_absorb", 8))
+		var ask: String = str(ab_sc.get("skill", ""))
+		var ach: String = str(ab_sc.get("charac", ""))
+		var ok_s: bool = ask != "" and GameState.get_effective_skill(char_id, ask) >= int(ab_sc.get("min_skill", 3))
+		var ok_c: bool = ach != "" and GameState.get_effective_characteristic(char_id, ach) >= int(ab_sc.get("min_charac", 4))
+		absorb_val = boost_a if (ok_s or ok_c) else base_a
+	return {"scaled_active": scaled_ok, "absorb": absorb_val}
+
+## Déclenche une Interruption hors-tour pilotée par rules/specialties.json si la Réaction de l'allié est prête.
 func trigger_interruption(char_id: String) -> void:
 	if not active or is_charge_window_active():
 		return
@@ -806,12 +1260,17 @@ func trigger_interruption(char_id: String) -> void:
 	if ally.is_empty() or not bool(ally.get("present", false)) or not bool(ally.get("reaction_ready", false)) or bool(ally.get("stunned", false)):
 		return
 
+	var spec_id: String = str(ally.get("specialty_id", ""))
+	var spec_def: Dictionary = DataLoader.get_specialty_def(spec_id)
+	var mode: Dictionary = _select_specialty_mode(spec_def)
+	if mode.is_empty():
+		return
+
 	ally["reaction_ready"] = false
-	var spec: String = str(ally.get("specialty_id", ""))
 	var cname: String = str(ally.get("name", char_id))
 	AudioRadio.play_interrupt_hit()
 
-	# Contre-interruption d'un vétéran S.O. si prête
+	# Contre-interruption d'un adversaire en garde si prête
 	var counter_triggered: bool = false
 	for e in enemies:
 		if not bool(e.get("defeated", false)) and not bool(e.get("stunned", false)) and bool(e.get("counter_ready", false)):
@@ -822,74 +1281,52 @@ func trigger_interruption(char_id: String) -> void:
 			_apply_moral_hit(char_id, -6)
 			_emit_feedback("counter", str(e.get("id", "")), str(e.get("name", "")), c_msg, true)
 
-	if spec == "moquerie":
-		var target: Dictionary = _ensure_valid_target()
-		if not target.is_empty():
-			var dmg_mq: int = 2 if GameState.get_effective_skill(char_id, "tchatche") >= 3 else 1
-			target["next_tick"] = int(target.get("next_tick", 1)) + 2
-			_damage_enemy(target, dmg_mq)
-			_remove_pending_enemy(str(target.get("id", "")))
-			var m_msg: String = "INTERRUPTION [Moquerie] — %s casse la charge de %s (-%d résol, +2 crans) !" % [cname, str(target.get("name", "")), dmg_mq]
-			_push_log(m_msg)
-			if not counter_triggered:
-				_emit_feedback("interrupt", char_id, cname, m_msg, true)
-	elif spec == "interposition":
-		var abs_pow: int = 8 if (GameState.get_effective_skill(char_id, "baston_pression") >= 3 or GameState.get_effective_characteristic(char_id, "corps") >= 4) else 6
-		_interposition_absorb = maxi(_interposition_absorb, abs_pow)
-		interposition_shield += 1
-		GameState.modify_moral(char_id, 4)
-		var i_msg: String = "INTERRUPTION [Interposition] — %s fait bloc sous le réverbère (+4 Moral, prochain coup -%d) !" % [cname, abs_pow]
+	var m_tk: String = str(mode.get("target_kind", "none"))
+	var target_en: Dictionary = _ensure_valid_target() if m_tk == "enemy" else {}
+	var exp_cr_id: String = _explicit_crisis_target_id
+	_explicit_crisis_target_id = ""
+	var cr_cid: String = ""
+	if m_tk == "ally_crisis" and not crisis_queue.is_empty():
+		cr_cid = str((crisis_queue[0] as Dictionary).get("char_id", ""))
+		if exp_cr_id != "":
+			for cr_d in crisis_queue:
+				if str(cr_d.get("char_id", "")) == exp_cr_id:
+					cr_cid = exp_cr_id
+					break
+
+	var sc_info: Dictionary = _eval_specialty_scaling(char_id, mode)
+	var t_disp: String = str(target_en.get("name", "")) if m_tk == "enemy" else (str(DataLoader.get_character(cr_cid).get("name", cr_cid)) if m_tk == "ally_crisis" else cname)
+	var ctx: Dictionary = {
+		"actor_id": char_id,
+		"actor": cname,
+		"target": t_disp,
+		"target_enemy": target_en,
+		"crisis_ally_id": cr_cid,
+		"scaled_active": bool(sc_info.get("scaled_active", false)),
+		"absorb": int(sc_info.get("absorb", 6)),
+		"is_brilliant": false,
+		"is_crit_success": false,
+		"roll_bonus": 0,
+		"dmg": 0,
+		"push": 0,
+		"clock": 0,
+		"moral": 0
+	}
+
+	var spec_hook: String = str(mode.get("custom_script", str(spec_def.get("custom_script", ""))))
+	if spec_hook != "":
+		_invoke_custom_hook(spec_hook, "execute_interruption", ctx)
+	else:
+		_execute_effect_bricks(mode.get("effects", []), ctx)
+
+	var i_msg: String = _format_combat_log(str(mode.get("log", "")), ctx)
+	if i_msg != "":
 		_push_log(i_msg)
 		if not counter_triggered:
-			_emit_feedback("interrupt", char_id, cname, i_msg, false)
-	elif spec == "reflexe_rue":
-		var crs_g_r: int = 3 if GameState.get_effective_skill(char_id, "caves_esquive") >= 3 else 2
-		crs_ticks += crs_g_r
-		escape_progress += 1
-		var rx_msg: String = "INTERRUPTION [Réflexe de rue] — %s pousse une grille métallique (+%d crans CRS, accès quai ouvert) !" % [cname, crs_g_r]
-		_push_log(rx_msg)
-		if not counter_triggered:
-			_emit_feedback("interrupt", char_id, cname, rx_msg, false)
-	elif spec == "sang_froid":
-		# Spécialité de L'Échappé·e des Pavillons : calme prioritairement une crise imminente, sinon perce un bluff adverse.
-		var mor_sf: int = 12 if GameState.get_effective_skill(char_id, "sang_froid_nerfs") >= 3 else 10
-		var exp_cr_id: String = _explicit_crisis_target_id
-		_explicit_crisis_target_id = ""
-		if not crisis_queue.is_empty():
-			var cr_idx: int = 0
-			if exp_cr_id != "":
-				for ci in range(crisis_queue.size()):
-					if str((crisis_queue[ci] as Dictionary).get("char_id", "")) == exp_cr_id:
-						cr_idx = ci
-						break
-			var cr: Dictionary = crisis_queue[cr_idx]
-			var cr_cid: String = str(cr.get("char_id", ""))
-			crisis_queue.remove_at(cr_idx)
-			_remove_pending_crisis(cr_cid)
-			GameState.modify_moral(cr_cid, mor_sf)
-			var sf_msg: String = "INTERRUPTION [Sang-froid] — %s reprend la main et calme %s à temps (+%d Moral) !" % [cname, cr_cid.capitalize(), mor_sf]
-			_push_log(sf_msg)
-			if not counter_triggered:
-				_emit_feedback("interrupt", char_id, cname, sf_msg, false)
-		else:
-			var target_sf: Dictionary = _ensure_valid_target()
-			if not target_sf.is_empty():
-				target_sf["next_tick"] = int(target_sf.get("next_tick", 1)) + 1
-				_damage_enemy(target_sf, 1)
-				_remove_pending_enemy(str(target_sf.get("id", "")))
-				var sf2_msg: String = "INTERRUPTION [Sang-froid] — %s perce le bluff de %s (-1 résol, +1 cran) !" % [cname, str(target_sf.get("name", ""))]
-				_push_log(sf2_msg)
-				if not counter_triggered:
-					_emit_feedback("interrupt", char_id, cname, sf2_msg, true)
-			else:
-				GameState.modify_moral(char_id, 6)
-				var sf3_msg: String = "INTERRUPTION [Sang-froid] — %s garde la tête froide (+6 Moral)." % cname
-				_push_log(sf3_msg)
-				if not counter_triggered:
-					_emit_feedback("interrupt", char_id, cname, sf3_msg, false)
+			_emit_feedback("interrupt", char_id, cname, i_msg, bool(mode.get("shake", false)))
 
 	if _all_enemies_defeated():
-		_finish("social_win", "Entre tchatche, vannes et nerfs d'acier, vous retournez la rue ! Le S.O. lâche l'affaire avant l'arrivée des CRS.")
+		_finish("social_win", _get_win_summary())
 		return
 
 	_ensure_valid_target()
@@ -912,7 +1349,8 @@ func restrain_crisis(crisis_char_id: String) -> void:
 			crisis_queue.remove_at(i)
 	_remove_pending_crisis(crisis_char_id)
 	GameState.modify_moral(crisis_char_id, 8)
-	var r_msg: String = "%s plaque %s contre le mur et le calme à temps : Crise d'autonomie contenue (+8 Moral) !" % [str(rescuer.get("name", "")), crisis_char_id.capitalize()]
+	var cr_name: String = str(DataLoader.get_character(crisis_char_id).get("name", crisis_char_id))
+	var r_msg: String = "%s plaque %s contre le mur et le calme à temps : Crise d'autonomie contenue (+8 Moral) !" % [str(rescuer.get("name", "")), cr_name]
 	_push_log(r_msg)
 	_emit_feedback("restrain", str(rescuer.get("char_id", "")), str(rescuer.get("name", "")), r_msg, false)
 	AudioRadio.play_cassette_click()
@@ -923,7 +1361,9 @@ func has_restrain_reaction_for(crisis_char_id: String) -> bool:
 	return not _find_rescuer_for(crisis_char_id).is_empty()
 
 func can_escape_now() -> bool:
-	return train_fantome_arrived or escape_progress >= 2
+	if not is_escape_enabled():
+		return false
+	return train_fantome_arrived or _escape_unlocked_by_event or escape_progress >= get_escape_required_progress()
 
 ## Avance exactement d'un beat non-allié (une crise, une action ennemie, ou 1 cran du rail).
 func step_next_beat() -> void:
@@ -955,7 +1395,7 @@ func step_next_beat() -> void:
 			return
 
 	if _all_enemies_defeated():
-		_finish("social_win", "Pression retournée ! Le S.O. municipal et le Skin battent en retraite avant que les CRS ne bouclent l'avenue.")
+		_finish("social_win", _get_win_summary())
 		return
 
 	_ensure_valid_target()
@@ -965,21 +1405,13 @@ func step_next_beat() -> void:
 
 ## Retourne la bande de portée [min, max] (en cases Chebyshev) pour une action tactique donnée (max=0 si globale).
 func get_action_range(action_id: String) -> Dictionary:
-	if action_id == "act_pression":
-		return {"min": 1, "max": 1}
-	if action_id == "act_lancer":
-		return {"min": 2, "max": 4}
-	if action_id == "act_tir":
-		return {"min": 2, "max": 6}
-	if action_id == "act_charge":
-		return {"min": 2, "max": 5}
-	if action_id == "act_tchatche":
-		return {"min": 1, "max": 5}
-	if action_id == "act_equip_intimidation_look" or action_id == "act_equip_pass_mjc":
-		return {"min": 1, "max": 5}
-	if action_id == "act_equip_pochoir":
-		return {"min": 1, "max": 4}
-	return {"min": 0, "max": 0}
+	var adef: Dictionary = DataLoader.get_combat_action_def(action_id)
+	if adef.is_empty():
+		return {"min": 0, "max": 0}
+	return {
+		"min": int(adef.get("min_range", 0)),
+		"max": int(adef.get("max_range", 0))
+	}
 
 ## Formate un libellé de portée court pour les boutons et infobulles d'action.
 func format_range_tag(min_r: int, max_r: int) -> String:
@@ -990,6 +1422,7 @@ func format_range_tag(min_r: int, max_r: int) -> String:
 	return "%d–%dc" % [min_r, max_r]
 
 func _eval_range_check(action_id: String, actor_id: String, target: Dictionary) -> Dictionary:
+	var adef: Dictionary = DataLoader.get_combat_action_def(action_id)
 	var rng: Dictionary = get_action_range(action_id)
 	var min_r: int = int(rng.get("min", 0))
 	var max_r: int = int(rng.get("max", 0))
@@ -1003,7 +1436,7 @@ func _eval_range_check(action_id: String, actor_id: String, target: Dictionary) 
 		else:
 			lock_reason = "Trop près (%s req., cible à %dc)" % [format_range_tag(min_r, max_r), dist]
 	var landing: Vector2i = Vector2i(-1, -1)
-	if action_id == "act_charge" and not target.is_empty():
+	if str(adef.get("movement_mode", "")) == "charge" and not target.is_empty():
 		var ap: Vector2i = get_entity_grid_pos("ally", actor_id)
 		var ep: Vector2i = get_entity_grid_pos("enemy", eid)
 		landing = find_closest_adjacent_cell(ap.x, ap.y, ep.x, ep.y, "ally", actor_id)
@@ -1019,18 +1452,19 @@ func _eval_range_check(action_id: String, actor_id: String, target: Dictionary) 
 		"lock_reason": lock_reason
 	}
 
-## Retourne la liste des cibles valides pour une action précise (filtrée par portée, outil tir et case de Charge).
+## Retourne la liste des cibles valides pour une action précise (filtrée par portée, outil requis et case de Charge).
 func get_valid_target_ids_for_action(action_id: String) -> Array[String]:
 	var tk: String = get_action_target_kind(action_id)
 	if tk == "none":
 		return []
 	if tk != "enemy":
 		return get_valid_target_ids(tk)
+	var adef: Dictionary = DataLoader.get_combat_action_def(action_id)
 	var acting: Dictionary = get_acting_ally()
 	var actor_id: String = str(acting.get("char_id", ""))
 	if actor_id == "":
 		actor_id = _peek_next_present_ally_id()
-	if action_id == "act_tir":
+	if bool(adef.get("requires_ranged_tool", false)):
 		var rprof: Dictionary = GameState.get_ranged_combat_profile(actor_id)
 		if not bool(rprof.get("has_ranged", false)):
 			return []
@@ -1038,6 +1472,7 @@ func get_valid_target_ids_for_action(action_id: String) -> Array[String]:
 	var rng: Dictionary = get_action_range(action_id)
 	var min_r: int = int(rng.get("min", 0))
 	var max_r: int = int(rng.get("max", 0))
+	var is_charge_m: bool = (str(adef.get("movement_mode", "")) == "charge")
 	var out: Array[String] = []
 	for e in enemies:
 		if bool(e.get("defeated", false)):
@@ -1047,14 +1482,34 @@ func get_valid_target_ids_for_action(action_id: String) -> Array[String]:
 		var d: int = grid_distance(ap.x, ap.y, ep.x, ep.y)
 		if max_r > 0 and (d < min_r or d > max_r):
 			continue
-		if action_id == "act_charge":
+		if is_charge_m:
 			var land: Vector2i = find_closest_adjacent_cell(ap.x, ap.y, ep.x, ep.y, "ally", actor_id)
 			if land.x < 0:
 				continue
 		out.append(eid)
 	return out
 
-## Retourne la liste ordonnée des actions disponibles pour le membre au cran 0 (base + portée + équipement + échappée).
+func _resolve_encounter_base_actions(enc: Dictionary) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var ids_var: Variant = enc.get("player_action_ids", [])
+	if ids_var is Array and not (ids_var as Array).is_empty():
+		for id_v in (ids_var as Array):
+			var aid: String = str(id_v)
+			var adef: Dictionary = DataLoader.get_combat_action_def(aid)
+			if not adef.is_empty():
+				out.append(adef)
+		return out
+	var legacy_var: Variant = enc.get("player_actions", [])
+	if legacy_var is Array:
+		for av in (legacy_var as Array):
+			if av is Dictionary:
+				var ad: Dictionary = av as Dictionary
+				var laid: String = str(ad.get("id", ""))
+				var ldef: Dictionary = DataLoader.get_combat_action_def(laid)
+				out.append(ldef if not ldef.is_empty() else ad)
+	return out
+
+## Retourne la liste ordonnée des actions disponibles pour le membre au cran 0 (base + équipement ★ + échappée).
 func get_available_actions_for_actor() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if not active:
@@ -1067,86 +1522,84 @@ func get_available_actions_for_actor() -> Array[Dictionary]:
 	var has_ranged: bool = bool(rprof.get("has_ranged", false))
 
 	var enc: Dictionary = DataLoader.get_encounter(encounter_id)
-	var act_list_var: Variant = enc.get("player_actions", [])
-	if act_list_var is Array:
-		for av in (act_list_var as Array):
-			if av is Dictionary:
-				var ad: Dictionary = av as Dictionary
-				var aid: String = str(ad.get("id", ""))
-				var pv: Dictionary = _build_action_preview(aid, actor_id)
-				var rng: Dictionary = get_action_range(aid)
-				var min_r: int = int(rng.get("min", int(ad.get("min_range", 0))))
-				var max_r: int = int(rng.get("max", int(ad.get("max_range", 0))))
-				var r_tag: String = format_range_tag(min_r, max_r)
-				var valid_targets: Array[String] = get_valid_target_ids_for_action(aid)
-				var tk: String = get_action_target_kind(aid)
-				var usable: bool = true
-				var lock_reason: String = ""
-				if aid == "act_tir" and not has_ranged:
-					usable = false
-					lock_reason = "Outil tir 1982 requis (Lance-pierre / Pétards)"
-				elif tk == "enemy" and valid_targets.is_empty():
-					usable = false
-					lock_reason = "Hors portée (%s)" % r_tag if action_has_alive_enemies() else "Aucune cible"
-				var slbl: String = str(ad.get("label", aid))
-				if aid == "act_tir" and has_ranged and str(rprof.get("ranged_label", "")) != "":
-					slbl = "Tir (%s)" % str(rprof.get("ranged_label", ""))
-				out.append({
-					"id": aid,
-					"short_label": slbl,
-					"chance_pct": int(pv.get("chance_pct", 0)),
-					"is_flaw": bool(pv.get("is_flaw", false)),
-					"is_equipment": false,
-					"used": false,
-					"min_range": min_r,
-					"max_range": max_r,
-					"range_label": r_tag,
-					"in_range_count": valid_targets.size(),
-					"usable": usable,
-					"locked_reason": lock_reason,
-					"tooltip": "%s\nPortée : %s\n%s%s" % [
-						str(ad.get("desc", "")),
-						r_tag,
-						str(pv.get("roll_formula", "")),
-						("\n🔒 " + lock_reason) if lock_reason != "" else ""
-					]
-				})
+	for ad in _resolve_encounter_base_actions(enc):
+		var aid: String = str(ad.get("id", ""))
+		var pv: Dictionary = _build_action_preview(aid, actor_id)
+		var rng: Dictionary = get_action_range(aid)
+		var min_r: int = int(rng.get("min", 0))
+		var max_r: int = int(rng.get("max", 0))
+		var r_tag: String = format_range_tag(min_r, max_r)
+		var valid_targets: Array[String] = get_valid_target_ids_for_action(aid)
+		var tk: String = get_action_target_kind(aid)
+		var req_tool: bool = bool(ad.get("requires_ranged_tool", false))
+		var usable: bool = true
+		var lock_reason: String = ""
+		if req_tool and not has_ranged:
+			usable = false
+			lock_reason = str(ad.get("missing_tool_reason", "Outil tir requis"))
+		elif tk == "enemy" and valid_targets.is_empty():
+			usable = false
+			lock_reason = "Hors portée (%s)" % r_tag if action_has_alive_enemies() else "Aucune cible"
+		var slbl: String = str(ad.get("label", str(ad.get("short_label", aid))))
+		if req_tool and has_ranged and str(rprof.get("ranged_label", "")) != "":
+			slbl = "%s (%s)" % [slbl, str(rprof.get("ranged_label", ""))]
+		out.append({
+			"id": aid,
+			"short_label": slbl,
+			"chance_pct": int(pv.get("chance_pct", 0)),
+			"is_flaw": bool(pv.get("is_flaw", false)),
+			"is_equipment": false,
+			"used": false,
+			"min_range": min_r,
+			"max_range": max_r,
+			"range_label": r_tag,
+			"in_range_count": valid_targets.size(),
+			"usable": usable,
+			"locked_reason": lock_reason,
+			"tooltip": "%s\nPortée : %s\n%s%s" % [
+				str(ad.get("desc", "")),
+				r_tag,
+				str(pv.get("roll_formula", "")),
+				("\n🔒 " + lock_reason) if lock_reason != "" else ""
+			]
+		})
 
 	for eq_act in GameState.get_unlocked_equipment_actions(actor_id):
 		var eq_id: String = str(eq_act.get("id", ""))
-		if _EQUIP_ACTION_META.has(eq_id):
-			var meta: Dictionary = _EQUIP_ACTION_META.get(eq_id, {}) as Dictionary
-			var pv_eq: Dictionary = _build_action_preview(eq_id, actor_id)
-			var u_key: String = "%s:%s" % [actor_id, eq_id]
-			var is_used: bool = bool(_used_equip_actions.get(u_key, false))
-			var rng_e: Dictionary = get_action_range(eq_id)
-			var min_re: int = int(rng_e.get("min", 0))
-			var max_re: int = int(rng_e.get("max", 0))
-			var r_tage: String = format_range_tag(min_re, max_re)
-			var tke: String = get_action_target_kind(eq_id)
-			var vtgts_e: Array[String] = get_valid_target_ids_for_action(eq_id)
-			var eq_usable: bool = (not is_used) and (tke != "enemy" or not vtgts_e.is_empty())
-			var eq_lock: String = "Déjà utilisé" if is_used else ("Hors portée (%s)" % r_tage if (tke == "enemy" and vtgts_e.is_empty()) else "")
-			out.append({
-				"id": eq_id,
-				"short_label": str(meta.get("short", eq_act.get("label", eq_id))),
-				"chance_pct": int(pv_eq.get("chance_pct", 0)),
-				"is_flaw": bool(pv_eq.get("is_flaw", false)),
-				"is_equipment": true,
-				"used": is_used,
-				"min_range": min_re,
-				"max_range": max_re,
-				"range_label": r_tage,
-				"in_range_count": vtgts_e.size(),
-				"usable": eq_usable,
-				"locked_reason": eq_lock,
-				"tooltip": "%s\nPortée : %s\n%s" % [str(eq_act.get("desc", "")), r_tage, str(pv_eq.get("roll_formula", ""))]
-			})
+		var eq_def: Dictionary = DataLoader.get_combat_action_def(eq_id)
+		if eq_def.is_empty():
+			continue
+		var pv_eq: Dictionary = _build_action_preview(eq_id, actor_id)
+		var u_key: String = "%s:%s" % [actor_id, eq_id]
+		var is_used: bool = bool(_used_equip_actions.get(u_key, false))
+		var rng_e: Dictionary = get_action_range(eq_id)
+		var min_re: int = int(rng_e.get("min", 0))
+		var max_re: int = int(rng_e.get("max", 0))
+		var r_tage: String = format_range_tag(min_re, max_re)
+		var tke: String = get_action_target_kind(eq_id)
+		var vtgts_e: Array[String] = get_valid_target_ids_for_action(eq_id)
+		var eq_usable: bool = (not is_used) and (tke != "enemy" or not vtgts_e.is_empty())
+		var eq_lock: String = "Déjà utilisé" if is_used else ("Hors portée (%s)" % r_tage if (tke == "enemy" and vtgts_e.is_empty()) else "")
+		out.append({
+			"id": eq_id,
+			"short_label": str(eq_def.get("short_label", eq_act.get("label", eq_id))),
+			"chance_pct": int(pv_eq.get("chance_pct", 0)),
+			"is_flaw": bool(pv_eq.get("is_flaw", false)),
+			"is_equipment": true,
+			"used": is_used,
+			"min_range": min_re,
+			"max_range": max_re,
+			"range_label": r_tage,
+			"in_range_count": vtgts_e.size(),
+			"usable": eq_usable,
+			"locked_reason": eq_lock,
+			"tooltip": "%s\nPortée : %s\n%s" % [str(eq_act.get("desc", str(eq_def.get("desc", "")))), r_tage, str(pv_eq.get("roll_formula", ""))]
+		})
 
 	if can_escape_now():
 		out.append({
 			"id": "act_escape_now",
-			"short_label": "Filer par le Quai !",
+			"short_label": str(_escape_cfg.get("action_label", "Filer !")),
 			"chance_pct": 0,
 			"is_flaw": false,
 			"is_equipment": false,
@@ -1157,7 +1610,7 @@ func get_available_actions_for_actor() -> Array[Dictionary]:
 			"in_range_count": 0,
 			"usable": true,
 			"locked_reason": "",
-			"tooltip": "Repli immédiat de toute la bande vers le souterrain."
+			"tooltip": str(_escape_cfg.get("summary", "Repli immédiat de toute la bande."))
 		})
 	return out
 
@@ -1174,19 +1627,18 @@ func preview_player_action(action_id: String) -> Dictionary:
 	var acting: Dictionary = get_acting_ally()
 	if awaiting_step or acting.is_empty():
 		return {"valid": false, "reason": "Appuie d'abord sur Espace pour résoudre le beat en attente."}
-	return _build_action_preview(action_id, str(acting.get("char_id", "leader")))
+	return _build_action_preview(action_id, str(acting.get("char_id", DataLoader.get_leader_char_id())))
 
-## Calcule en lecture seule le résultat prévisionnel d'une action tactique ou d'équipement pour un PJ.
+## Calcule en lecture seule le résultat prévisionnel d'une action tactique ou d'équipement depuis sa définition JSON.
 func _build_action_preview(action_id: String, actor_id: String) -> Dictionary:
-	var target: Dictionary = _peek_selected_target()
 	if action_id == "act_escape_now":
 		var can_esc: bool = can_escape_now()
 		return {
 			"valid": can_esc,
 			"kind": "action",
-			"title": "Filer par le Quai / Train Fantôme",
-			"target_id": "crs",
-			"target_name": "Rame RER du Y",
+			"title": str(_escape_cfg.get("action_title", "Repli immédiat")),
+			"target_id": str(_escalation_cfg.get("id", "crs")),
+			"target_name": str(_escape_cfg.get("target_name", "Sortie")),
 			"from_tick": 0,
 			"to_tick": 0,
 			"resolve_delta": 0,
@@ -1208,398 +1660,156 @@ func _build_action_preview(action_id: String, actor_id: String) -> Dictionary:
 			"fail_summary": "",
 			"is_equipment": false,
 			"used": false,
-			"reason": "Échappée non ouverte (2/2 ou Train Fantôme requis)" if not can_esc else "",
-			"summary": "Repli immédiat de toute la bande vers le souterrain"
+			"reason": "Échappée non ouverte" if not can_esc else "",
+			"summary": str(_escape_cfg.get("summary", "Repli immédiat de toute la bande"))
 		}
 
-	if action_id == "act_tchatche":
-		if target.is_empty():
-			return {"valid": false, "reason": "Aucune cible active."}
-		var rc_t: Dictionary = _eval_range_check("act_tchatche", actor_id, target)
-		var dc_t: int = int(target.get("dc_social", 11))
-		if str(target.get("id", "")) == "cousin_so" and GameState.has_flag("ludo_bluffed_cousin"):
-			dc_t -= 1
-		var bonus_t: int = 1 if (GameState.faveurs > 0 or GameState.has_flag("tour_b_done")) else 0
-		var bl_t: String = "Faveur/Dossier" if bonus_t > 0 else ""
-		var rp_t: Dictionary = GameState.preview_street_roll(actor_id, "tchatche", dc_t, bonus_t, bl_t)
-		var dmg_t: int = 3 if bonus_t > 0 else 2
-		var ft_t: int = int(target.get("next_tick", 0))
-		var is_fl_t: bool = bool(rp_t.get("is_flaw", false))
-		var fs_t: String = "0 dégât & -4 Moral" if is_fl_t else "-1 Résol."
-		return {
-			"valid": bool(rc_t.get("in_range", true)),
-			"reason": str(rc_t.get("lock_reason", "")),
-			"kind": "action",
-			"title": "Tchatche / Bluff Attitude",
-			"target_id": str(target.get("id", "")),
-			"target_name": str(target.get("name", "")),
-			"from_tick": ft_t,
-			"to_tick": ft_t,
-			"resolve_delta": -dmg_t,
-			"crs_delta": 0,
-			"escape_delta": 0,
-			"shield_delta": 0,
-			"moral_delta": 0,
-			"counter_warning": false,
-			"counter_label": "",
-			"chance_pct": int(rp_t.get("chance_pct", 50)),
-			"skill_id": "tchatche",
-			"skill_name": str(rp_t.get("skill_name", "Tchatche")),
-			"skill_val": int(rp_t.get("skill_val", 0)),
-			"dc": dc_t,
-			"bonus": bonus_t,
-			"bonus_label": bl_t,
-			"is_flaw": is_fl_t,
-			"roll_formula": str(rp_t.get("formula", "")),
-			"fail_summary": fs_t,
-			"is_equipment": false,
-			"used": false,
-			"min_range": int(rc_t.get("min_range", 1)),
-			"max_range": int(rc_t.get("max_range", 5)),
-			"distance": int(rc_t.get("distance", 1)),
-			"out_of_range": bool(rc_t.get("out_of_range", false)),
-			"landing_cell": Vector2i(-1, -1),
-			"summary": "%s : -%d Résol. si réussi (raté : %s)" % [str(target.get("name", "")), dmg_t, fs_t]
-		}
+	var adef: Dictionary = DataLoader.get_combat_action_def(action_id)
+	if adef.is_empty():
+		return {"valid": false, "reason": "Action inconnue"}
 
-	if action_id == "act_pression":
-		if target.is_empty():
-			return {"valid": false, "reason": "Aucune cible active."}
-		var rc_p: Dictionary = _eval_range_check("act_pression", actor_id, target)
-		var dc_p: int = int(target.get("dc_pression", 11))
-		var aura_tot: int = GameState.get_total_aura()
-		var bonus_p: int = 2 if aura_tot >= 7 else (1 if aura_tot >= 5 else 0)
-		var bl_p: String = ("Aura %d" % aura_tot) if bonus_p > 0 else ""
-		var rp_p: Dictionary = GameState.preview_street_roll(actor_id, "baston_pression", dc_p, bonus_p, bl_p)
-		var ft_p: int = int(target.get("next_tick", 0))
-		var is_fl_p: bool = bool(rp_p.get("is_flaw", false))
-		var fs_p: String = "0 dégât & -5 Moral" if is_fl_p else "-1 Résol. (0 recul)"
-		return {
-			"valid": bool(rc_p.get("in_range", false)),
-			"reason": str(rc_p.get("lock_reason", "")),
-			"kind": "action",
-			"title": "Corps à corps / Pression",
-			"target_id": str(target.get("id", "")),
-			"target_name": str(target.get("name", "")),
-			"from_tick": ft_p,
-			"to_tick": ft_p + 1,
-			"resolve_delta": -2,
-			"crs_delta": 0,
-			"escape_delta": 0,
-			"shield_delta": 0,
-			"moral_delta": 0,
-			"counter_warning": false,
-			"counter_label": "",
-			"chance_pct": int(rp_p.get("chance_pct", 50)),
-			"skill_id": "baston_pression",
-			"skill_name": str(rp_p.get("skill_name", "Caisse")),
-			"skill_val": int(rp_p.get("skill_val", 0)),
-			"dc": dc_p,
-			"bonus": bonus_p,
-			"bonus_label": bl_p,
-			"is_flaw": is_fl_p,
-			"roll_formula": str(rp_p.get("formula", "")),
-			"fail_summary": fs_p,
-			"is_equipment": false,
-			"used": false,
-			"min_range": int(rc_p.get("min_range", 1)),
-			"max_range": int(rc_p.get("max_range", 1)),
-			"distance": int(rc_p.get("distance", 1)),
-			"out_of_range": bool(rc_p.get("out_of_range", false)),
-			"landing_cell": Vector2i(-1, -1),
-			"summary": "%s : -2 Résol. · Cran %d → %d (raté : %s)" % [str(target.get("name", "")), ft_p, ft_p + 1, fs_p]
-		}
+	var is_eq: bool = bool(adef.get("is_equipment", false))
+	if is_eq and not GameState.has_equipped_action(actor_id, action_id):
+		return {"valid": false, "reason": "Équipement non porté par le membre actif", "is_equipment": true}
+	var u_key: String = "%s:%s" % [actor_id, action_id]
+	if bool(adef.get("once_per_encounter", is_eq)) and bool(_used_equip_actions.get(u_key, false)):
+		return {"valid": false, "reason": "Action déjà utilisée dans cette confrontation", "used": true, "is_equipment": is_eq}
 
-	if action_id == "act_lancer":
-		if target.is_empty():
-			return {"valid": false, "reason": "Aucune cible active."}
-		var rc_l: Dictionary = _eval_range_check("act_lancer", actor_id, target)
-		var dc_l: int = int(target.get("dc_pression", 11))
-		var rprof_l: Dictionary = GameState.get_ranged_combat_profile(actor_id)
-		var bonus_l: int = int(rprof_l.get("throw_bonus", 0))
-		var bl_l: String = str(rprof_l.get("throw_label", "")) if bonus_l > 0 else ""
-		var rp_l: Dictionary = GameState.preview_street_roll(actor_id, "caves_esquive", dc_l, bonus_l, bl_l)
-		var ft_l: int = int(target.get("next_tick", 0))
-		var is_fl_l: bool = bool(rp_l.get("is_flaw", false))
-		var fs_l: String = "0 dégât & -4 Moral" if is_fl_l else "-1 Résol."
-		return {
-			"valid": bool(rc_l.get("in_range", false)),
-			"reason": str(rc_l.get("lock_reason", "")),
-			"kind": "action",
-			"title": "Lancer à distance (2–4c)",
-			"target_id": str(target.get("id", "")),
-			"target_name": str(target.get("name", "")),
-			"from_tick": ft_l,
-			"to_tick": ft_l,
-			"resolve_delta": -2,
-			"crs_delta": 0,
-			"escape_delta": 0,
-			"shield_delta": 0,
-			"moral_delta": 0,
-			"counter_warning": false,
-			"counter_label": "",
-			"chance_pct": int(rp_l.get("chance_pct", 50)),
-			"skill_id": "caves_esquive",
-			"skill_name": str(rp_l.get("skill_name", "Caves & Esquive")),
-			"skill_val": int(rp_l.get("skill_val", 0)),
-			"dc": dc_l,
-			"bonus": bonus_l,
-			"bonus_label": bl_l,
-			"is_flaw": is_fl_l,
-			"roll_formula": str(rp_l.get("formula", "")),
-			"fail_summary": fs_l,
-			"is_equipment": false,
-			"used": false,
-			"min_range": int(rc_l.get("min_range", 2)),
-			"max_range": int(rc_l.get("max_range", 4)),
-			"distance": int(rc_l.get("distance", 2)),
-			"out_of_range": bool(rc_l.get("out_of_range", false)),
-			"landing_cell": Vector2i(-1, -1),
-			"summary": "%s : -2/-3 Résol. à distance (raté : %s)" % [str(target.get("name", "")), fs_l]
-		}
+	var tk: String = get_action_target_kind(action_id)
+	var target: Dictionary = _peek_selected_target() if tk == "enemy" else {}
+	if tk == "enemy" and target.is_empty():
+		return {"valid": false, "reason": "Aucune cible active."}
 
-	if action_id == "act_tir":
-		if target.is_empty():
-			return {"valid": false, "reason": "Aucune cible active."}
-		var rc_s: Dictionary = _eval_range_check("act_tir", actor_id, target)
-		var rprof_s: Dictionary = GameState.get_ranged_combat_profile(actor_id)
-		var has_tool_s: bool = bool(rprof_s.get("has_ranged", false))
-		var bonus_s: int = int(rprof_s.get("ranged_bonus", 0))
-		var bl_s: String = str(rprof_s.get("ranged_label", "")) if has_tool_s else ""
-		var dc_s: int = int(target.get("dc_social", 11))
-		var rp_s: Dictionary = GameState.preview_street_roll(actor_id, "systeme_d", dc_s, bonus_s, bl_s)
-		var ft_s: int = int(target.get("next_tick", 0))
-		var is_fl_s: bool = bool(rp_s.get("is_flaw", false))
-		var fs_s: String = "0 dégât & -4 Moral" if is_fl_s else "-1 Résol."
-		var reason_s: String = "Outil de tir 1982 requis (Lance-pierre / Pétards)" if not has_tool_s else str(rc_s.get("lock_reason", ""))
-		return {
-			"valid": has_tool_s and bool(rc_s.get("in_range", false)),
-			"reason": reason_s,
-			"kind": "action",
-			"title": "Tir à distance (%s)" % (bl_s if bl_s != "" else "Outil 1982"),
-			"target_id": str(target.get("id", "")),
-			"target_name": str(target.get("name", "")),
-			"from_tick": ft_s,
-			"to_tick": ft_s,
-			"resolve_delta": -2,
-			"crs_delta": 0,
-			"escape_delta": 0,
-			"shield_delta": 0,
-			"moral_delta": 0,
-			"counter_warning": false,
-			"counter_label": "",
-			"chance_pct": int(rp_s.get("chance_pct", 50)),
-			"skill_id": "systeme_d",
-			"skill_name": str(rp_s.get("skill_name", "Système D")),
-			"skill_val": int(rp_s.get("skill_val", 0)),
-			"dc": dc_s,
-			"bonus": bonus_s,
-			"bonus_label": bl_s,
-			"is_flaw": is_fl_s,
-			"roll_formula": str(rp_s.get("formula", "")),
-			"fail_summary": fs_s,
-			"is_equipment": false,
-			"used": false,
-			"requires_ranged_tool": true,
-			"has_ranged_tool": has_tool_s,
-			"min_range": int(rc_s.get("min_range", 2)),
-			"max_range": int(rc_s.get("max_range", 6)),
-			"distance": int(rc_s.get("distance", 2)),
-			"out_of_range": bool(rc_s.get("out_of_range", false)),
-			"landing_cell": Vector2i(-1, -1),
-			"summary": "[%s] %s : -2/-3 Résol. (raté : %s)" % [(bl_s if bl_s != "" else "Tir"), str(target.get("name", "")), fs_s]
-		}
+	var rc: Dictionary = _eval_range_check(action_id, actor_id, target) if tk == "enemy" else {
+		"in_range": true, "lock_reason": "", "min_range": 0, "max_range": 0, "distance": 0, "out_of_range": false, "landing_cell": Vector2i(-1, -1)
+	}
+	var prm: Dictionary = _compute_action_roll_params(adef, actor_id, target)
+	var req_tool: bool = bool(adef.get("requires_ranged_tool", false))
+	var has_tool: bool = bool(prm.get("has_ranged_tool", false))
+	var skill_id: String = str(prm.get("skill_id", "tchatche"))
+	var dc: int = int(prm.get("dc", 10))
+	var bonus: int = int(prm.get("bonus", 0))
+	var blbl: String = str(prm.get("bonus_label", ""))
+	var tool_lbl: String = str(prm.get("tool_label", ""))
 
-	if action_id == "act_charge":
-		if target.is_empty():
-			return {"valid": false, "reason": "Aucune cible active."}
-		var rc_c: Dictionary = _eval_range_check("act_charge", actor_id, target)
-		var land_c: Vector2i = rc_c.get("landing_cell", Vector2i(-1, -1)) as Vector2i
-		var dc_c: int = int(target.get("dc_pression", 11))
-		var aura_c: int = GameState.get_total_aura()
-		var bonus_c: int = 2 if aura_c >= 7 else (1 if aura_c >= 5 else 0)
-		var bl_c: String = ("Aura %d" % aura_c) if bonus_c > 0 else ""
-		var rp_c: Dictionary = GameState.preview_street_roll(actor_id, "baston_pression", dc_c, bonus_c, bl_c)
-		var ft_c: int = int(target.get("next_tick", 0))
-		var is_fl_c: bool = bool(rp_c.get("is_flaw", false))
-		var fs_c: String = "0 dégât & -5 Moral" if is_fl_c else "-1 Résol."
-		var tgt_intercept: bool = bool(target.get("counter_ready", false)) and not bool(target.get("stunned", false))
-		var int_lbl_c: String = "Interception adverse prête : risque d'être ASSOMMÉ (-2 rangs) !" if tgt_intercept else ""
-		var valid_c: bool = bool(rc_c.get("in_range", false)) and land_c.x >= 0
-		return {
-			"valid": valid_c,
-			"reason": str(rc_c.get("lock_reason", "")),
-			"kind": "action",
-			"title": "Charge (2–5c)",
-			"target_id": str(target.get("id", "")),
-			"target_name": str(target.get("name", "")),
-			"from_tick": ft_c,
-			"to_tick": ft_c + 1,
-			"resolve_delta": -3,
-			"crs_delta": 0,
-			"escape_delta": 0,
-			"shield_delta": 0,
-			"moral_delta": 0,
-			"counter_warning": tgt_intercept,
-			"counter_label": int_lbl_c,
-			"chance_pct": int(rp_c.get("chance_pct", 50)),
-			"skill_id": "baston_pression",
-			"skill_name": str(rp_c.get("skill_name", "Caisse")),
-			"skill_val": int(rp_c.get("skill_val", 0)),
-			"dc": dc_c,
-			"bonus": bonus_c,
-			"bonus_label": bl_c,
-			"is_flaw": is_fl_c,
-			"roll_formula": str(rp_c.get("formula", "")),
-			"fail_summary": fs_c,
-			"is_equipment": false,
-			"used": false,
-			"min_range": int(rc_c.get("min_range", 2)),
-			"max_range": int(rc_c.get("max_range", 5)),
-			"distance": int(rc_c.get("distance", 2)),
-			"out_of_range": bool(rc_c.get("out_of_range", false)),
-			"landing_cell": land_c,
-			"summary": "Saute en (%d,%d) & frappe %s (-3 Résol., +1 cran ; raté : %s)" % [land_c.x, land_c.y, str(target.get("name", "")), fs_c]
-		}
+	var rp: Dictionary = GameState.preview_street_roll(actor_id, skill_id, dc, bonus, blbl)
+	var is_fl: bool = bool(rp.get("is_flaw", false))
 
-	if action_id == "act_repli":
-		var dc_r: int = 10 + (1 if crs_ticks <= 2 else 0)
-		var rp_r: Dictionary = GameState.preview_street_roll(actor_id, "caves_esquive", dc_r, 0, "")
-		var is_fl_r: bool = bool(rp_r.get("is_flaw", false))
-		var fs_r: String = "+0 CRS & -4 Moral" if is_fl_r else "+1 CRS (0 Échappée)"
-		return {
-			"valid": true,
-			"kind": "action",
-			"title": "Préparer l'échappée",
-			"target_id": "crs",
-			"target_name": "Patrouille CRS / Quai",
-			"from_tick": crs_ticks,
-			"to_tick": crs_ticks + 2,
-			"resolve_delta": 0,
-			"crs_delta": 2,
-			"escape_delta": 1,
-			"shield_delta": 0,
-			"moral_delta": 0,
-			"counter_warning": false,
-			"counter_label": "",
-			"chance_pct": int(rp_r.get("chance_pct", 50)),
-			"skill_id": "caves_esquive",
-			"skill_name": str(rp_r.get("skill_name", "Caves & Esquive")),
-			"skill_val": int(rp_r.get("skill_val", 0)),
-			"dc": dc_r,
-			"bonus": 0,
-			"bonus_label": "",
-			"is_flaw": is_fl_r,
-			"roll_formula": str(rp_r.get("formula", "")),
-			"fail_summary": fs_r,
-			"is_equipment": false,
-			"used": false,
-			"summary": "CRS Cran %d → %d · Échappée %d → %d/2 (raté : %s)" % [crs_ticks, crs_ticks + 2, escape_progress, mini(2, escape_progress + 1), fs_r]
-		}
+	var on_succ_v: Variant = adef.get("on_success", {})
+	var on_succ: Dictionary = on_succ_v as Dictionary if on_succ_v is Dictionary else {}
+	var on_fail_v: Variant = adef.get("on_flaw" if (is_fl and adef.has("on_flaw")) else "on_fail", {})
+	var on_fail: Dictionary = on_fail_v as Dictionary if on_fail_v is Dictionary else {}
+	var sim: Dictionary = _simulate_effect_bricks(on_succ.get("effects", []), bonus, false)
 
-	if _EQUIP_ACTION_META.has(action_id):
-		if not GameState.has_equipped_action(actor_id, action_id):
-			return {"valid": false, "reason": "Équipement non porté par le membre actif"}
-		var u_key: String = "%s:%s" % [actor_id, action_id]
-		if bool(_used_equip_actions.get(u_key, false)):
-			return {"valid": false, "reason": "Action d'équipement déjà utilisée dans cette confrontation", "used": true, "is_equipment": true}
-		var meta: Dictionary = _EQUIP_ACTION_META.get(action_id, {}) as Dictionary
-		var needs_tgt: bool = bool(meta.get("needs_target", false))
-		if needs_tgt and target.is_empty():
-			return {"valid": false, "reason": "Aucune cible active."}
-		var rc_eq: Dictionary = _eval_range_check(action_id, actor_id, target) if needs_tgt else {"in_range": true, "lock_reason": "", "min_range": 0, "max_range": 0, "distance": 0, "out_of_range": false}
-		var sk_e: String = str(meta.get("skill", "systeme_d"))
-		var b_e: int = int(meta.get("bonus", 1))
-		var bl_e: String = str(meta.get("bonus_label", "Objet"))
-		var dc_e: int = 10
-		if action_id == "act_equip_intimidation_look":
-			dc_e = int(target.get("dc_pression", 11))
-		elif action_id == "act_equip_pochoir" or action_id == "act_equip_pass_mjc":
-			dc_e = int(target.get("dc_social", 11))
-		elif action_id == "act_equip_pause_musique":
-			dc_e = 9
-		var rp_e: Dictionary = GameState.preview_street_roll(actor_id, sk_e, dc_e, b_e, bl_e)
-		var is_fl_e: bool = bool(rp_e.get("is_flaw", false))
-		var tid_e: String = str(target.get("id", "")) if needs_tgt else ("crs" if (action_id == "act_equip_infiltration" or action_id == "act_equip_record_fm" or action_id == "act_equip_pass_tour") else actor_id)
-		var tname_e: String = str(target.get("name", "")) if needs_tgt else ("Patrouille CRS / Quai" if tid_e == "crs" else actor_id.capitalize())
-		var ft_e: int = int(target.get("next_tick", 0)) if needs_tgt else (crs_ticks if tid_e == "crs" else 0)
-		var tt_e: int = (ft_e + 2) if action_id == "act_equip_intimidation_look" else (crs_ticks + 2 if (action_id == "act_equip_infiltration" or action_id == "act_equip_record_fm" or action_id == "act_equip_pass_tour") else (crs_ticks + 1 if action_id == "act_equip_pass_mjc" else ft_e))
-		var rd_e: int = -3 if action_id == "act_equip_intimidation_look" else ((-2 if (action_id == "act_equip_pochoir" or action_id == "act_equip_pass_mjc") else 0))
-		var cd_e: int = 2 if (action_id == "act_equip_infiltration" or action_id == "act_equip_record_fm" or action_id == "act_equip_pass_tour") else (1 if action_id == "act_equip_pass_mjc" else 0)
-		var ed_e: int = 1 if (action_id == "act_equip_infiltration" or action_id == "act_equip_record_fm" or action_id == "act_equip_pass_tour") else 0
-		var md_e: int = 8 if action_id == "act_equip_boombox" else (10 if action_id == "act_equip_pause_musique" else 0)
-		var sum_e: String = "Effet équipement spécial"
-		var fail_e: String = "Effet réduit (-Moral)"
-		if action_id == "act_equip_intimidation_look":
-			sum_e = "%s : -3 Résol · Cran %d→%d · coupe Contre" % [tname_e, ft_e, tt_e]
-			fail_e = "0 dégât & -4 Moral" if is_fl_e else "-1 Résol · +1 cran"
-		elif action_id == "act_equip_infiltration":
-			sum_e = "CRS %d→%d · Échappée +1 · Bouclier +1" % [crs_ticks, crs_ticks + 2]
-			fail_e = "+0 CRS & -6 Moral" if is_fl_e else "+1 CRS, +1 Échappée, -3 Moral"
-		elif action_id == "act_equip_boombox":
-			sum_e = "+8 Moral à tous · Crises +1 cran"
-			fail_e = "+4 Moral mais -1 cran CRS"
-		elif action_id == "act_equip_pochoir":
-			sum_e = "%s -2 Résol · -1 aux autres · +1 Notoriété" % tname_e
-			fail_e = "-6 Moral" if is_fl_e else "-1 Résol cible, -3 Moral"
-		elif action_id == "act_equip_record_fm":
-			sum_e = "CRS +2 · Échappée +1 · Rapproche Train Fantôme"
-			fail_e = "-8 Moral" if is_fl_e else "+1 CRS, -5 Moral"
-		elif action_id == "act_equip_pass_mjc":
-			sum_e = "%s -2 Résol · coupe Contre · +1 CRS" % tname_e
-			fail_e = "-7 Moral" if is_fl_e else "-1 Résol, -4 Moral"
-		elif action_id == "act_equip_pause_musique":
-			sum_e = "+10 Moral allié fragile · retarde crise +1 cran"
-			fail_e = "Bande emmêlée (0 Moral)" if is_fl_e else "+5 Moral à l'acteur"
-		elif action_id == "act_equip_pass_tour":
-			sum_e = "CRS %d→%d · Échappée +1" % [crs_ticks, crs_ticks + 2]
-			fail_e = "-6 Moral" if is_fl_e else "+1 CRS, -3 Moral"
-		return {
-			"valid": bool(rc_eq.get("in_range", true)),
-			"reason": str(rc_eq.get("lock_reason", "")),
-			"kind": "action",
-			"title": str(meta.get("title", action_id)),
-			"target_id": tid_e,
-			"target_name": tname_e,
-			"from_tick": ft_e,
-			"to_tick": tt_e,
-			"resolve_delta": rd_e,
-			"crs_delta": cd_e,
-			"escape_delta": ed_e,
-			"shield_delta": 1 if action_id == "act_equip_infiltration" else 0,
-			"moral_delta": md_e,
-			"counter_warning": false,
-			"counter_label": "",
-			"chance_pct": int(rp_e.get("chance_pct", 50)),
-			"skill_id": sk_e,
-			"skill_name": str(rp_e.get("skill_name", sk_e)),
-			"skill_val": int(rp_e.get("skill_val", 0)),
-			"dc": dc_e,
-			"bonus": b_e,
-			"bonus_label": bl_e,
-			"is_flaw": is_fl_e,
-			"roll_formula": str(rp_e.get("formula", "")),
-			"fail_summary": fail_e,
-			"is_equipment": true,
-			"used": false,
-			"min_range": int(rc_eq.get("min_range", 0)),
-			"max_range": int(rc_eq.get("max_range", 0)),
-			"distance": int(rc_eq.get("distance", 0)),
-			"out_of_range": bool(rc_eq.get("out_of_range", false)),
-			"summary": "%s (raté : %s)" % [sum_e, fail_e]
-		}
+	var is_charge_m: bool = (str(adef.get("movement_mode", "")) == "charge")
+	var land_c: Vector2i = rc.get("landing_cell", Vector2i(-1, -1)) as Vector2i
+	var valid: bool = bool(rc.get("in_range", true)) and (not req_tool or has_tool) and (not is_charge_m or land_c.x >= 0)
+	var reason: String = str(adef.get("missing_tool_reason", "Outil requis")) if (req_tool and not has_tool) else str(rc.get("lock_reason", ""))
 
-	return {"valid": false, "reason": "Action inconnue"}
+	var tid: String = ""
+	var tname: String = ""
+	var from_t: int = 0
+	var to_t: int = 0
+	if tk == "enemy":
+		tid = str(target.get("id", ""))
+		tname = str(target.get("name", ""))
+		from_t = int(target.get("next_tick", 0))
+		to_t = from_t + int(sim.get("push_delta", 0))
+	elif tk == "ally":
+		var low_id: String = _get_lowest_moral_present_ally_id(actor_id)
+		tid = low_id
+		tname = str(DataLoader.get_character(low_id).get("name", low_id))
+	elif str(adef.get("preview_target_id", "")) == "crs" or int(sim.get("crs_delta", 0)) != 0:
+		tid = str(_escalation_cfg.get("id", "crs"))
+		tname = str(_escalation_cfg.get("label", "Escalade"))
+		from_t = crs_ticks
+		to_t = crs_ticks + int(sim.get("crs_delta", 0))
+	else:
+		tid = actor_id
+		tname = str(DataLoader.get_character(actor_id).get("name", actor_id))
 
-## Prévisualisation en lecture seule d'une Interruption hors-tour (incluant alerte Contre-interruption).
+	var fail_sum: String = str(on_fail.get("preview_fail", "Effet réduit"))
+	var parts: Array[String] = []
+	if is_charge_m and land_c.x >= 0:
+		parts.append("Saute en (%d,%d)" % [land_c.x, land_c.y])
+	if int(sim.get("resolve_delta", 0)) != 0:
+		parts.append("%s %d Résol." % [tname, int(sim.get("resolve_delta", 0))])
+	if int(sim.get("push_delta", 0)) > 0:
+		parts.append("Cran %d→%d" % [from_t, to_t])
+	if bool(sim.get("cuts_counter", false)):
+		parts.append("coupe Contre")
+	if int(sim.get("crs_delta", 0)) != 0:
+		parts.append("%s %+d" % [get_escalation_short_label(), int(sim.get("crs_delta", 0))])
+	if int(sim.get("escape_delta", 0)) > 0:
+		parts.append("Échappée +%d" % int(sim.get("escape_delta", 0)))
+	if int(sim.get("shield_delta", 0)) > 0:
+		parts.append("Bouclier +%d" % int(sim.get("shield_delta", 0)))
+	if int(sim.get("moral_delta", 0)) != 0:
+		parts.append("%+d Moral" % int(sim.get("moral_delta", 0)))
+	if bool(sim.get("delays_crisis", false)):
+		parts.append("retarde crise")
+	var base_sum: String = " · ".join(parts) if not parts.is_empty() else str(adef.get("title", action_id))
+	var full_sum: String = "%s (raté : %s)" % [base_sum, fail_sum]
+
+	var tgt_intercept: bool = is_charge_m and not target.is_empty() and bool(target.get("counter_ready", false)) and not bool(target.get("stunned", false))
+	var int_lbl: String = "Interception adverse prête : risque d'être ASSOMMÉ (-2 rangs) !" if tgt_intercept else ""
+	var raw_title: String = str(adef.get("title", str(adef.get("label", action_id))))
+	var final_title: String = raw_title.replace("{tool}", tool_lbl if tool_lbl != "" else "Outil")
+
+	return {
+		"valid": valid,
+		"reason": reason,
+		"kind": "action",
+		"title": final_title,
+		"target_id": tid,
+		"target_name": tname,
+		"from_tick": from_t,
+		"to_tick": to_t,
+		"resolve_delta": int(sim.get("resolve_delta", 0)),
+		"crs_delta": int(sim.get("crs_delta", 0)),
+		"escape_delta": int(sim.get("escape_delta", 0)),
+		"shield_delta": int(sim.get("shield_delta", 0)),
+		"moral_delta": int(sim.get("moral_delta", 0)),
+		"counter_warning": tgt_intercept,
+		"counter_label": int_lbl,
+		"chance_pct": int(rp.get("chance_pct", 50)),
+		"skill_id": skill_id,
+		"skill_name": str(rp.get("skill_name", skill_id)),
+		"skill_val": int(rp.get("skill_val", 0)),
+		"dc": dc,
+		"bonus": bonus,
+		"bonus_label": blbl,
+		"tool_label": tool_lbl,
+		"is_flaw": is_fl,
+		"roll_formula": str(rp.get("formula", "")),
+		"fail_summary": fail_sum,
+		"is_equipment": is_eq,
+		"used": false,
+		"requires_ranged_tool": req_tool,
+		"has_ranged_tool": has_tool,
+		"min_range": int(rc.get("min_range", 0)),
+		"max_range": int(rc.get("max_range", 0)),
+		"distance": int(rc.get("distance", 0)),
+		"out_of_range": bool(rc.get("out_of_range", false)),
+		"landing_cell": land_c,
+		"summary": full_sum
+	}
+
+## Prévisualisation en lecture seule d'une Interruption hors-tour depuis rules/specialties.json.
 func preview_interruption(char_id: String) -> Dictionary:
 	if not active:
 		return {"valid": false, "reason": "Hors confrontation"}
 	var ally: Dictionary = _find_ally(char_id)
 	if ally.is_empty() or not bool(ally.get("present", false)):
-		return {"valid": false, "reason": "Allié absent du quai"}
+		return {"valid": false, "reason": "Allié absent de la scène"}
 	if not bool(ally.get("reaction_ready", false)):
 		return {"valid": false, "reason": "Réaction déjà utilisée ce cycle"}
+
+	var spec_id: String = str(ally.get("specialty_id", ""))
+	var spec_def: Dictionary = DataLoader.get_specialty_def(spec_id)
+	var mode: Dictionary = _select_specialty_mode(spec_def)
+	if mode.is_empty():
+		return {"valid": false, "reason": "Spécialité sans interruption"}
 
 	var counter_warn: bool = false
 	var counter_lbl: String = ""
@@ -1609,131 +1819,68 @@ func preview_interruption(char_id: String) -> Dictionary:
 			counter_lbl = str(e.get("counter_label", "Contre-interruption prête (-6 Moral)"))
 			break
 
-	var spec: String = str(ally.get("specialty_id", ""))
 	var cname: String = str(ally.get("name", char_id))
-	var target: Dictionary = _peek_selected_target()
+	var m_tk: String = str(mode.get("target_kind", "none"))
+	var target: Dictionary = _peek_selected_target() if m_tk == "enemy" else {}
+	if m_tk == "enemy" and target.is_empty():
+		return {"valid": false, "reason": "Aucune cible active"}
 
-	if spec == "moquerie":
-		if target.is_empty():
-			return {"valid": false, "reason": "Aucune cible active"}
-		var dmg_mq: int = 2 if GameState.get_effective_skill(char_id, "tchatche") >= 3 else 1
-		var ft: int = int(target.get("next_tick", 1))
-		return {
-			"valid": true,
-			"kind": "interruption",
-			"title": "%s — Moquerie" % cname,
-			"target_id": str(target.get("id", "")),
-			"target_name": str(target.get("name", "")),
-			"from_tick": ft,
-			"to_tick": ft + 2,
-			"resolve_delta": -dmg_mq,
-			"crs_delta": 0,
-			"escape_delta": 0,
-			"shield_delta": 0,
-			"moral_delta": 0,
-			"counter_warning": counter_warn,
-			"counter_label": counter_lbl,
-			"summary": "%s : -%d Résol · recule Cran %d → %d" % [str(target.get("name", "")), dmg_mq, ft, ft + 2]
-		}
-	elif spec == "interposition":
-		var abs_pow: int = 8 if (GameState.get_effective_skill(char_id, "baston_pression") >= 3 or GameState.get_effective_characteristic(char_id, "corps") >= 4) else 6
-		return {
-			"valid": true,
-			"kind": "interruption",
-			"title": "%s — Interposition" % cname,
-			"target_id": char_id,
-			"target_name": cname,
-			"from_tick": 0,
-			"to_tick": 0,
-			"resolve_delta": 0,
-			"crs_delta": 0,
-			"escape_delta": 0,
-			"shield_delta": 1,
-			"moral_delta": 4,
-			"counter_warning": counter_warn,
-			"counter_label": counter_lbl,
-			"summary": "Bouclier Interposition +1 (-%d dégâts au prochain coup) · +4 Moral" % abs_pow
-		}
-	elif spec == "reflexe_rue":
-		var crs_g_r: int = 3 if GameState.get_effective_skill(char_id, "caves_esquive") >= 3 else 2
-		return {
-			"valid": true,
-			"kind": "interruption",
-			"title": "%s — Réflexe de rue" % cname,
-			"target_id": "crs",
-			"target_name": "Patrouille CRS / Quai",
-			"from_tick": crs_ticks,
-			"to_tick": crs_ticks + crs_g_r,
-			"resolve_delta": 0,
-			"crs_delta": crs_g_r,
-			"escape_delta": 1,
-			"shield_delta": 0,
-			"moral_delta": 0,
-			"counter_warning": counter_warn,
-			"counter_label": counter_lbl,
-			"summary": "CRS Cran %d → %d · Échappée +1" % [crs_ticks, crs_ticks + crs_g_r]
-		}
-	elif spec == "sang_froid":
-		var mor_sf: int = 12 if GameState.get_effective_skill(char_id, "sang_froid_nerfs") >= 3 else 10
-		if not crisis_queue.is_empty():
-			var cr: Dictionary = crisis_queue[0]
-			var cr_cid: String = str(cr.get("char_id", ""))
-			var cr_name: String = str(DataLoader.get_character(cr_cid).get("name", cr_cid))
-			return {
-				"valid": true,
-				"kind": "interruption",
-				"title": "%s — Sang-froid" % cname,
-				"target_id": cr_cid,
-				"target_name": cr_name,
-				"from_tick": int(cr.get("ticks_left", 0)),
-				"to_tick": 0,
-				"resolve_delta": 0,
-				"crs_delta": 0,
-				"escape_delta": 0,
-				"shield_delta": 0,
-				"moral_delta": mor_sf,
-				"counter_warning": counter_warn,
-				"counter_label": counter_lbl,
-				"summary": "Annule la crise de %s · +%d Moral" % [cr_name, mor_sf]
-			}
-		elif not target.is_empty():
-			var fts: int = int(target.get("next_tick", 1))
-			return {
-				"valid": true,
-				"kind": "interruption",
-				"title": "%s — Sang-froid" % cname,
-				"target_id": str(target.get("id", "")),
-				"target_name": str(target.get("name", "")),
-				"from_tick": fts,
-				"to_tick": fts + 1,
-				"resolve_delta": -1,
-				"crs_delta": 0,
-				"escape_delta": 0,
-				"shield_delta": 0,
-				"moral_delta": 0,
-				"counter_warning": counter_warn,
-				"counter_label": counter_lbl,
-				"summary": "%s : -1 Résol · recule Cran %d → %d" % [str(target.get("name", "")), fts, fts + 1]
-			}
-		return {
-			"valid": true,
-			"kind": "interruption",
-			"title": "%s — Sang-froid" % cname,
-			"target_id": char_id,
-			"target_name": cname,
-			"from_tick": 0,
-			"to_tick": 0,
-			"resolve_delta": 0,
-			"crs_delta": 0,
-			"escape_delta": 0,
-			"shield_delta": 0,
-			"moral_delta": 6,
-			"counter_warning": counter_warn,
-			"counter_label": counter_lbl,
-			"summary": "Recentrage (+6 Moral)"
-		}
+	var sc_info: Dictionary = _eval_specialty_scaling(char_id, mode)
+	var scaled_ok: bool = bool(sc_info.get("scaled_active", false))
+	var abs_val: int = int(sc_info.get("absorb", 6))
+	var sim: Dictionary = _simulate_effect_bricks(mode.get("effects", []), 0, scaled_ok)
 
-	return {"valid": false, "reason": "Spécialité sans interruption"}
+	var tid: String = char_id
+	var tname: String = cname
+	var from_t: int = 0
+	var to_t: int = 0
+	if m_tk == "enemy":
+		tid = str(target.get("id", ""))
+		tname = str(target.get("name", ""))
+		from_t = int(target.get("next_tick", 1))
+		to_t = from_t + int(sim.get("push_delta", 0))
+	elif m_tk == "ally_crisis" and not crisis_queue.is_empty():
+		var cr: Dictionary = crisis_queue[0]
+		tid = str(cr.get("char_id", ""))
+		tname = str(DataLoader.get_character(tid).get("name", tid))
+		from_t = int(cr.get("ticks_left", 0))
+		to_t = 0
+	elif str(mode.get("preview_target_id", "")) == "crs" or int(sim.get("crs_delta", 0)) != 0:
+		tid = str(_escalation_cfg.get("id", "crs"))
+		tname = str(_escalation_cfg.get("label", "Escalade"))
+		from_t = crs_ticks
+		to_t = crs_ticks + int(sim.get("crs_delta", 0))
+
+	var ctx: Dictionary = {
+		"actor": cname,
+		"target": tname,
+		"dmg": absi(int(sim.get("resolve_delta", 0))),
+		"push": int(sim.get("push_delta", 0)),
+		"clock": int(sim.get("crs_delta", 0)),
+		"moral": int(sim.get("moral_delta", 0)),
+		"absorb": abs_val,
+		"from_tick": from_t,
+		"to_tick": to_t
+	}
+	var sum_txt: String = _format_combat_log(str(mode.get("preview_summary", "")), ctx)
+
+	return {
+		"valid": true,
+		"kind": "interruption",
+		"title": "%s — %s" % [cname, str(spec_def.get("name", spec_id))],
+		"target_id": tid,
+		"target_name": tname,
+		"from_tick": from_t,
+		"to_tick": to_t,
+		"resolve_delta": int(sim.get("resolve_delta", 0)),
+		"crs_delta": int(sim.get("crs_delta", 0)),
+		"escape_delta": int(sim.get("escape_delta", 0)),
+		"shield_delta": int(sim.get("shield_delta", 0)),
+		"moral_delta": int(sim.get("moral_delta", 0)),
+		"counter_warning": counter_warn,
+		"counter_label": counter_lbl,
+		"summary": sum_txt
+	}
 
 ## Prévisualisation en lecture seule du bouton Retenir une Crise d'autonomie.
 func preview_restrain(crisis_char_id: String) -> Dictionary:
@@ -1760,7 +1907,7 @@ func preview_restrain(crisis_char_id: String) -> Dictionary:
 		"summary": "%s dépense sa Réaction : calme %s (+8 Moral, crise annulée)" % [r_name, cr_name]
 	}
 
-## Retourne la liste ordonnée des fiches unifiées de la Frise (alliés + crises intégrées, renforts, ennemis, CRS).
+## Retourne la liste ordonnée des fiches unifiées de la Frise (alliés + crises intégrées, renforts, ennemis, horloge).
 func get_ordered_rail_entries() -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
 	var acting: Dictionary = get_acting_ally()
@@ -1833,10 +1980,10 @@ func get_ordered_rail_entries() -> Array[Dictionary]:
 				"label": "Renfort " + str(a.get("name", "")).split(" ")[0],
 				"tick": int(a.get("reinforce_in_ticks", 2)),
 				"color": "#7ec4cf",
-				"sub": "103 SP / pied",
+				"sub": "En route",
 				"portrait": portrait_p,
 				"acting": false,
-				"intent": "En approche vers la gare",
+				"intent": "En approche",
 				"counter_ready": false,
 				"selected": false,
 				"attitude": att_val,
@@ -1874,20 +2021,22 @@ func get_ordered_rail_entries() -> Array[Dictionary]:
 				"selected": (eid == selected_target_id),
 				"sort_rank": 0 if is_e_acting else 3
 			})
-	entries.append({
-		"kind": "crs",
-		"id": "crs",
-		"label": "Patrouille CRS",
-		"tick": maxi(0, crs_ticks),
-		"color": "#3d85ff",
-		"sub": "Sirènes",
-		"portrait": "",
-		"acting": false,
-		"intent": "Bouclage des sorties RER",
-		"counter_ready": false,
-		"selected": false,
-		"sort_rank": 5
-	})
+	if is_escalation_enabled():
+		entries.append({
+			"kind": "crs",
+			"id": str(_escalation_cfg.get("id", "crs")),
+			"label": str(_escalation_cfg.get("label", "Patrouille")),
+			"tick": maxi(0, crs_ticks),
+			"clock_max": maxi(6, int(_escalation_cfg.get("start_ticks", 6))),
+			"color": str(_escalation_cfg.get("color", "#3d85ff")),
+			"sub": str(_escalation_cfg.get("sub", "Urgence")),
+			"portrait": str(_escalation_cfg.get("portrait", "")),
+			"acting": false,
+			"intent": str(_escalation_cfg.get("intent", "")),
+			"counter_ready": false,
+			"selected": false,
+			"sort_rank": 5
+		})
 	entries.sort_custom(func(x: Dictionary, y: Dictionary) -> bool:
 		var tx: int = int(x.get("tick", 0))
 		var ty: int = int(y.get("tick", 0))
@@ -1899,7 +2048,8 @@ func get_ordered_rail_entries() -> Array[Dictionary]:
 
 func _advance_one_world_tick() -> void:
 	turn_count += 1
-	crs_ticks -= 1
+	if is_escalation_enabled():
+		crs_ticks -= 1
 
 	# Renforts qui arrivent & récupération PM / réveil au cran 0
 	for a in allies:
@@ -1918,7 +2068,7 @@ func _advance_one_world_tick() -> void:
 				a["grid_y"] = sp_pos.y
 				a["move_points_max"] = mp_m
 				a["move_points_left"] = mp_m
-				var r_msg: String = "RENFORT ! %s déboule sur le quai à temps pour couvrir la bande !" % str(a.get("name", ""))
+				var r_msg: String = "RENFORT ! %s rejoint la scène à temps pour couvrir la bande !" % str(a.get("name", ""))
 				_push_log(r_msg)
 				_emit_feedback("reinforcement", cid_a, str(a.get("name", "")), r_msg, false)
 		else:
@@ -1931,7 +2081,7 @@ func _advance_one_world_tick() -> void:
 				a["move_points_max"] = mp_m2
 				a["move_points_left"] = mp_m2
 
-	# Crises d'autonomie en préavis (restent en queue à 0 jusqu'au beat de déclenchement ou Retenir)
+	# Crises d'autonomie en préavis
 	for i in range(crisis_queue.size()):
 		var cr: Dictionary = crisis_queue[i]
 		var tl: int = maxi(0, int(cr.get("ticks_left", 1)) - 1)
@@ -1953,23 +2103,51 @@ func _advance_one_world_tick() -> void:
 			if not _pending_enemy_ids.has(eid):
 				_pending_enemy_ids.append(eid)
 
-	# Apparition ambiguë du Train Fantôme au quai de la gare du Y
-	_maybe_trigger_train_fantome()
+	_check_timed_events()
 
-	if crs_ticks <= 0:
-		GameState.modify_moral("all", -8)
-		GameState.notoriete += 1
-		_finish("crs_rush", "Les bottes CRS claquent dans les escaliers : la bande file in extremis dans le souterrain sous les sirènes (-8 Moral, +1 Notoriété).")
+	if is_escalation_enabled() and crs_ticks <= 0:
+		var exp_ctx: Dictionary = {
+			"actor_id": "",
+			"is_brilliant": false,
+			"is_crit_success": false,
+			"roll_bonus": 0,
+			"scaled_active": false
+		}
+		_execute_effect_bricks(_escalation_cfg.get("expire_effects", []), exp_ctx)
+		var exp_out: String = str(_escalation_cfg.get("expire_outcome", "clock_expired"))
+		var exp_sum: String = str(_escalation_cfg.get("expire_summary", "Le temps est écoulé : repli forcé !"))
+		_finish(exp_out, exp_sum)
 		return
 
-## Déclenche l'arrivée du Train Fantôme RER B dès que le compteur de tours atteint son seuil.
-func _maybe_trigger_train_fantome() -> void:
-	if not train_fantome_arrived and turn_count >= train_fantome_turn * 2:
-		train_fantome_arrived = true
-		var tf_msg: String = "PHÉNOMÈNE AMBIGU : Un RER B sans annonce entre en gare — sa ferraille coupe la ligne de vue du S.O. !"
-		_push_log(tf_msg)
-		_emit_feedback("train_fantome", "train_fantome", "RER B — Train Fantôme", tf_msg, true)
-		train_fantome_arrived_sig.emit()
+## Vérifie et déclenche les événements programmés définis dans timed_events[] de la rencontre JSON.
+func _check_timed_events() -> void:
+	for te in _timed_events:
+		var te_id: String = str(te.get("id", "timed_ev"))
+		if _fired_timed_events.has(te_id):
+			continue
+		var req_t: int = int(te.get("trigger_turn_ticks", 6))
+		if turn_count >= req_t:
+			_fired_timed_events[te_id] = true
+			if bool(te.get("unlocks_escape", false)):
+				_escape_unlocked_by_event = true
+				train_fantome_arrived = true
+			var te_ctx: Dictionary = {
+				"actor_id": "",
+				"is_brilliant": false,
+				"is_crit_success": false,
+				"roll_bonus": 0,
+				"scaled_active": false
+			}
+			_execute_effect_bricks(te.get("effects", []), te_ctx)
+			var te_log: String = str(te.get("log", ""))
+			if te_log != "":
+				_push_log(te_log)
+			_emit_feedback(te_id, te_id, str(te.get("title", "Événement")), te_log, bool(te.get("shake", true)))
+			var fx_id: String = str(te.get("stage_fx", ""))
+			if fx_id != "":
+				stage_fx_triggered.emit(fx_id)
+				if fx_id == "passing_train":
+					train_fantome_arrived_sig.emit()
 
 func _execute_enemy_turn(enemy: Dictionary) -> void:
 	enemy["stunned"] = false
@@ -1982,7 +2160,7 @@ func _execute_enemy_turn(enemy: Dictionary) -> void:
 	if tgt_ally.is_empty():
 		enemy["next_tick"] = int(enemy.get("speed", 2))
 		return
-	var target_aid: String = str(tgt_ally.get("char_id", "leader"))
+	var target_aid: String = str(tgt_ally.get("char_id", DataLoader.get_leader_char_id()))
 	var target_aname: String = str(tgt_ally.get("name", target_aid))
 	var ax: int = int(tgt_ally.get("grid_x", 3))
 	var ay: int = int(tgt_ally.get("grid_y", 6))
@@ -2049,6 +2227,14 @@ func _pick_closest_present_ally(ex: int, ey: int) -> Dictionary:
 			best = a
 	return best
 
+func _pick_secondary_present_ally_id(exclude_cid: String) -> String:
+	for a in allies:
+		if bool(a.get("present", false)):
+			var cid: String = str(a.get("char_id", ""))
+			if cid != exclude_cid:
+				return cid
+	return exclude_cid
+
 func _move_enemy_toward(enemy: Dictionary, target_x: int, target_y: int, max_steps: int) -> bool:
 	var eid: String = str(enemy.get("id", ""))
 	var cur_x: int = int(enemy.get("grid_x", 4))
@@ -2081,53 +2267,63 @@ func _move_enemy_toward(enemy: Dictionary, target_x: int, target_y: int, max_ste
 
 func _apply_enemy_attack_hit(eid: String, enemy: Dictionary, target_aid: String, target_aname: String, is_charge: bool) -> void:
 	var ename: String = str(enemy.get("name", eid))
-	if eid == "skin_nerveux":
-		if is_charge:
-			_push_log("💥 %s charge au contact de %s (-8 Moral) !" % [ename, target_aname])
-			_apply_moral_hit(target_aid, -8)
-		else:
-			_push_log("%s lance une Menace d'Aura ! La pression monte dans le souterrain." % ename)
-			_apply_moral_hit("karim", -7)
-			_apply_moral_hit("leader", -4)
-	elif eid == "cousin_so":
-		if is_charge:
-			_push_log("💥 %s bouscule %s plein fer (-9 Moral) !" % [ename, target_aname])
-			_apply_moral_hit(target_aid, -9)
-		else:
-			enemy["counter_ready"] = true
-			_push_log("%s bloque le quai et se met en garde (-8 Moral sur %s) !" % [ename, target_aname])
-			_apply_moral_hit(target_aid, -8)
-	elif eid == "so_veteran":
-		enemy["counter_ready"] = true
-		if is_charge:
-			_push_log("💥 %s fonce matraque levée sur %s (-9 Moral, reste en garde) !" % [ename, target_aname])
-			_apply_moral_hit(target_aid, -9)
-		else:
-			_push_log("%s cogne sa matraque contre le rail et menace de vous embarquer au poste !" % ename)
-			_apply_moral_hit("all", -5)
+	var e_hook: String = str(enemy.get("custom_script", ""))
+	if e_hook != "":
+		_invoke_custom_hook(e_hook, "execute_enemy_attack", {
+			"enemy": enemy,
+			"target_ally_id": target_aid,
+			"target_ally_name": target_aname,
+			"is_charge": is_charge
+		})
+		return
+
+	var atk_key: String = "charge_attack" if is_charge else "melee_attack"
+	var atk_v: Variant = enemy.get(atk_key, {})
+	if atk_v is Dictionary and not (atk_v as Dictionary).is_empty():
+		var atk: Dictionary = atk_v as Dictionary
+		var ctx: Dictionary = {
+			"enemy": ename,
+			"target": target_aname,
+			"source_enemy": enemy,
+			"enemy_target_ally_id": target_aid,
+			"actor_id": "",
+			"is_brilliant": false,
+			"is_crit_success": false,
+			"roll_bonus": 0,
+			"scaled_active": false
+		}
+		var atk_log: String = _format_combat_log(str(atk.get("log", "")), ctx)
+		if atk_log != "":
+			_push_log(atk_log)
+		_execute_effect_bricks(atk.get("effects", []), ctx)
 	else:
 		_apply_moral_hit(target_aid, -7 if is_charge else -5)
 
 func _get_ally_charge_intercept_params(char_id: String, enemy: Dictionary) -> Dictionary:
 	var ally: Dictionary = _find_ally(char_id)
-	var spec: String = str(ally.get("specialty_id", ""))
-	var sk_id: String = "baston_pression"
-	if spec == "reflexe_rue":
-		sk_id = "caves_esquive"
-	elif spec == "sang_froid":
-		var sf_v: int = GameState.get_effective_characteristic(char_id, "energie") + GameState.get_effective_skill(char_id, "sang_froid_nerfs")
-		var lr_v: int = GameState.get_effective_characteristic(char_id, "esprit") + GameState.get_effective_skill(char_id, "lecture_rue")
-		sk_id = "sang_froid_nerfs" if sf_v >= lr_v else "lecture_rue"
-	elif spec == "moquerie":
-		var esq_v: int = GameState.get_effective_characteristic(char_id, "corps") + GameState.get_effective_skill(char_id, "caves_esquive")
-		var tch_v: int = GameState.get_effective_characteristic(char_id, "esprit") + GameState.get_effective_skill(char_id, "tchatche")
-		sk_id = "caves_esquive" if esq_v >= tch_v else "tchatche"
+	var spec_id: String = str(ally.get("specialty_id", ""))
+	var spec_def: Dictionary = DataLoader.get_specialty_def(spec_id)
 	var eid: String = str(enemy.get("id", ""))
+	var dc: int = int(enemy.get("dc_pression", 11))
+
+	var sk_id: String = "baston_pression"
+	var isk_var: Variant = spec_def.get("intercept_skills", [])
+	if isk_var is Array and not (isk_var as Array).is_empty():
+		var best_pct: int = -1
+		for sk_v in (isk_var as Array):
+			var cand_sk: String = str(sk_v)
+			if cand_sk == "":
+				continue
+			var pv_sk: Dictionary = GameState.preview_street_roll(char_id, cand_sk, dc, 0, "")
+			var pct_sk: int = int(pv_sk.get("chance_pct", 0))
+			if pct_sk > best_pct:
+				best_pct = pct_sk
+				sk_id = cand_sk
+
 	var tgt_aid: String = str(pending_enemy_charge.get("target_ally_id", ""))
 	var dist: int = get_distance_between("ally", char_id, "enemy", eid)
 	var bonus: int = 1 if (char_id == tgt_aid or (dist >= 0 and dist <= 3)) else 0
 	var blbl: String = "En ligne" if bonus > 0 else ""
-	var dc: int = int(enemy.get("dc_pression", 11))
 	return {
 		"skill_id": sk_id,
 		"dc": dc,
@@ -2224,7 +2420,7 @@ func trigger_charge_interception(ally_id: String) -> Dictionary:
 		_emit_feedback("interrupt", ally_id, cname, win_msg, true)
 		charge_window_ended.emit("intercepted", win_msg)
 		if _all_enemies_defeated():
-			_finish("social_win", "Interception décisive ! Le S.O. plie avant l'arrivée des CRS.")
+			_finish("social_win", _get_win_summary())
 			return {"executed": true, "success": true}
 		_ensure_valid_target()
 		_check_crisis_triggers()
@@ -2252,7 +2448,7 @@ func resolve_pending_enemy_charge() -> void:
 	if not enemy.is_empty() and not bool(enemy.get("defeated", false)):
 		var lx: int = int(ch.get("to_x", int(enemy.get("grid_x", 4))))
 		var ly: int = int(ch.get("to_y", int(enemy.get("grid_y", 2))))
-		var tgt_aid: String = str(ch.get("target_ally_id", "leader"))
+		var tgt_aid: String = str(ch.get("target_ally_id", DataLoader.get_leader_char_id()))
 		var tgt_aname: String = str(ch.get("target_ally_name", tgt_aid))
 		if not is_combat_cell_walkable(lx, ly, "enemy", eid):
 			var fb: Vector2i = find_closest_adjacent_cell(int(enemy.get("grid_x", 4)), int(enemy.get("grid_y", 2)), int(ch.get("target_x", 3)), int(ch.get("target_y", 6)), "enemy", eid)
@@ -2276,6 +2472,13 @@ func resolve_pending_enemy_charge() -> void:
 
 func _apply_moral_hit(char_id: String, delta: int) -> void:
 	var final_delta: int = delta
+	if final_delta < 0:
+		var cov_a: Dictionary = get_entity_cover_info("ally", char_id)
+		if bool(cov_a.get("in_cover", false)):
+			var cov_abs: int = int(cov_a.get("moral_absorb", 2))
+			if cov_abs > 0:
+				final_delta = mini(0, final_delta + cov_abs)
+				_push_log("🛡️ Couvert (%s) : impact moral réduit de %d !" % [str(cov_a.get("label", "Abri")), cov_abs])
 	if interposition_shield > 0 and final_delta < 0:
 		final_delta = mini(0, final_delta + _interposition_absorb)
 		interposition_shield = maxi(0, interposition_shield - 1)
@@ -2310,36 +2513,30 @@ func _execute_autonomous_crisis(cid: String) -> void:
 	var cname: String = str(cdef.get("name", cid))
 	AudioRadio.play_interrupt_hit()
 	var target: Dictionary = _ensure_valid_target()
-	var c_msg: String = ""
-	if cid == "karim":
-		if not target.is_empty():
-			_damage_enemy(target, 2)
-		crs_ticks = maxi(1, crs_ticks - 1)
-		GameState.notoriete += 1
-		c_msg = "CRISE D'AUTONOMIE ! Karim explose (« Laisse béton ! ») : coup de sang sur le S.O. (-2 résol), mais le vacarme rapproche les CRS (-1 cran, +1 Notoriété) !"
-	elif cid == "nadia":
-		escape_progress += 1
-		GameState.modify_moral("nadia", -6)
-		c_msg = "CRISE D'AUTONOMIE ! Nadia décroche vers les néons de la voie (+1 échappée, -6 Moral)."
-	elif cid == "manu":
-		if not target.is_empty():
-			_damage_enemy(target, 2)
-		GameState.modify_moral("manu", -4)
-		c_msg = "CRISE D'AUTONOMIE ! Manu démarre au quart de tour, clé à molette en main (-2 résol sur %s, -4 Moral) !" % str(target.get("name", "S.O."))
-	elif cid == "zoe":
-		if not target.is_empty():
-			target["next_tick"] = int(target.get("next_tick", 1)) + 1
-			_remove_pending_enemy(str(target.get("id", "")))
-		crs_ticks = maxi(1, crs_ticks - 1)
-		GameState.modify_moral("zoe", -5)
-		c_msg = "CRISE D'AUTONOMIE ! Zoé nargue le S.O. en plein néon (+1 cran cible, -1 cran CRS, -5 Moral) !"
-	elif cid == "ludo":
-		crs_ticks = maxi(1, crs_ticks - 1)
-		GameState.modify_moral("ludo", -5)
-		c_msg = "CRISE D'AUTONOMIE ! Ludo panique et attire l'attention sur l'escalier (-1 cran CRS, -5 Moral)."
+	var cr_cfg_v: Variant = cdef.get("crisis", {})
+	var cr_cfg: Dictionary = cr_cfg_v as Dictionary if cr_cfg_v is Dictionary else {}
+	var ctx: Dictionary = {
+		"actor_id": cid,
+		"actor": cname,
+		"target": str(target.get("name", "adversaire")),
+		"target_enemy": target,
+		"is_brilliant": false,
+		"is_crit_success": false,
+		"roll_bonus": 0,
+		"scaled_active": false,
+		"dmg": 0,
+		"push": 0,
+		"clock": 0,
+		"moral": 0
+	}
+	var cr_hook: String = str(cr_cfg.get("custom_script", ""))
+	if cr_hook != "":
+		_invoke_custom_hook(cr_hook, "execute_crisis", ctx)
+	elif not cr_cfg.is_empty():
+		_execute_effect_bricks(cr_cfg.get("effects", []), ctx)
 	else:
 		GameState.modify_moral(cid, -5)
-		c_msg = "CRISE D'AUTONOMIE ! %s agit sous pression sans attendre les ordres !" % cname
+	var c_msg: String = _format_combat_log(str(cr_cfg.get("log", "CRISE D'AUTONOMIE ! {actor} agit sous pression sans attendre les ordres !")), ctx)
 	_push_log(c_msg)
 	_emit_feedback("crisis", cid, cname, c_msg, true)
 
@@ -2457,6 +2654,15 @@ func _all_enemies_defeated() -> bool:
 			return false
 	return true
 
+func _get_win_summary() -> String:
+	var enc: Dictionary = DataLoader.get_encounter(encounter_id)
+	var outs_v: Variant = enc.get("outcomes", {})
+	if outs_v is Dictionary:
+		var ws: String = str((outs_v as Dictionary).get("win_summary", ""))
+		if ws != "":
+			return ws
+	return "Les adversaires plient sous la pression de la bande !"
+
 func _finish(outcome_id: String, summary: String) -> void:
 	active = false
 	awaiting_step = false
@@ -2468,16 +2674,43 @@ func _finish(outcome_id: String, summary: String) -> void:
 	_explicit_ally_target_id = ""
 	_explicit_crisis_target_id = ""
 	GameState.last_encounter_outcome = outcome_id
-	GameState.set_flag("encounter_gare_done", true)
-	var xp_reward: int = 35 if outcome_id == "social_win" else (30 if outcome_id == "escaped" else 15)
-	GameState.add_xp("all", xp_reward)
-	if outcome_id == "social_win" or outcome_id == "escaped":
-		GameState.add_trait("leader", "Sang-froid du Quai Y")
+
+	var enc: Dictionary = DataLoader.get_encounter(encounter_id)
+	var outs_v: Variant = enc.get("outcomes", {})
+	if outs_v is Dictionary:
+		var outs: Dictionary = outs_v as Dictionary
+		var def_fl_v: Variant = outs.get("default_flags", {})
+		if def_fl_v is Dictionary:
+			var def_fl: Dictionary = def_fl_v as Dictionary
+			for fk in def_fl.keys():
+				GameState.set_flag(str(fk), bool(def_fl.get(fk, true)))
+		var ocfg_v: Variant = outs.get(outcome_id, {})
+		if ocfg_v is Dictionary:
+			var ocfg: Dictionary = ocfg_v as Dictionary
+			if ocfg.has("xp_all"):
+				GameState.add_xp("all", int(ocfg.get("xp_all", 0)))
+			var gt_v: Variant = ocfg.get("grant_trait", {})
+			if gt_v is Dictionary:
+				var gt: Dictionary = gt_v as Dictionary
+				var gt_cid: String = str(gt.get("char_id", DataLoader.get_leader_char_id()))
+				var gt_tr: String = str(gt.get("trait", ""))
+				if gt_tr != "":
+					GameState.add_trait(gt_cid, gt_tr)
+			var sf_v: Variant = ocfg.get("set_flag", null)
+			if sf_v is String and str(sf_v) != "":
+				GameState.set_flag(str(sf_v), true)
+			elif sf_v is Dictionary:
+				var sfd: Dictionary = sf_v as Dictionary
+				for sk_f in sfd.keys():
+					GameState.set_flag(str(sk_f), bool(sfd.get(sk_f, true)))
+
 	GameState.add_log(summary)
 	timeline_updated.emit()
 	encounter_finished.emit(outcome_id, summary)
 
 func _push_log(msg: String) -> void:
+	if msg == "":
+		return
 	combat_log.append(msg)
 	if combat_log.size() > 36:
 		combat_log.remove_at(0)
@@ -2503,29 +2736,23 @@ func get_active_turn_entity() -> Dictionary:
 
 ## Indique le type de cible requis par une action ("enemy", "ally" ou "none").
 func get_action_target_kind(action_id: String) -> String:
-	if action_id == "act_tchatche" or action_id == "act_pression" or action_id == "act_lancer" or action_id == "act_tir" or action_id == "act_charge":
-		return "enemy"
-	if _EQUIP_ACTION_META.has(action_id):
-		var meta: Dictionary = _EQUIP_ACTION_META.get(action_id, {}) as Dictionary
-		if bool(meta.get("needs_target", false)):
-			return "enemy"
-	if action_id == "act_equip_pause_musique":
-		return "ally"
-	return "none"
+	if action_id == "act_escape_now" or action_id == "act_wait":
+		return "none"
+	var adef: Dictionary = DataLoader.get_combat_action_def(action_id)
+	return str(adef.get("target_kind", "none"))
 
 ## Indique le type de cible requis par l'Interruption d'un allié ("enemy", "ally_crisis" ou "none").
 func get_interruption_target_kind(char_id: String) -> String:
 	var ally: Dictionary = _find_ally(char_id)
-	var spec: String = str(ally.get("specialty_id", ""))
-	if spec == "moquerie":
-		return "enemy" if not get_valid_target_ids("enemy").is_empty() else "none"
-	if spec == "sang_froid":
-		if not crisis_queue.is_empty():
-			return "ally_crisis"
-		if not get_valid_target_ids("enemy").is_empty():
-			return "enemy"
+	var spec_id: String = str(ally.get("specialty_id", ""))
+	var spec_def: Dictionary = DataLoader.get_specialty_def(spec_id)
+	var mode: Dictionary = _select_specialty_mode(spec_def)
+	if mode.is_empty():
 		return "none"
-	return "none"
+	var tk: String = str(mode.get("target_kind", "none"))
+	if tk == "enemy" and get_valid_target_ids("enemy").is_empty():
+		return "none"
+	return tk
 
 ## Retourne les IDs valides pour un type de ciblage sur la grille isométrique ("enemy", "ally" ou "ally_crisis").
 func get_valid_target_ids(target_kind: String) -> Array[String]:
@@ -2557,13 +2784,13 @@ func preview_player_action_on(action_id: String, target_id: String) -> Dictionar
 	var tk: String = get_action_target_kind(action_id)
 	if tk == "enemy" and target_id != "":
 		selected_target_id = target_id
-	var pv: Dictionary = _build_action_preview(action_id, str(acting.get("char_id", "leader")))
+	var pv: Dictionary = _build_action_preview(action_id, str(acting.get("char_id", DataLoader.get_leader_char_id())))
 	selected_target_id = saved_tid
-	if action_id == "act_equip_pause_musique" and target_id != "" and bool(pv.get("valid", false)):
+	if tk == "ally" and target_id != "" and bool(pv.get("valid", false)):
 		var tname: String = str(DataLoader.get_character(target_id).get("name", target_id))
 		pv["target_id"] = target_id
 		pv["target_name"] = tname
-		pv["summary"] = "+10 Moral sur %s · retarde crise +1 cran (raté : %s)" % [tname, str(pv.get("fail_summary", ""))]
+		pv["summary"] = "%+d Moral sur %s (raté : %s)" % [int(pv.get("moral_delta", 0)), tname, str(pv.get("fail_summary", ""))]
 	return pv
 
 ## Exécute une action tactique en visant explicitement le pion target_id cliqué sur la grille.
@@ -2576,7 +2803,7 @@ func execute_player_action_on(action_id: String, target_id: String) -> void:
 		if en.is_empty() or bool(en.get("defeated", false)):
 			return
 		selected_target_id = target_id
-	elif action_id == "act_equip_pause_musique" and target_id != "":
+	elif tk == "ally" and target_id != "":
 		_explicit_ally_target_id = target_id
 	execute_player_action(action_id)
 
@@ -2591,10 +2818,9 @@ func preview_interruption_on(char_id: String, target_id: String) -> Dictionary:
 	if tk == "ally_crisis" and target_id != "" and bool(pv.get("valid", false)):
 		var cname: String = str(DataLoader.get_character(char_id).get("name", char_id))
 		var tname: String = str(DataLoader.get_character(target_id).get("name", target_id))
-		var mor_sf: int = 12 if GameState.get_effective_skill(char_id, "sang_froid_nerfs") >= 3 else 10
 		pv["target_id"] = target_id
 		pv["target_name"] = tname
-		pv["summary"] = "%s calme la crise de %s · +%d Moral" % [cname, tname, mor_sf]
+		pv["summary"] = "%s calme la crise de %s · %+d Moral" % [cname, tname, int(pv.get("moral_delta", 10))]
 	return pv
 
 ## Exécute une Interruption hors-tour en visant explicitement target_id (ennemi ou PJ en crise).
@@ -2657,6 +2883,7 @@ func get_entity_sheet_data(kind: String, entity_id: String) -> Dictionary:
 					var idef: Dictionary = DataLoader.get_equipment_def(iid)
 					eq_names.append(str(idef.get("name", iid)))
 
+		var cov_ally: Dictionary = get_entity_cover_info("ally", entity_id)
 		return {
 			"kind": "ally",
 			"id": entity_id,
@@ -2684,6 +2911,10 @@ func get_entity_sheet_data(kind: String, entity_id: String) -> Dictionary:
 			"grid_y": int(ally.get("grid_y", 6)),
 			"move_points_left": int(ally.get("move_points_left", 0)),
 			"move_points_max": int(ally.get("move_points_max", compute_ally_move_points(entity_id))),
+			"in_cover": bool(cov_ally.get("in_cover", false)),
+			"cover_label": str(cov_ally.get("label", "")),
+			"cover_defense": int(cov_ally.get("defense_bonus", 0)),
+			"cover_absorb": int(cov_ally.get("moral_absorb", 0)),
 			"in_crisis": in_crisis,
 			"crisis_ticks": cr_ticks,
 			"crisis_label": cr_label,
@@ -2697,6 +2928,7 @@ func get_entity_sheet_data(kind: String, entity_id: String) -> Dictionary:
 		if ed.is_empty():
 			return {}
 		var is_e_stun: bool = bool(ed.get("stunned", false))
+		var cov_en: Dictionary = get_entity_cover_info("enemy", entity_id)
 		return {
 			"kind": "enemy",
 			"id": entity_id,
@@ -2717,6 +2949,10 @@ func get_entity_sheet_data(kind: String, entity_id: String) -> Dictionary:
 			"grid_x": int(ed.get("grid_x", 4)),
 			"grid_y": int(ed.get("grid_y", 2)),
 			"move_points": int(ed.get("move_points", 2)),
+			"in_cover": bool(cov_en.get("in_cover", false)),
+			"cover_label": str(cov_en.get("label", "")),
+			"cover_defense": int(cov_en.get("defense_bonus", 0)),
+			"cover_absorb": int(cov_en.get("moral_absorb", 0)),
 			"next_tick": int(ed.get("next_tick", 1)),
 			"defeated": bool(ed.get("defeated", false))
 		}
@@ -2728,6 +2964,10 @@ func get_ready_reactions() -> Array[Dictionary]:
 	for a in allies:
 		if bool(a.get("present", false)) and bool(a.get("reaction_ready", false)) and not bool(a.get("stunned", false)):
 			var cid: String = str(a.get("char_id", ""))
+			var spec_id: String = str(a.get("specialty_id", ""))
+			var spec_def: Dictionary = DataLoader.get_specialty_def(spec_id)
+			if not spec_def.is_empty() and not bool(spec_def.get("has_interruption", true)):
+				continue
 			out.append({
 				"kind": "interrupt",
 				"char_id": cid,
@@ -2738,14 +2978,14 @@ func get_ready_reactions() -> Array[Dictionary]:
 
 ## Retourne l'ID de l'allié présent le plus proche du cran 0 (repli lorsque awaiting_step est actif).
 func _peek_next_present_ally_id() -> String:
-	var best_id: String = "leader"
+	var best_id: String = DataLoader.get_leader_char_id()
 	var best_t: int = 999
 	for a in allies:
 		if bool(a.get("present", false)):
 			var nt: int = int(a.get("next_tick", 99))
 			if nt < best_t:
 				best_t = nt
-				best_id = str(a.get("char_id", "leader"))
+				best_id = str(a.get("char_id", best_id))
 	return best_id
 
 ## Retourne l'ID de l'allié présent dont le Moral est actuellement le plus bas.

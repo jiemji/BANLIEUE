@@ -218,16 +218,26 @@ func get_location_distance(from_loc: String, to_loc: String) -> int:
 		var neigh: Dictionary = neigh_var as Dictionary
 		if neigh.has(to_loc):
 			var d: int = int(neigh.get(to_loc, 2))
-			if GameState.has_flag("mobs_tuned") and d > 1:
-				d -= 1
+			var mods_var: Variant = DataLoader.scenario_manifest.get("travel_modifiers", [])
+			if mods_var is Array:
+				for mv in (mods_var as Array):
+					if mv is Dictionary:
+						var md: Dictionary = mv as Dictionary
+						var req_flag: String = str(md.get("if_flag", ""))
+						if req_flag == "" or GameState.has_flag(req_flag):
+							var min_d: int = int(md.get("min_dist", 1))
+							var delta_d: int = int(md.get("delta", 0))
+							if d > min_d:
+								d = maxi(min_d, d + delta_d)
 			return d
 	return 2
 
 func compute_reinforcements(encounter_location_id: String) -> Array[Dictionary]:
 	var list: Array[Dictionary] = []
+	var default_loc: String = DataLoader.get_start_location_id()
 	for cid in GameState.squad_members:
 		var st: Dictionary = GameState.get_member_state(cid)
-		var loc_id: String = str(st.get("location_id", "box_garage"))
+		var loc_id: String = str(st.get("location_id", default_loc))
 		var gid: int = int(st.get("group_id", 0))
 		if gid != GameState.active_group_id and loc_id != encounter_location_id:
 			var dist: int = get_location_distance(loc_id, encounter_location_id)

@@ -7,7 +7,7 @@ signal undescribed_clicked(node_name: String, lore: String)
 
 var input_blocked: bool = false
 var _zoom_level: int = 1
-var _map_id: String = "idf"
+var _map_id: String = ""
 var _hover_id: String = ""
 var _hover_lore: String = ""
 var _notice_text: String = ""
@@ -20,7 +20,6 @@ var _focus_world: Vector2 = Vector2(500.0, 380.0)
 var _cam_zoom: float = 0.84
 var _pan_dragging: bool = false
 var _pan_last_screen: Vector2 = Vector2.ZERO
-var _tex_cache: Dictionary = {}
 
 func _ready() -> void:
 	_camera = Camera2D.new()
@@ -167,10 +166,10 @@ func _format_hover_lore(node: Dictionary) -> String:
 	var nname: String = str(node.get("name", ""))
 	if _zoom_level == 1:
 		var code: String = str(node.get("code", ""))
-		var st_str: String = "Zone jouable (Cliquer pour ouvrir)" if str(node.get("status", "")) == "playable" else "Non décrit au départ"
+		var st_str: String = "Zone jouable (Cliquer pour ouvrir)" if GameState.is_node_playable(node) else "Non décrit au départ"
 		return "%s (%s) — %s — %s" % [nname, code, st_str, str(node.get("lore", ""))]
 	if _zoom_level == 2:
-		var st_str2: String = "Ville jouable (Cliquer pour entrer)" if str(node.get("status", "")) == "playable" else "Commune non décrite"
+		var st_str2: String = "Ville jouable (Cliquer pour entrer)" if GameState.is_node_playable(node) else "Commune non décrite"
 		var hook_txt: String = ""
 		var th_var: Variant = node.get("travel_hooks", {})
 		if th_var is Dictionary:
@@ -193,17 +192,28 @@ func _lookup_distance(from_loc: String, to_loc: String) -> int:
 	var loc_def: Dictionary = DataLoader.get_location(from_loc)
 	var nv: Variant = loc_def.get("neighbors", {})
 	if nv is Dictionary and (nv as Dictionary).has(to_loc):
-		return int((nv as Dictionary).get(to_loc, 2))
+		var d: int = int((nv as Dictionary).get(to_loc, 2))
+		var mods_var: Variant = DataLoader.scenario_manifest.get("travel_modifiers", [])
+		if mods_var is Array:
+			for mv in (mods_var as Array):
+				if mv is Dictionary:
+					var md: Dictionary = mv as Dictionary
+					var req_flag: String = str(md.get("if_flag", ""))
+					if req_flag == "" or GameState.has_flag(req_flag):
+						var min_d: int = int(md.get("min_dist", 1))
+						var delta_d: int = int(md.get("delta", 0))
+						if d > min_d:
+							d = maxi(min_d, d + delta_d)
+		return d
 	return 2
 
 func _handle_left_click(world_pos: Vector2) -> void:
 	var hit: Dictionary = _pick_child_at(world_pos)
 	if hit.is_empty():
 		return
-	var status: String = str(hit.get("status", "undescribed"))
 	var hid: String = str(hit.get("id", ""))
 	var hname: String = str(hit.get("name", hid))
-	if status != "playable":
+	if not GameState.is_node_playable(hit):
 		AudioRadio.play_cassette_click()
 		var lore: String = str(hit.get("lore", "Zone non encore décrite."))
 		show_notice("%s — Non décrit pour l'instant : %s" % [hname, lore])
@@ -308,8 +318,7 @@ func _draw_region_idf(data: Dictionary, is_night: bool, ink_col: Color, has_back
 				continue
 			var cd: Dictionary = cv as Dictionary
 			var cid: String = str(cd.get("id", ""))
-			var status: String = str(cd.get("status", "undescribed"))
-			var is_playable: bool = (status == "playable")
+			var is_playable: bool = GameState.is_node_playable(cd)
 			var is_hover: bool = (cid == _hover_id)
 			var poly: PackedVector2Array = _to_poly(cd.get("polygon", []))
 			if poly.size() < 3:
@@ -365,7 +374,7 @@ func _draw_region_idf(data: Dictionary, is_night: bool, ink_col: Color, has_back
 				continue
 			var cd: Dictionary = cv as Dictionary
 			var cpos: Vector2 = _to_vec2(cd.get("pos", [0, 0]))
-			var is_play: bool = (str(cd.get("status", "")) == "playable")
+			var is_play: bool = GameState.is_node_playable(cd)
 			var code: String = str(cd.get("code", ""))
 			var cname: String = str(cd.get("name", ""))
 			var tag_col: Color = Color(0.96, 0.94, 0.88) if is_night else Color(0.12, 0.11, 0.10)
@@ -412,7 +421,7 @@ func _draw_department_93(data: Dictionary, is_night: bool, low_moral: bool, ink_
 		var cid: String = str(cd.get("id", ""))
 		var cpos: Vector2 = _to_vec2(cd.get("pos", [0, 0]))
 		var rad: float = float(cd.get("radius", 14.0))
-		var is_play: bool = (str(cd.get("status", "")) == "playable")
+		var is_play: bool = GameState.is_node_playable(cd)
 		var is_hover: bool = (cid == _hover_id)
 
 		if is_play:
@@ -421,8 +430,9 @@ func _draw_department_93(data: Dictionary, is_night: bool, low_moral: bool, ink_
 			draw_circle(cpos, rad, Color(0.92, 0.22, 0.20) if not is_hover else Color(0.98, 0.45, 0.22))
 			draw_arc(cpos, rad, 0.0, TAU, 24, ink_col, 2.2)
 			var cname: String = str(cd.get("name", cid))
-			if (is_night or low_moral) and int(_pulse_time * 0.7) % 3 == 0:
-				cname = "CRADON [HORS-PLAN RATP]"
+			var glitch_lbl: String = str(cd.get("night_glitch_label", ""))
+			if bool(cd.get("uncanny_marker", false)) and glitch_lbl != "" and (is_night or low_moral) and int(_pulse_time * 0.7) % 3 == 0:
+				cname = glitch_lbl
 			_draw_map_badge(cpos + Vector2(-78.0, -46.0), cname, Color(0.90, 0.20, 0.20), is_night)
 			_draw_squad_pin(cpos + Vector2(26.0, -18.0), "BANDE")
 		else:
@@ -460,8 +470,18 @@ func _draw_city_cradon(data: Dictionary, is_night: bool, low_moral: bool, ink_co
 			else:
 				draw_string(ThemeDB.fallback_font, poly[0] + Vector2(12.0, 22.0), str(sd.get("name", "")).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(scol.r, scol.g, scol.b, 0.92))
 
-	if is_night or low_moral:
-		draw_circle(Vector2(175.0, 155.0), 48.0 + sin(_pulse_time * 1.4) * 5.0, Color(0.45, 0.85, 0.95, 0.14))
+	var fxm_var: Variant = data.get("fx_markers", [])
+	if fxm_var is Array:
+		for fxv in (fxm_var as Array):
+			if fxv is Dictionary:
+				var fxd: Dictionary = fxv as Dictionary
+				if bool(fxd.get("night_or_low_moral", true)) and not (is_night or low_moral):
+					continue
+				var fpos: Vector2 = _to_vec2(fxd.get("pos", [175.0, 155.0]))
+				var frad: float = float(fxd.get("radius", 48.0)) + sin(_pulse_time * 1.4) * 5.0
+				var fc: Color = Color.html(str(fxd.get("color_hex", "#73d9f2")))
+				fc.a = float(fxd.get("alpha", 0.14))
+				draw_circle(fpos, frad, fc)
 
 	# 2. Axes routiers & RER B en Y
 	var roads_var: Variant = data.get("roads", [])
@@ -532,9 +552,7 @@ func _draw_city_cradon(data: Dictionary, is_night: bool, low_moral: bool, ink_co
 			draw_rect(Rect2(rect.position, Vector2(rect.size.x, 8.0)), col, true)
 			draw_rect(rect, Color(0.95, 0.55, 0.16) if is_current else ink_col, false, 3.0 if (is_current or is_hover) else 1.8)
 
-			var done_txt: String = ""
-			if (lid == "tour_b" and GameState.has_flag("tour_b_done")) or (lid == "chez_bebert" and GameState.has_flag("bebert_done")) or (lid == "ruelle_relais" and GameState.has_flag("ruelle_done")) or (lid == "garage_bananes" and GameState.has_flag("manu_recruited")) or (lid == "squat_kepons" and GameState.has_flag("zoe_recruited")) or (lid == "lisiere_poudrerie" and GameState.has_flag("poudrerie_done")):
-				done_txt = " ✓"
+			var done_txt: String = " ✓" if GameState.is_location_completed(lid, cd) else ""
 
 			var txt_col: Color = Color(0.96, 0.94, 0.90) if is_night else Color(0.10, 0.10, 0.11)
 			var lid_title: String = str(cd.get("name", lid)) + done_txt
@@ -606,23 +624,4 @@ func _to_poly(arr_var: Variant) -> PackedVector2Array:
 	return out
 
 func _load_texture_safe(res_path: String) -> Texture2D:
-	if res_path == "":
-		return null
-	if _tex_cache.has(res_path):
-		var cached: Variant = _tex_cache.get(res_path, null)
-		if cached is Texture2D:
-			return cached as Texture2D
-		return null
-	var tex: Texture2D = null
-	if ResourceLoader.exists(res_path):
-		var loaded: Resource = load(res_path)
-		if loaded is Texture2D:
-			tex = loaded as Texture2D
-	if tex == null:
-		var abs_path: String = ProjectSettings.globalize_path(res_path)
-		if FileAccess.file_exists(abs_path):
-			var img: Image = Image.load_from_file(abs_path)
-			if img != null and not img.is_empty():
-				tex = ImageTexture.create_from_image(img)
-	_tex_cache[res_path] = tex
-	return tex
+	return DataLoader.load_texture_safe(res_path)

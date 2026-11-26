@@ -1,0 +1,217 @@
+{
+  "id": "berges_ourcq",
+  "parent_id": "dept_93",
+  "zoom_level": 3,
+  "type": "city",
+  "name": "Berges du Canal de l'Ourcq",
+  "short_name": "Ourcq",
+  "subtitle": "Épisode autonome — Quais industriels & ateliers 1983",
+  "map_width": 1040,
+  "map_height": 760,
+  "backdrop": "res://assets/maps/map_ourcq.png",
+  "paper_tint": "#ded3bc",
+  "night_tint": "#181c24",
+  "sectors": [
+    {
+      "id": "zone_canal",
+      "name": "Quais de l'Ourcq & Docks",
+      "color_hex": "#d93b6a",
+      "polygon": [
+        [
+          565,
+          240
+        ],
+        [
+          1008,
+          240
+        ],
+        [
+          1008,
+          718
+        ],
+        [
+          545,
+          718
+        ]
+      ]
+    },
+    {
+      "id": "vieux_pont",
+      "name": "Écluse & Vieux Pont",
+      "color_hex": "#e3ce8d",
+      "polygon": [
+        [
+          220,
+          360
+        ],
+        [
+          545,
+          360
+        ],
+        [
+          545,
+          635
+        ],
+        [
+          220,
+          635
+        ]
+      ]
+    }
+  ],
+  "roads": [
+    {
+      "label": "Canal de l'Ourcq",
+      "kind": "water",
+      "points": [
+        [
+          24,
+          696
+        ],
+        [
+          620,
+          672
+        ],
+        [
+          905,
+          616
+        ],
+        [
+          1018,
+          535
+        ]
+      ]
+    },
+    {
+      "label": "Voie Ferrée des Docks",
+      "kind": "rail",
+      "points": [
+        [
+          24,
+          165
+        ],
+        [
+          610,
+          185
+        ],
+        [
+          1016,
+          172
+        ]
+      ]
+    },
+    {
+      "label": "Quai du Halage",
+      "kind": "road",
+      "points": [
+        [
+          24,
+          342
+        ],
+        [
+          550,
+          336
+        ],
+        [
+          1016,
+          286
+        ]
+      ]
+    }
+  ],
+  "locations_order": [
+    "squat_kepons",
+    "garage_bananes",
+    "chez_bebert",
+    "ecluse_ponton"
+  ],
+  "children": [
+    {
+      "id": "squat_kepons",
+      "name": "Entrepôt-Squat des Kepons",
+      "sector": "Quais de l'Ourcq",
+      "pos": [
+        855,
+        515
+      ],
+      "footprint": [
+        168,
+        74
+      ],
+      "color_hex": "#d93b6a",
+      "status": "playable",
+      "interior_file": "maps/interiors/squat_kepons.json",
+      "neighbors": {
+        "garage_bananes": 1,
+        "chez_bebert": 1,
+        "ecluse_ponton": 1
+      }
+    },
+    {
+      "id": "garage_bananes",
+      "name": "Le Garage des Bananes",
+      "sector": "Quais de l'Ourcq",
+      "pos": [
+        845,
+        345
+      ],
+      "footprint": [
+        168,
+        74
+      ],
+      "color_hex": "#d96b27",
+      "status": "playable",
+      "completed_if_flag": "bananes_allied",
+      "interior_file": "maps/interiors/garage_bananes.json",
+      "neighbors": {
+        "squat_kepons": 1,
+        "chez_bebert": 1,
+        "ecluse_ponton": 1
+      }
+    },
+    {
+      "id": "chez_bebert",
+      "name": "Bistrot Chez Bébert",
+      "sector": "Écluse du Bourg",
+      "pos": [
+        462,
+        535
+      ],
+      "footprint": [
+        152,
+        74
+      ],
+      "color_hex": "#e3ce8d",
+      "status": "playable",
+      "completed_if_flag": "franck_tipped",
+      "interior_file": "maps/interiors/chez_bebert.json",
+      "neighbors": {
+        "squat_kepons": 1,
+        "garage_bananes": 1,
+        "ecluse_ponton": 1
+      }
+    },
+    {
+      "id": "ecluse_ponton",
+      "name": "Écluse & Ponton des Docks",
+      "sector": "Quais de l'Ourcq & Docks",
+      "pos": [
+        735,
+        625
+      ],
+      "footprint": [
+        172,
+        72
+      ],
+      "color_hex": "#4aa3df",
+      "status": "playable",
+      "completed_if_flag": "canal_defended",
+      "interior_file": "maps/interiors/ecluse_ponton.json",
+      "neighbors": {
+        "squat_kepons": 1,
+        "garage_bananes": 1,
+        "chez_bebert": 1
+      }
+    }
+  ]
+}

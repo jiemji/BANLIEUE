@@ -1,0 +1,246 @@
+{
+  "encounters": {
+    "encounter_ponton_canal": {
+      "id": "encounter_ponton_canal",
+      "title": "Quai de l'Ourcq — Défense de l'Entrepôt",
+      "location_id": "ecluse_ponton",
+      "custom_script": "scripts/ponton_hook.gd",
+      "intro_text": "Deux vigiles musclés débarquent sur le ponton du squat. Au bout du canal, un fourgon de renfort manœuvre sur le gravier.",
+      "pre_modifiers": [
+        {
+          "if_flag": "bananes_allied",
+          "clock_delta": 2,
+          "log": "Projecteur des Bananes braqué sur le halage : +2 crans de marge !"
+        }
+      ],
+      "escalation_clock": {
+        "enabled": true,
+        "id": "crs",
+        "label": "Fourgon Vigiles",
+        "short_label": "Fourgon",
+        "sub": "Phares",
+        "color": "#f2992e",
+        "intent": "Fermeture des docks",
+        "start_ticks": 5,
+        "expire_outcome": "canal_retreat",
+        "expire_summary": "Le fourgon bloque la grille : vous évacuez les caisses par la berge (-5 Moral).",
+        "expire_effects": [
+          {
+            "op": "modify_moral",
+            "target": "all_allies",
+            "amount": -5,
+            "use_shield": false
+          }
+        ]
+      },
+      "escape_config": {
+        "enabled": true,
+        "required_progress": 2,
+        "action_label": "Filer par la Berge !",
+        "action_title": "Repli par la passerelle de l'écluse",
+        "target_name": "Passerelle de l'Ourcq",
+        "status_ready_label": "PASSERELLE DÉGAGÉE !",
+        "outcome_id": "escaped",
+        "summary": "Les tirages sous le bras, la bande file par la passerelle métallique sans laisser une page derrière elle !"
+      },
+      "timed_events": [],
+      "player_action_ids": [
+        "act_pression",
+        "act_lancer",
+        "act_tir",
+        "act_charge",
+        "act_tchatche",
+        "act_repli"
+      ],
+      "enemies": [
+        {
+          "id": "vigile_ponton",
+          "name": "Vigile du Dépôt",
+          "role": "Ronde privée",
+          "tags": [
+            "vigile"
+          ],
+          "portrait": "res://assets/portraits/cousin_so.png",
+          "appearance": {
+            "head": "res://assets/modular/heads/cousin_so.png",
+            "top": "res://assets/modular/tops/imper_vigile.png",
+            "bottom": "res://assets/modular/bottoms/jean_ardoise_baskets.png"
+          },
+          "start_grid": [
+            3,
+            2
+          ],
+          "move_points": 2,
+          "can_charge": true,
+          "intercept_bonus": 1,
+          "resolve_max": 3,
+          "initial_tick": 1,
+          "speed": 2,
+          "dc_social": 10,
+          "dc_pression": 10,
+          "intent_label": "Renverse les tables de tirage",
+          "bark": "« Fini le boucan, on embarque les cartons ! »",
+          "has_counter_interrupt": false,
+          "counter_label": "",
+          "charge_attack": {
+            "log": "💥 {enemy} charge {target} sur les palettes (-7 Moral) !",
+            "effects": [
+              {
+                "op": "modify_moral",
+                "target": "target_ally",
+                "amount": -7,
+                "use_shield": true
+              }
+            ]
+          },
+          "melee_attack": {
+            "log": "{enemy} repousse {target} contre le mur de briques (-6 Moral) !",
+            "effects": [
+              {
+                "op": "modify_moral",
+                "target": "target_ally",
+                "amount": -6,
+                "use_shield": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "chef_ronde",
+          "name": "Chef d'Équipe",
+          "role": "Ancien videur",
+          "tags": [
+            "vigile_chef"
+          ],
+          "portrait": "res://assets/portraits/so_veteran.png",
+          "appearance": {
+            "head": "res://assets/modular/heads/so_agent.png",
+            "top": "res://assets/modular/tops/blouson_so.png",
+            "bottom": "res://assets/modular/bottoms/treillis_kaki_rangers.png"
+          },
+          "start_grid": [
+            5,
+            2
+          ],
+          "move_points": 2,
+          "can_charge": true,
+          "intercept_bonus": 2,
+          "resolve_max": 4,
+          "initial_tick": 2,
+          "speed": 3,
+          "dc_social": 11,
+          "dc_pression": 11,
+          "intent_label": "Verrouille l'issue du quai",
+          "bark": "« Personne ne sort avec ces tracts ! »",
+          "has_counter_interrupt": true,
+          "counter_label": "Garde haute prête !",
+          "charge_attack": {
+            "log": "💥 {enemy} percute {target} (-8 Moral) !",
+            "effects": [
+              {
+                "op": "modify_moral",
+                "target": "target_ally",
+                "amount": -8,
+                "use_shield": true
+              }
+            ]
+          },
+          "melee_attack": {
+            "log": "{enemy} tape du bâton sur la rambarde (-5 Moral à toute la bande) !",
+            "effects": [
+              {
+                "op": "set_counter_ready",
+                "value": true
+              },
+              {
+                "op": "modify_moral",
+                "target": "all_allies",
+                "amount": -5,
+                "use_shield": true
+              }
+            ]
+          }
+        }
+      ],
+      "outcomes": {
+        "default_flags": {
+          "canal_defended": true
+        },
+        "win_summary": "La ronde privée bat en retraite sous les huées du canal !",
+        "social_win": {
+          "xp_all": 30,
+          "grant_trait": {
+            "char_id": "leader",
+            "trait": "Veilleur de l'Ourcq"
+          },
+          "regroup_squad": true,
+          "move_to": "squat_kepons",
+          "next_dialogue": "canal_epilogue"
+        },
+        "escaped": {
+          "xp_all": 25,
+          "regroup_squad": true,
+          "move_to": "squat_kepons",
+          "next_dialogue": "canal_epilogue"
+        },
+        "canal_retreat": {
+          "xp_all": 15,
+          "regroup_squad": true,
+          "move_to": "chez_bebert",
+          "next_dialogue": "canal_epilogue"
+        }
+      },
+      "cover_tiles": [
+        {
+          "x": 2,
+          "y": 4,
+          "label": "Piles de palettes",
+          "defense_bonus": 2,
+          "moral_absorb": 2,
+          "blocks_movement": true
+        },
+        {
+          "x": 5,
+          "y": 4,
+          "label": "Bollards fonte",
+          "defense_bonus": 1,
+          "moral_absorb": 2,
+          "blocks_movement": false
+        }
+      ],
+      "combat_interactables": [
+        {
+          "id": "prop_vanne_ecluse",
+          "label": "Vanne d'écluse",
+          "x": 6,
+          "y": 5,
+          "max_range": 2,
+          "cost_tick": 2,
+          "skill": "mecanique_mob",
+          "dc": 9,
+          "one_shot": true,
+          "effects": [
+            {
+              "op": "modify_escalation_clock",
+              "amount": 2
+            },
+            {
+              "op": "advance_escape",
+              "amount": 1
+            }
+          ],
+          "fail_effects": [
+            {
+              "op": "modify_moral",
+              "target": "self",
+              "amount": -3,
+              "use_shield": true
+            }
+          ],
+          "log_success": "⚙ {actor} ouvre la vanne de l'écluse : le halage inondé freine le fourgon (+{clock} crans {clock_short}, +1 Échappée) !",
+          "log_fail": "⚙ Volant grippé ({actor}) : -3 Moral !"
+        }
+      ]
+    }
+  }
+}

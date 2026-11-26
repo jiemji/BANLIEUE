@@ -762,259 +762,501 @@ def _check_modular_png(fp: str, label: str, errors: list[str]) -> None:
         errors.append(f"Transparent corners missing in {label}: {fp}")
 
 
-def validate_project(game_root: str) -> int:
-    errors: list[str] = []
+FORBIDDEN_HARDCODED_IDS: tuple[str, ...] = (
+    "couvre_feu_galaxian",
+    "ronde_du_canal",
+    "cradon_les_gonesse",
+    "berges_ourcq",
+    "box_garage",
+    "gare_rer_y",
+    "tour_b",
+    "chez_bebert",
+    "ruelle_relais",
+    "garage_bananes",
+    "squat_kepons",
+    "lisiere_poudrerie",
+    "cousin_so",
+    "so_veteran",
+    "skin_nerveux",
+    "intro_box_garage",
+    "box_garage_debrief",
+    "encounter_gare_y",
+    "Sang-froid du Quai Y",
+)
 
-    def load_j(rel: str):
-        with open(os.path.join(game_root, rel), "r", encoding="utf-8") as f:
-            return json.load(f)
 
-    chars_j = load_j("data/characters.json")
-    idf_j = load_j("data/world/idf.json")
-    dlgs_j = load_j("data/dialogues.json")
-    encs_j = load_j("data/timeline_encounters.json")
-    load_j("data/radio_fm.json")
-    equip_path = os.path.join(game_root, "data/equipment.json")
-    equip_j = load_j("data/equipment.json") if os.path.exists(equip_path) else {"skills_catalog": [], "equipment": []}
+def _resolve_pack_disk_path(game_root: str, pack_dir: str, raw_path: str) -> str:
+    p = str(raw_path or "").strip()
+    if not p:
+        return ""
+    if p.startswith("res://"):
+        return os.path.join(game_root, p[6:])
+    return os.path.join(pack_dir, p.lstrip("/\\"))
 
-    char_ids = {c["id"] for c in chars_j["characters"]}
-    dlg_ids = set(dlgs_j["dialogues"].keys())
-    enc_ids = set(encs_j["encounters"].keys())
-    valid_skill_ids = {sk.get("id", "") for sk in equip_j.get("skills_catalog", []) if sk.get("id", "")}
+
+def _list_pack_json_files(folder_path: str) -> list[str]:
+    if not os.path.isdir(folder_path):
+        return []
+    names = sorted(fn for fn in os.listdir(folder_path) if fn.endswith(".json"))
+    return [os.path.join(folder_path, fn) for fn in names]
+
+
+def _validate_single_scenario_pack(game_root: str, sid: str, pack_dir: str, errors: list[str]) -> dict[str, int]:
+    manifest_fp = os.path.join(pack_dir, "scenario.json")
+    if not os.path.exists(manifest_fp):
+        errors.append(f"[{sid}] Missing scenario.json in {pack_dir}")
+        return {}
+    with open(manifest_fp, "r", encoding="utf-8") as f:
+        manifest = json.load(f)
+
+    if str(manifest.get("id", "")) != sid:
+        errors.append(f"[{sid}] scenario.json id mismatch: {manifest.get('id')}")
+
+    skills_by_id: dict[str, dict] = {}
+    combat_actions_by_id: dict[str, dict] = {}
+    specialties_by_id: dict[str, dict] = {}
+    props_catalog: dict[str, dict] = {}
+    equip_by_id: dict[str, dict] = {}
+    chars_by_id: dict[str, dict] = {}
+    portraits_list: list[dict] = []
+    archetypes_list: list[dict] = []
+    dlgs_by_id: dict[str, dict] = {}
+    encs_by_id: dict[str, dict] = {}
+    radio_stations: list[dict] = []
     valid_slots = {"look_top", "look_bottom", "tool", "fetish"}
-    equip_by_id = {}
-    for eq in equip_j.get("equipment", []):
-        eid = eq.get("id", "")
-        slot = eq.get("slot", "")
-        if slot not in valid_slots:
-            errors.append(f"Invalid equipment slot '{slot}' on {eid}")
-        if eid:
-            equip_by_id[eid] = eq
-        if slot in ("look_top", "look_bottom"):
-            sp = eq.get("sprite", "")
-            if not sp or not sp.startswith("res://"):
-                errors.append(f"Missing or invalid sprite path on {slot} equipment {eid}: {sp}")
-            else:
-                _check_modular_png(os.path.join(game_root, sp[6:]), f"equipment.{eid}.sprite", errors)
 
-    valid_equip_ids = set(equip_by_id.keys())
-    valid_action_ids = {
-        act.get("id", "")
-        for eq in equip_j.get("equipment", [])
-        for act in eq.get("unlocks_actions", [])
-        if isinstance(act, dict) and act.get("id", "")
-    }
+    def ingest_rules(rd: dict) -> None:
+        for sk in rd.get("skills_catalog", []):
+            if isinstance(sk, dict) and sk.get("id"):
+                skills_by_id[str(sk["id"])] = sk
+        for act in rd.get("actions", []):
+            if isinstance(act, dict) and act.get("id"):
+                combat_actions_by_id[str(act["id"])] = act
+        for sp in rd.get("specialties", []):
+            if isinstance(sp, dict) and sp.get("id"):
+                specialties_by_id[str(sp["id"])] = sp
+        for pk, pv in rd.get("props", {}).items():
+            if isinstance(pv, dict):
+                props_catalog[str(pk)] = pv
 
+    for rf in _list_pack_json_files(os.path.join(pack_dir, "rules")):
+        with open(rf, "r", encoding="utf-8") as f:
+            ingest_rules(json.load(f))
+
+    for ef in _list_pack_json_files(os.path.join(pack_dir, "equipment")):
+        with open(ef, "r", encoding="utf-8") as f:
+            eq_j = json.load(f)
+        ingest_rules(eq_j)
+        for eq in eq_j.get("equipment", []):
+            eid = str(eq.get("id", ""))
+            slot = str(eq.get("slot", ""))
+            if slot not in valid_slots:
+                errors.append(f"[{sid}] Invalid equipment slot '{slot}' on {eid}")
+            if eid:
+                equip_by_id[eid] = eq
+            if slot in ("look_top", "look_bottom"):
+                sp = str(eq.get("sprite", ""))
+                fp_sp = _resolve_pack_disk_path(game_root, pack_dir, sp)
+                if not fp_sp:
+                    errors.append(f"[{sid}] Missing sprite path on {slot} equipment {eid}")
+                else:
+                    _check_modular_png(fp_sp, f"[{sid}] equipment.{eid}.sprite", errors)
+            for uact in eq.get("unlocks_actions", []):
+                if isinstance(uact, dict) and uact.get("id") and isinstance(uact.get("combat_action"), dict):
+                    ca = dict(uact["combat_action"])
+                    ca["id"] = str(uact["id"])
+                    combat_actions_by_id[str(uact["id"])] = ca
+
+    for cf in _list_pack_json_files(os.path.join(pack_dir, "characters")):
+        with open(cf, "r", encoding="utf-8") as f:
+            ch_j = json.load(f)
+        for c in ch_j.get("characters", []):
+            if isinstance(c, dict) and c.get("id"):
+                chars_by_id[str(c["id"])] = c
+        if "id" in ch_j and "appearance" in ch_j and "archetypes" not in ch_j:
+            chars_by_id[str(ch_j["id"])] = ch_j
+        for p_e in ch_j.get("portraits", []):
+            if isinstance(p_e, dict):
+                portraits_list.append(p_e)
+        for a_e in ch_j.get("archetypes", []):
+            if isinstance(a_e, dict):
+                archetypes_list.append(a_e)
+
+    for df in _list_pack_json_files(os.path.join(pack_dir, "dialogues")):
+        with open(df, "r", encoding="utf-8") as f:
+            dj = json.load(f)
+        for dk, dv in dj.get("dialogues", {}).items():
+            if isinstance(dv, dict):
+                dlgs_by_id[str(dk)] = dv
+
+    for enf in _list_pack_json_files(os.path.join(pack_dir, "encounters")):
+        with open(enf, "r", encoding="utf-8") as f:
+            ej = json.load(f)
+        for ek, ev in ej.get("encounters", {}).items():
+            if isinstance(ev, dict):
+                encs_by_id[str(ek)] = ev
+
+    rad_single = os.path.join(pack_dir, "radio_fm.json")
+    if os.path.exists(rad_single):
+        with open(rad_single, "r", encoding="utf-8") as f:
+            radio_stations.extend(json.load(f).get("stations", []))
+    for rad_f in _list_pack_json_files(os.path.join(pack_dir, "radio")):
+        with open(rad_f, "r", encoding="utf-8") as f:
+            radio_stations.extend(json.load(f).get("stations", []))
+    if not radio_stations:
+        errors.append(f"[{sid}] No radio stations defined in pack")
+
+    # World hierarchy N1-N4
     valid_statuses = {"playable", "locked", "undescribed"}
-    reg_ids = {idf_j.get("id", "idf")}
-    dept_ids = set()
-    city_ids = set()
-    interiors_list = []
+    reg_ids: set[str] = set()
+    dept_ids: set[str] = set()
+    city_ids: set[str] = set()
+    interiors_by_id: dict[str, dict] = {}
 
-    def load_res(res_p: str, owner: str):
-        if not res_p.startswith("res://"):
-            errors.append(f"Invalid res:// path in {owner}: {res_p}")
-            return None
-        fp = os.path.join(game_root, res_p[6:])
-        if not os.path.exists(fp):
-            errors.append(f"Missing referenced JSON {res_p} in {owner}")
+    def load_pack_json(rel_or_res: str, owner: str):
+        fp = _resolve_pack_disk_path(game_root, pack_dir, rel_or_res)
+        if not fp or not os.path.exists(fp):
+            errors.append(f"[{sid}] Missing referenced JSON '{rel_or_res}' in {owner}")
             return None
         with open(fp, "r", encoding="utf-8") as f:
             return json.load(f)
 
-    for dc in idf_j.get("children", []):
-        if dc.get("status") not in valid_statuses:
-            errors.append(f"Invalid status in idf child {dc.get('id')}")
-        cf = dc.get("child_file", "")
-        if cf:
-            dept_j = load_res(cf, f"idf/{dc.get('id')}")
-            if dept_j:
-                dept_ids.add(dept_j.get("id", ""))
-                db_p = dept_j.get("backdrop", "")
-                if db_p and (not db_p.startswith("res://") or not os.path.exists(os.path.join(game_root, db_p[6:]))):
-                    errors.append(f"Missing map backdrop {db_p} in {dept_j.get('id')}")
-                for cc in dept_j.get("children", []):
-                    if cc.get("status") not in valid_statuses:
-                        errors.append(f"Invalid status in dept child {cc.get('id')}")
-                    ccf = cc.get("child_file", "")
-                    if ccf:
-                        city_j = load_res(ccf, f"{dept_j.get('id')}/{cc.get('id')}")
-                        if city_j:
-                            city_ids.add(city_j.get("id", ""))
-                            cb_p = city_j.get("backdrop", "")
-                            if cb_p and (not cb_p.startswith("res://") or not os.path.exists(os.path.join(game_root, cb_p[6:]))):
-                                errors.append(f"Missing map backdrop {cb_p} in {city_j.get('id')}")
-                            for bc in city_j.get("children", []):
-                                if bc.get("status") not in valid_statuses:
-                                    errors.append(f"Invalid status in city child {bc.get('id')}")
-                                inf = bc.get("interior_file", "")
-                                if inf:
-                                    int_j = load_res(inf, f"{city_j.get('id')}/{bc.get('id')}")
-                                    if int_j:
-                                        interiors_list.append(int_j)
+    world_root_rel = str(manifest.get("world_root_file", "world/idf.json"))
+    reg_j = load_pack_json(world_root_rel, "scenario.world_root_file")
+    if reg_j:
+        reg_ids.add(str(reg_j.get("id", "idf")))
+        ib_p = str(reg_j.get("backdrop", ""))
+        if ib_p and not os.path.exists(_resolve_pack_disk_path(game_root, pack_dir, ib_p)):
+            errors.append(f"[{sid}] Missing region backdrop {ib_p}")
+        for dc in reg_j.get("children", []):
+            if dc.get("status") not in valid_statuses:
+                errors.append(f"[{sid}] Invalid status in region child {dc.get('id')}")
+            cf = str(dc.get("child_file", ""))
+            if cf:
+                dept_j = load_pack_json(cf, f"region/{dc.get('id')}")
+                if dept_j:
+                    dept_ids.add(str(dept_j.get("id", "")))
+                    db_p = str(dept_j.get("backdrop", ""))
+                    if db_p and not os.path.exists(_resolve_pack_disk_path(game_root, pack_dir, db_p)):
+                        errors.append(f"[{sid}] Missing dept backdrop {db_p}")
+                    for cc in dept_j.get("children", []):
+                        if cc.get("status") not in valid_statuses:
+                            errors.append(f"[{sid}] Invalid status in dept child {cc.get('id')}")
+                        ccf = str(cc.get("child_file", ""))
+                        if ccf:
+                            city_j = load_pack_json(ccf, f"{dept_j.get('id')}/{cc.get('id')}")
+                            if city_j:
+                                city_ids.add(str(city_j.get("id", "")))
+                                cb_p = str(city_j.get("backdrop", ""))
+                                if cb_p and not os.path.exists(_resolve_pack_disk_path(game_root, pack_dir, cb_p)):
+                                    errors.append(f"[{sid}] Missing city backdrop {cb_p}")
+                                for bc in city_j.get("children", []):
+                                    if bc.get("status") not in valid_statuses:
+                                        errors.append(f"[{sid}] Invalid status in city child {bc.get('id')}")
+                                    inf = str(bc.get("interior_file", ""))
+                                    if inf:
+                                        int_j = load_pack_json(inf, f"{city_j.get('id')}/{bc.get('id')}")
+                                        if int_j and int_j.get("id"):
+                                            interiors_by_id[str(int_j["id"])] = int_j
 
-    ib_p = idf_j.get("backdrop", "")
-    if ib_p and (not ib_p.startswith("res://") or not os.path.exists(os.path.join(game_root, ib_p[6:]))):
-        errors.append(f"Missing map backdrop {ib_p} in idf")
+    for int_fp in _list_pack_json_files(os.path.join(pack_dir, "maps", "interiors")):
+        with open(int_fp, "r", encoding="utf-8") as f:
+            ij = json.load(f)
+        if isinstance(ij, dict) and ij.get("id") and str(ij["id"]) not in interiors_by_id:
+            interiors_by_id[str(ij["id"])] = ij
 
-    loc_ids = {l["id"] for l in interiors_list}
+    char_ids = set(chars_by_id.keys())
+    dlg_ids = set(dlgs_by_id.keys())
+    enc_ids = set(encs_by_id.keys())
+    loc_ids = set(interiors_by_id.keys())
+    valid_skill_ids = set(skills_by_id.keys())
+    valid_equip_ids = set(equip_by_id.keys())
+    valid_unlocked_action_ids = {
+        str(act.get("id", ""))
+        for eq in equip_by_id.values()
+        for act in eq.get("unlocks_actions", [])
+        if isinstance(act, dict) and act.get("id")
+    } | set(combat_actions_by_id.keys())
+    ending_ids = set((manifest.get("endings") or {}).keys())
 
-    for c in chars_j["characters"]:
-        cid = c["id"]
-        port_p = c.get("portrait", "")
-        if not port_p or not port_p.startswith("res://") or not os.path.exists(os.path.join(game_root, port_p[6:])):
-            errors.append(f"Missing or invalid portrait for {cid}: {port_p}")
+    # Validate manifest links
+    leader_cid = str(manifest.get("leader_char_id", "leader"))
+    if leader_cid not in char_ids:
+        errors.append(f"[{sid}] leader_char_id '{leader_cid}' missing from characters")
+    sh = manifest.get("start_hierarchy", {})
+    if isinstance(sh, dict):
+        sloc = str(sh.get("location_id", ""))
+        if sloc not in loc_ids:
+            errors.append(f"[{sid}] start_hierarchy.location_id '{sloc}' not in interiors")
+    intro_dlg = str(manifest.get("intro_dialogue_id", ""))
+    if intro_dlg and intro_dlg not in dlg_ids:
+        errors.append(f"[{sid}] intro_dialogue_id '{intro_dlg}' not in dialogues")
+    st_state = manifest.get("start_state", {})
+    if isinstance(st_state, dict):
+        for st_it in st_state.get("stash_items", []):
+            if str(st_it) not in valid_equip_ids:
+                errors.append(f"[{sid}] Unknown start_state stash item '{st_it}'")
+
+    # Validate characters & profiles
+    for cid, c in chars_by_id.items():
+        port_fp = _resolve_pack_disk_path(game_root, pack_dir, str(c.get("portrait", "")))
+        if not port_fp or not os.path.exists(port_fp):
+            errors.append(f"[{sid}] Missing portrait for {cid}: {c.get('portrait')}")
         app = c.get("appearance", {})
         if not isinstance(app, dict):
-            errors.append(f"Missing appearance dict for {cid}")
+            errors.append(f"[{sid}] Missing appearance dict for {cid}")
         else:
             for ak in ("head", "default_top", "default_bottom"):
-                ap = app.get(ak, "")
-                if not ap or not ap.startswith("res://"):
-                    errors.append(f"Invalid appearance.{ak} for {cid}: {ap}")
+                ap_fp = _resolve_pack_disk_path(game_root, pack_dir, str(app.get(ak, "")))
+                if not ap_fp:
+                    errors.append(f"[{sid}] Missing appearance.{ak} for {cid}")
                 else:
-                    _check_modular_png(os.path.join(game_root, ap[6:]), f"{cid}.appearance.{ak}", errors)
+                    _check_modular_png(ap_fp, f"[{sid}] {cid}.appearance.{ak}", errors)
+        sp_id = str(c.get("specialty_id", ""))
+        if sp_id and sp_id not in specialties_by_id:
+            errors.append(f"[{sid}] Unknown specialty_id '{sp_id}' on character {cid}")
         def_eq = c.get("default_equipment", {})
-        if isinstance(def_eq, dict) and def_eq:
+        if isinstance(def_eq, dict):
             for sl, iid in def_eq.items():
                 if sl not in valid_slots:
-                    errors.append(f"Invalid default_equipment slot '{sl}' on {cid}")
+                    errors.append(f"[{sid}] Invalid default_equipment slot '{sl}' on {cid}")
                 elif iid:
                     if iid not in equip_by_id:
-                        errors.append(f"Unknown default_equipment item '{iid}' on {cid}")
+                        errors.append(f"[{sid}] Unknown default_equipment item '{iid}' on {cid}")
                     elif equip_by_id[iid].get("slot") != sl:
-                        errors.append(f"Slot mismatch for {cid}.{sl} = {iid} (expected {equip_by_id[iid].get('slot')})")
+                        errors.append(f"[{sid}] Slot mismatch on {cid}.{sl} = {iid}")
 
-    pending_assets: list[str] = []
-    profiles_path = os.path.join(game_root, "data/player_profiles.json")
-    if os.path.exists(profiles_path):
-        prof_j = load_j("data/player_profiles.json")
-        for p_entry in prof_j.get("portraits", []):
-            pid = p_entry.get("id", "?")
-            port_p = p_entry.get("portrait", "")
-            if not port_p or not port_p.startswith("res://") or not os.path.exists(os.path.join(game_root, port_p[6:])):
-                errors.append(f"Missing portrait for player profile {pid}: {port_p}")
-            for ak in ("head", "default_top", "default_bottom"):
-                ap = p_entry.get(ak, "")
-                if not ap or not ap.startswith("res://"):
-                    errors.append(f"Invalid {ak} for player profile {pid}: {ap}")
-                else:
-                    _check_modular_png(os.path.join(game_root, ap[6:]), f"profile.{pid}.{ak}", errors)
-        for arch in prof_j.get("archetypes", []):
-            aid = arch.get("id", "")
-            for req_k in ("id", "title", "story", "specialty_id"):
-                if not str(arch.get(req_k, "")).strip():
-                    errors.append(f"Missing {req_k} in archetype {aid or '?'}")
-            de = arch.get("default_equipment", {})
-            if isinstance(de, dict):
-                for sl, iid in de.items():
-                    if sl not in valid_slots:
-                        errors.append(f"Invalid archetype default_equipment slot '{sl}' on {aid}")
-                    elif iid:
-                        if iid not in equip_by_id:
-                            errors.append(f"Unknown archetype equipment '{iid}' on {aid}")
-                        elif equip_by_id[iid].get("slot") != sl:
-                            errors.append(f"Slot mismatch on {aid}.{sl} = {iid}")
+    for p_entry in portraits_list:
+        pid = str(p_entry.get("id", "?"))
+        pfp = _resolve_pack_disk_path(game_root, pack_dir, str(p_entry.get("portrait", "")))
+        if not pfp or not os.path.exists(pfp):
+            errors.append(f"[{sid}] Missing portrait for player profile {pid}")
+        for ak in ("head", "default_top", "default_bottom"):
+            ap_fp = _resolve_pack_disk_path(game_root, pack_dir, str(p_entry.get(ak, "")))
+            if not ap_fp:
+                errors.append(f"[{sid}] Missing {ak} for player profile {pid}")
+            else:
+                _check_modular_png(ap_fp, f"[{sid}] profile.{pid}.{ak}", errors)
 
-    for enc_id, enc_d in encs_j.get("encounters", {}).items():
+    for arch in archetypes_list:
+        aid = str(arch.get("id", ""))
+        for req_k in ("id", "title", "story", "specialty_id"):
+            if not str(arch.get(req_k, "")).strip():
+                errors.append(f"[{sid}] Missing {req_k} in archetype {aid or '?'}")
+        sp_a = str(arch.get("specialty_id", ""))
+        if sp_a and sp_a not in specialties_by_id:
+            errors.append(f"[{sid}] Unknown specialty_id '{sp_a}' on archetype {aid}")
+        de = arch.get("default_equipment", {})
+        if isinstance(de, dict):
+            for sl, iid in de.items():
+                if sl not in valid_slots:
+                    errors.append(f"[{sid}] Invalid archetype default_equipment slot '{sl}' on {aid}")
+                elif iid:
+                    if iid not in equip_by_id:
+                        errors.append(f"[{sid}] Unknown archetype equipment '{iid}' on {aid}")
+                    elif equip_by_id[iid].get("slot") != sl:
+                        errors.append(f"[{sid}] Slot mismatch on {aid}.{sl} = {iid}")
+
+    # Validate encounters & combat actions
+    for act_id, act_d in combat_actions_by_id.items():
+        sk_a = str(act_d.get("skill", ""))
+        if sk_a and sk_a not in valid_skill_ids:
+            errors.append(f"[{sid}] Unknown skill '{sk_a}' on combat action {act_id}")
+        cscr = str(act_d.get("custom_script", ""))
+        if cscr and not os.path.exists(_resolve_pack_disk_path(game_root, pack_dir, cscr)):
+            errors.append(f"[{sid}] Missing custom_script '{cscr}' on combat action {act_id}")
+
+    for enc_id, enc_d in encs_by_id.items():
+        eloc = str(enc_d.get("location_id", ""))
+        if eloc and eloc not in loc_ids:
+            errors.append(f"[{sid}] Unknown location_id '{eloc}' in encounter {enc_id}")
+        ecscr = str(enc_d.get("custom_script", ""))
+        if ecscr and not os.path.exists(_resolve_pack_disk_path(game_root, pack_dir, ecscr)):
+            errors.append(f"[{sid}] Missing custom_script '{ecscr}' in encounter {enc_id}")
+        for paid in enc_d.get("player_action_ids", []):
+            if str(paid) not in combat_actions_by_id:
+                errors.append(f"[{sid}] Unknown player_action_id '{paid}' in encounter {enc_id}")
+        for ci in enc_d.get("combat_interactables", []):
+            sk_ci = str(ci.get("skill", ""))
+            if valid_skill_ids and sk_ci and sk_ci not in valid_skill_ids:
+                errors.append(f"[{sid}] Unknown skill '{sk_ci}' on combat_interactable {ci.get('id', '?')} in {enc_id}")
         for en in enc_d.get("enemies", []):
-            eid = en.get("id", "?")
-            ep = en.get("portrait", "")
-            if not ep or not ep.startswith("res://") or not os.path.exists(os.path.join(game_root, ep[6:])):
-                errors.append(f"Missing enemy portrait in {enc_id}/{eid}: {ep}")
+            eid = str(en.get("id", "?"))
+            ep_fp = _resolve_pack_disk_path(game_root, pack_dir, str(en.get("portrait", "")))
+            if not ep_fp or not os.path.exists(ep_fp):
+                errors.append(f"[{sid}] Missing enemy portrait in {enc_id}/{eid}")
             eapp = en.get("appearance", {})
             if not isinstance(eapp, dict):
-                errors.append(f"Missing enemy appearance in {enc_id}/{eid}")
+                errors.append(f"[{sid}] Missing enemy appearance in {enc_id}/{eid}")
             else:
                 for ak in ("head", "top", "bottom"):
-                    ap = eapp.get(ak, "")
-                    if not ap or not ap.startswith("res://"):
-                        errors.append(f"Invalid enemy appearance.{ak} in {enc_id}/{eid}: {ap}")
+                    ap_fp = _resolve_pack_disk_path(game_root, pack_dir, str(eapp.get(ak, "")))
+                    if not ap_fp:
+                        errors.append(f"[{sid}] Missing enemy appearance.{ak} in {enc_id}/{eid}")
                     else:
-                        _check_modular_png(os.path.join(game_root, ap[6:]), f"encounter.{enc_id}.{eid}.{ak}", errors)
+                        _check_modular_png(ap_fp, f"[{sid}] encounter.{enc_id}.{eid}.{ak}", errors)
+        outs = enc_d.get("outcomes", {})
+        if isinstance(outs, dict):
+            for ok_k, ok_v in outs.items():
+                if ok_k in ("default_flags", "win_summary") or not isinstance(ok_v, dict):
+                    continue
+                if "move_to" in ok_v and str(ok_v["move_to"]) not in loc_ids:
+                    errors.append(f"[{sid}] Unknown outcome move_to '{ok_v['move_to']}' in {enc_id}.{ok_k}")
+                if "next_dialogue" in ok_v and str(ok_v["next_dialogue"]) not in dlg_ids:
+                    errors.append(f"[{sid}] Unknown outcome next_dialogue '{ok_v['next_dialogue']}' in {enc_id}.{ok_k}")
+                if "trigger_ending" in ok_v and ending_ids and str(ok_v["trigger_ending"]) not in ending_ids:
+                    errors.append(f"[{sid}] Unknown outcome trigger_ending '{ok_v['trigger_ending']}' in {enc_id}.{ok_k}")
 
-    for l in interiors_list:
-        lid = l["id"]
+    # Validate interiors
+    for lid, l in interiors_by_id.items():
         if int(l.get("grid_w", 0)) < 4 or int(l.get("grid_h", 0)) < 4:
-            errors.append(f"Invalid grid dimensions in interior {lid}")
+            errors.append(f"[{sid}] Invalid grid dimensions in interior {lid}")
         if l.get("render_mode", "") not in ("backdrop", "modular"):
-            errors.append(f"Invalid render_mode in interior {lid}")
+            errors.append(f"[{sid}] Invalid render_mode in interior {lid}")
         if "lights" not in l or not isinstance(l["lights"], list):
-            errors.append(f"Missing lights list in location {lid}")
+            errors.append(f"[{sid}] Missing lights list in location {lid}")
         for nid in l.get("neighbors", {}):
             if nid not in loc_ids:
-                errors.append(f"Unknown neighbor {nid} in {lid}")
+                errors.append(f"[{sid}] Unknown neighbor {nid} in {lid}")
+        for pr in l.get("props", []):
+            ptype = str(pr.get("type", ""))
+            if ptype and props_catalog and ptype not in props_catalog:
+                errors.append(f"[{sid}] Unknown prop type '{ptype}' in {lid} (missing from props_catalog)")
         for hs in l.get("hotspots", []):
-            did = hs.get("dialogue_id", "")
+            did = str(hs.get("dialogue_id", ""))
             if did and did not in dlg_ids:
-                errors.append(f"Unknown hotspot dialogue_id {did} in {lid}")
+                errors.append(f"[{sid}] Unknown hotspot dialogue_id {did} in {lid}")
         for ex in l.get("exits", []):
             tl = int(ex.get("target_level", 0))
             if tl < 1 or tl > 4:
-                errors.append(f"Invalid exit target_level {tl} in {lid}")
+                errors.append(f"[{sid}] Invalid exit target_level {tl} in {lid}")
         for occ in l.get("occluders", []):
-            tex_p = occ.get("texture", "")
+            tex_p = str(occ.get("texture", ""))
             poly_px = occ.get("polygon_px", [])
             if tex_p:
-                if not tex_p.startswith("res://") or not os.path.exists(os.path.join(game_root, tex_p[6:])):
-                    errors.append(f"Missing occluder texture {tex_p} in {lid}")
+                if not os.path.exists(_resolve_pack_disk_path(game_root, pack_dir, tex_p)):
+                    errors.append(f"[{sid}] Missing occluder texture {tex_p} in {lid}")
             elif not (isinstance(poly_px, list) and len(poly_px) >= 3):
-                errors.append(f"Invalid occluder polygon_px in {lid}: {occ.get('id')}")
+                errors.append(f"[{sid}] Invalid occluder polygon_px in {lid}: {occ.get('id')}")
         for npc in l.get("npcs", []):
-            cid = npc.get("char_id", "")
-            did = npc.get("dialogue_id", "")
+            cid = str(npc.get("char_id", ""))
+            did = str(npc.get("dialogue_id", ""))
             if cid not in char_ids:
-                errors.append(f"Unknown NPC char_id {cid} in {lid}")
+                errors.append(f"[{sid}] Unknown NPC char_id {cid} in {lid}")
             if did and did not in dlg_ids:
-                errors.append(f"Unknown NPC dialogue_id {did} in {lid}")
-        b = l.get("backdrop", "")
-        if b and not os.path.exists(os.path.join(game_root, b[6:])):
-            errors.append(f"Missing backdrop {b} in {lid}")
+                errors.append(f"[{sid}] Unknown NPC dialogue_id {did} in {lid}")
+        b = str(l.get("backdrop", ""))
+        if b and not os.path.exists(_resolve_pack_disk_path(game_root, pack_dir, b)):
+            errors.append(f"[{sid}] Missing backdrop {b} in {lid}")
 
-    for did, dnode in dlgs_j["dialogues"].items():
-        if dnode.get("speaker_id", "") not in char_ids:
-            errors.append(f"Unknown speaker_id in dialogue {did}")
+    # Validate dialogues
+    for did, dnode in dlgs_by_id.items():
+        if str(dnode.get("speaker_id", "")) not in char_ids:
+            errors.append(f"[{sid}] Unknown speaker_id '{dnode.get('speaker_id')}' in dialogue {did}")
         for ch in dnode.get("choices", []):
-            nxt = ch.get("next", "")
+            nxt = str(ch.get("next", ""))
             if nxt and nxt not in dlg_ids:
-                errors.append(f"Unknown next dialogue {nxt} in {did}")
-            fnxt = ch.get("fail_next", "")
+                errors.append(f"[{sid}] Unknown next dialogue {nxt} in {did}")
+            fnxt = str(ch.get("fail_next", ""))
             if fnxt and fnxt not in dlg_ids:
-                errors.append(f"Unknown fail_next dialogue {fnxt} in {did}")
+                errors.append(f"[{sid}] Unknown fail_next dialogue {fnxt} in {did}")
             cond = ch.get("conditions", {})
             if isinstance(cond, dict):
-                req_act = cond.get("require_action", "")
-                if req_act and valid_action_ids and req_act not in valid_action_ids:
-                    errors.append(f"Unknown require_action {req_act} in {did}")
-                req_it = cond.get("require_item", "")
+                req_act = str(cond.get("require_action", ""))
+                if req_act and valid_unlocked_action_ids and req_act not in valid_unlocked_action_ids:
+                    errors.append(f"[{sid}] Unknown require_action {req_act} in {did}")
+                req_it = str(cond.get("require_item", ""))
                 if req_it and valid_equip_ids and req_it not in valid_equip_ids:
-                    errors.append(f"Unknown require_item {req_it} in {did}")
+                    errors.append(f"[{sid}] Unknown require_item {req_it} in {did}")
             sc = ch.get("skill_check", {})
             if isinstance(sc, dict) and sc:
-                sk = sc.get("skill", "")
+                sk = str(sc.get("skill", ""))
                 if valid_skill_ids and sk not in valid_skill_ids:
-                    errors.append(f"Unknown skill_check skill {sk} in {did}")
+                    errors.append(f"[{sid}] Unknown skill_check skill {sk} in {did}")
                 dc_val = sc.get("dc", 0)
                 if not isinstance(dc_val, int) or dc_val < 4:
-                    errors.append(f"Invalid skill_check dc {dc_val} in {did}")
+                    errors.append(f"[{sid}] Invalid skill_check dc {dc_val} in {did}")
             for eff_key in ("effects", "fail_effects", "flaw_extra_effects"):
                 eff = ch.get(eff_key, {})
                 if not isinstance(eff, dict):
                     continue
-                if "move_to" in eff and eff["move_to"] not in loc_ids:
-                    errors.append(f"Unknown move_to in {eff_key} of {did}")
-                if "recruit" in eff and eff["recruit"] not in char_ids:
-                    errors.append(f"Unknown recruit in {eff_key} of {did}")
-                if "start_encounter" in eff and eff["start_encounter"] not in enc_ids:
-                    errors.append(f"Unknown start_encounter in {eff_key} of {did}")
-                if "grant_item" in eff and valid_equip_ids and eff["grant_item"] not in valid_equip_ids:
-                    errors.append(f"Unknown grant_item {eff['grant_item']} in {eff_key} of {did}")
+                if "move_to" in eff and str(eff["move_to"]) not in loc_ids:
+                    errors.append(f"[{sid}] Unknown move_to '{eff['move_to']}' in {eff_key} of {did}")
+                if "recruit" in eff and str(eff["recruit"]) not in char_ids:
+                    errors.append(f"[{sid}] Unknown recruit '{eff['recruit']}' in {eff_key} of {did}")
+                if "start_encounter" in eff and str(eff["start_encounter"]) not in enc_ids:
+                    errors.append(f"[{sid}] Unknown start_encounter '{eff['start_encounter']}' in {eff_key} of {did}")
+                if "grant_item" in eff and valid_equip_ids and str(eff["grant_item"]) not in valid_equip_ids:
+                    errors.append(f"[{sid}] Unknown grant_item '{eff['grant_item']}' in {eff_key} of {did}")
+                if "remove_item" in eff and valid_equip_ids and str(eff["remove_item"]) not in valid_equip_ids:
+                    errors.append(f"[{sid}] Unknown remove_item '{eff['remove_item']}' in {eff_key} of {did}")
+                if "trigger_ending" in eff and ending_ids and str(eff["trigger_ending"]) not in ending_ids:
+                    errors.append(f"[{sid}] Unknown trigger_ending '{eff['trigger_ending']}' in {eff_key} of {did}")
+
+    return {
+        "regions": len(reg_ids),
+        "depts": len(dept_ids),
+        "cities": len(city_ids),
+        "interiors": len(loc_ids),
+        "chars": len(char_ids),
+        "dialogues": len(dlg_ids),
+        "encounters": len(enc_ids),
+    }
+
+
+def validate_project(game_root: str, target_scenario: str = "") -> int:
+    errors: list[str] = []
+    scenarios_root = os.path.join(game_root, "data", "scenarios")
+    index_fp = os.path.join(game_root, "data", "scenarios_index.json")
+
+    if not os.path.isdir(scenarios_root):
+        errors.append(f"Missing scenarios directory: {scenarios_root}")
+        print("VALIDATION ERRORS:\n -", errors[0])
+        return 1
+
+    scenario_ids: list[str] = []
+    if os.path.exists(index_fp):
+        with open(index_fp, "r", encoding="utf-8") as f:
+            idx_j = json.load(f)
+        def_sid = str(idx_j.get("default_scenario_id", ""))
+        for s in idx_j.get("scenarios", []):
+            s_str = str(s).strip()
+            if s_str and s_str not in scenario_ids:
+                scenario_ids.append(s_str)
+        if not def_sid or not os.path.isdir(os.path.join(scenarios_root, def_sid)):
+            errors.append(f"Invalid default_scenario_id '{def_sid}' in scenarios_index.json")
+
+    for entry in sorted(os.listdir(scenarios_root)):
+        full_d = os.path.join(scenarios_root, entry)
+        if os.path.isdir(full_d) and os.path.exists(os.path.join(full_d, "scenario.json")):
+            if entry not in scenario_ids:
+                scenario_ids.append(entry)
+
+    if target_scenario:
+        if target_scenario not in scenario_ids:
+            errors.append(f"Requested scenario '{target_scenario}' not found in {scenarios_root}")
+        else:
+            scenario_ids = [target_scenario]
+
+    if not scenario_ids:
+        errors.append("No scenario packs discovered in data/scenarios/")
+
+    pack_summaries: list[str] = []
+    for sid in scenario_ids:
+        pdir = os.path.join(scenarios_root, sid)
+        stats = _validate_single_scenario_pack(game_root, sid, pdir, errors)
+        if stats:
+            pack_summaries.append(
+                f"{sid}({stats['interiors']} locs, {stats['chars']} chars, {stats['dialogues']} dlgs, {stats['encounters']} encs)"
+            )
 
     res_pattern = re.compile(r"res://([A-Za-z0-9_./-]+)")
+    scripts_root = os.path.join(game_root, "scripts")
     gd_count = 0
     for dirpath, _, filenames in os.walk(game_root):
         if "banlieue" in dirpath.split(os.sep):
             continue
+        in_core_scripts = os.path.commonpath([os.path.abspath(dirpath), os.path.abspath(scripts_root)]) == os.path.abspath(scripts_root) if os.path.exists(scripts_root) else False
         for fn in filenames:
             fp = os.path.join(dirpath, fn)
             if fn.endswith((".gd", ".tscn", ".godot", ".gdshader")):
@@ -1025,8 +1267,13 @@ def validate_project(game_root: str) -> int:
                 if fn.endswith(".gd"):
                     gd_count += 1
                     for ln_no, line in enumerate(txt.splitlines(), 1):
+                        stripped = line.strip()
                         if ":=" in line and (".get(" in line or "JSON.parse_string" in line or ".call(" in line or "[" in line.split(":=", 1)[1]):
-                            errors.append(f"Risky := on Variant at {fp}:{ln_no}: {line.strip()}")
+                            errors.append(f"Risky := on Variant at {fp}:{ln_no}: {stripped}")
+                        if in_core_scripts and not stripped.startswith("#"):
+                            for f_id in FORBIDDEN_HARDCODED_IDS:
+                                if f'"{f_id}"' in line:
+                                    errors.append(f"Hardcoded scenario ID \"{f_id}\" in core script {fp}:{ln_no}")
                 for m in res_pattern.finditer(txt):
                     rel = m.group(1)
                     if not os.path.exists(os.path.join(game_root, rel)):
@@ -1037,13 +1284,9 @@ def validate_project(game_root: str) -> int:
         for e in errors:
             print(" -", e)
         return 1
-    if pending_assets:
-        print(f"PENDING ASSETS ({len(pending_assets)}):")
-        for pa in pending_assets:
-            print(" -", pa)
     print(
-        f"VALIDATION PASSED: {len(reg_ids)} regions, {len(dept_ids)} depts, {len(city_ids)} cities, "
-        f"{len(loc_ids)} interiors, {len(char_ids)} chars, {len(dlg_ids)} dialogues, {gd_count} scripts — 0 errors."
+        f"VALIDATION PASSED: {len(scenario_ids)} scenario pack(s) [{'; '.join(pack_summaries)}], "
+        f"{gd_count} GDScript files, 0 hardcoded core IDs — 0 errors."
     )
     return 0
 
@@ -1064,6 +1307,7 @@ if __name__ == "__main__":
     parser.add_argument("--backdrop", default="")
     parser.add_argument("--pawns", nargs="*", default=[])
     parser.add_argument("--height", type=int, default=162)
+    parser.add_argument("--scenario", default="")
     parser.add_argument("--game-root", default=r"e:\JDR\BANLIEUE\game")
     args = parser.parse_args()
 
@@ -1085,4 +1329,4 @@ if __name__ == "__main__":
     elif args.mode == "preview":
         make_preview(args.backdrop, args.pawns, args.dst, target_h=args.height)
     elif args.mode == "validate":
-        sys.exit(validate_project(args.game_root))
+        sys.exit(validate_project(args.game_root, args.scenario))

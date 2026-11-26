@@ -1,0 +1,80 @@
+{
+  "id": "greve_citroen_aulnay",
+  "title": "Ondes Libres à Citroën Aulnay",
+  "subtitle": "AULNAY-SOUS-BOIS · PRINTEMPS 1983",
+  "era": "Printemps 1983",
+  "new_game_subtitle": "Épisode autonome à Aulnay-sous-Bois (trio ouvrier Leader, Franck & Karim) ou suite directe d'une cassette sauvegardée.",
+  "squad_start_note": "Départ : Piquet Porte Nord (Citroën Aulnay) avec Franck & Karim (ou ta bande importée d'une cassette).",
+  "synopsis": "18 h 00 devant les chaînes d'emboutissage d'Aulnay. Les grévistes tentent de lancer Radio Chaîne Libre sur 98.4 FM avant l'arrivée du car de sécurité.",
+  "allow_import_cassette": true,
+  "allow_companion_import": true,
+  "world_root_file": "world/idf.json",
+  "leader_char_id": "leader",
+  "title_backdrop": {
+    "location_id": "piquet_porte_nord",
+    "day_label": "Citroën Aulnay · Piquet du soir 1983",
+    "twilight_label": "Citroën Aulnay · Brasero crépusculaire",
+    "night_label": "Citroën Aulnay · Ondes nocturnes 98.4 FM"
+  },
+  "start_hierarchy": {
+    "zoom_level": 4,
+    "region_id": "idf",
+    "department_id": "dept_93",
+    "city_id": "aulnay",
+    "location_id": "piquet_porte_nord"
+  },
+  "intro_dialogue_id": "aulnay_intro",
+  "start_state": {
+    "phase": "day",
+    "clock_minutes": 1080,
+    "francs": 35,
+    "faveurs": 1,
+    "notoriete": 2,
+    "aura_bonus": 0,
+    "stash_label": "CAISSE DU PIQUET",
+    "stash_items": [
+      "veste_citroen",
+      "treillis_kaki_rangers",
+      "imper_vigile",
+      "petards_mammouth",
+      "brassard_greviste"
+    ],
+    "initial_hint": "Prépare le relais sur les toits de la Rose-des-Vents ou sabote le brouillage au quai fret.",
+    "opening_log_with_arch": "18 h 00 — {leader_name} ({archetype_title}) rejoint le piquet Porte Nord avec Franck & Karim.",
+    "opening_log_default": "18 h 00 — Devant les grilles de Citroën Aulnay autour du brasero.",
+    "recruit_log_template": "{name} rejoint l'équipe d'Aulnay !"
+  },
+  "phase_transitions": {
+    "twilight_button_label": "Passer au Crépuscule sur Aulnay",
+    "twilight_clock_minutes": 1200,
+    "night_clock_minutes": 1320,
+    "sas_overlay_text": "LA NUIT TOMBE SUR LES CHAÎNES D'AULNAY\n\nLes projecteurs du parking d'emboutissage s'allument. La porteuse 98.4 FM perce au-dessus des 3000.",
+    "night_arrival_log": "22 h 00 — Les grilles d'Aulnay passent sous l'éclairage sodium."
+  },
+  "travel_modifiers": [],
+  "endings": {
+    "banner_title": "ÉPISODE TERMINÉ — « Ondes Libres à Citroën Aulnay »",
+    "replay_button_label": "Rejouer l'Épisode",
+    "outcome_labels": {
+      "social_win": "Chaîne Libre en direct — le barrage du parking plie",
+      "escaped": "Émetteur sauvé par l'embranchement RER B",
+      "car_securite_rush": "Repli stratégique derrière les grilles du piquet",
+      "default": "Émission diffusée sur 98.4 FM"
+    },
+    "status_notes": [
+      {
+        "label": "Antenne Rose-des-Vents",
+        "if_flag": "antenne_calee",
+        "true_text": "Calée sur 98.4 FM (+1 marge, +1 échappée)",
+        "false_text": "Signal faible"
+      },
+      {
+        "label": "Fourgon de brouillage",
+        "if_flag": "fourgon_sabote",
+        "true_text": "Neutralisé au quai fret (Chef sécurité sans garde)",
+        "false_text": "Actif"
+      }
+    ],
+    "footer_text": "Pack autonome compatible avec l'Import de Cassette (Option 3A) vers ou depuis les autres épisodes."
+  }
+}

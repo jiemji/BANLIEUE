@@ -1,0 +1,271 @@
+{
+  "id": "gare_rer_y",
+  "parent_city_id": "cradon_les_gonesse",
+  "zoom_level": 4,
+  "type": "interior",
+  "name": "Gare RER « du Y »",
+  "sector": "Bifurcation RER B Nord",
+  "day_desc": "Quai surélevé entre les branches Roissy et Mitry. Certains trains marquent l'arrêt, d'autres filent à vide comme si la gare n'existait pas.",
+  "night_desc": "Quai battu par le vent, souterrain bloqué par des silhouettes en survêt du S.O. et un Skin nerveux. Gyrophares au loin.",
+  "day_tint": "#b8c7d4",
+  "night_tint": "#171c26",
+  "render_mode": "backdrop",
+  "backdrop": "res://assets/locations/gare_rer_y.png",
+  "tile_w": 86,
+  "tile_h": 43,
+  "grid_w": 8,
+  "grid_h": 8,
+  "camera": {
+    "default_zoom": 1.0,
+    "min_zoom": 0.85,
+    "max_zoom": 1.45,
+    "follow_squad": false
+  },
+  "spawn": [
+    4.5,
+    6.5
+  ],
+  "blocked_cells": [],
+  "zones": [],
+  "exits": [
+    {
+      "id": "exit_city",
+      "label": "Sortir (Cradon)",
+      "grid_x": 6.4,
+      "grid_y": 6.4,
+      "target_level": 3,
+      "target_id": "cradon_les_gonesse",
+      "color_hex": "#4aa3df"
+    }
+  ],
+  "lights": [
+    {
+      "grid_x": 4.2,
+      "grid_y": 2.6,
+      "radius": 300.0,
+      "strength": 0.75
+    }
+  ],
+  "occluders": [
+    {
+      "id": "occ_bench",
+      "sort_y_px": 502,
+      "polygon_px": [
+        [
+          530,
+          476
+        ],
+        [
+          646,
+          414
+        ],
+        [
+          658,
+          444
+        ],
+        [
+          676,
+          456
+        ],
+        [
+          676,
+          478
+        ],
+        [
+          584,
+          532
+        ],
+        [
+          532,
+          504
+        ]
+      ]
+    },
+    {
+      "id": "occ_stairs_canopy",
+      "always_front": true,
+      "polygon_px": [
+        [
+          778,
+          354
+        ],
+        [
+          912,
+          280
+        ],
+        [
+          1026,
+          344
+        ],
+        [
+          1026,
+          368
+        ],
+        [
+          892,
+          446
+        ],
+        [
+          778,
+          378
+        ]
+      ]
+    },
+    {
+      "id": "occ_stairs_front_rail",
+      "sort_y_px": 610,
+      "polygon_px": [
+        [
+          742,
+          494
+        ],
+        [
+          854,
+          558
+        ],
+        [
+          854,
+          616
+        ],
+        [
+          1048,
+          502
+        ],
+        [
+          1048,
+          588
+        ],
+        [
+          860,
+          696
+        ],
+        [
+          852,
+          650
+        ],
+        [
+          742,
+          586
+        ]
+      ]
+    },
+    {
+      "id": "occ_hanging_sign",
+      "sort_y_px": 445,
+      "polygon_px": [
+        [
+          682,
+          356
+        ],
+        [
+          786,
+          298
+        ],
+        [
+          794,
+          304
+        ],
+        [
+          794,
+          346
+        ],
+        [
+          692,
+          406
+        ],
+        [
+          682,
+          398
+        ]
+      ]
+    }
+  ],
+  "props": [
+    {
+      "type": "rails",
+      "x": 0,
+      "y": 1,
+      "w": 8,
+      "h": 2,
+      "label": "Voies RER B (Y)"
+    },
+    {
+      "type": "platform",
+      "x": 0,
+      "y": 3,
+      "w": 8,
+      "h": 2,
+      "label": "Quai Cradon"
+    },
+    {
+      "type": "sign_rer",
+      "x": 3,
+      "y": 3,
+      "w": 1,
+      "h": 1,
+      "label": "Girouette RER"
+    },
+    {
+      "type": "subway",
+      "x": 5,
+      "y": 5,
+      "w": 2,
+      "h": 1,
+      "label": "Souterrain"
+    }
+  ],
+  "hotspots": [
+    {
+      "id": "hs_rer_climax",
+      "label": "Passage du Souterrain & Quai",
+      "grid_x": 5,
+      "grid_y": 4,
+      "dialogue_id": "gare_rer_trigger",
+      "phase": "any",
+      "color_hex": "#d92b2b"
+    }
+  ],
+  "npcs": [],
+  "neighbors": {
+    "ruelle_relais": 1,
+    "garage_bananes": 1,
+    "galaxian": 2,
+    "chez_bebert": 2,
+    "tour_b": 2,
+    "lisiere_poudrerie": 2,
+    "squat_kepons": 2,
+    "box_garage": 3
+  },
+  "ambient_fx": [
+    {
+      "type": "rail_tint",
+      "rows": [
+        1,
+        2
+      ],
+      "day_color": "#52545c",
+      "night_color": "#2e3038"
+    },
+    {
+      "type": "passing_train",
+      "persist_if_night_flag": "encounter_gare_done"
+    }
+  ],
+  "diegetic_signs": [
+    {
+      "grid_x": 3.5,
+      "grid_y": 3.0,
+      "offset_px": [
+        -72.0,
+        -70.0
+      ],
+      "size_px": [
+        168.0,
+        22.0
+      ],
+      "normal_text": "RER B — BIFURCATION Y",
+      "glitch_text": "CRADON-CENTRE [HORS-PLAN]",
+      "night_or_low_moral": true
+    }
+  ]
+}

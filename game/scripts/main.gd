@@ -1,7 +1,6 @@
-## Orchestrateur principal du jeu : machine d'états des écrans/menus, transitions N1–N4 et Sas Jour→Nuit.
+## Orchestrateur principal générique : machine d'états des écrans/menus, transitions N1–N4, Sas et routage pilotés par scenario.json.
 extends Node
 
-## États globaux de navigation entre l'accueil, la création de partie, la session active et le menu pause.
 enum AppState {
 	TITLE_MENU,
 	NEW_GAME_SETUP,
@@ -44,7 +43,9 @@ var _shader_mat: ShaderMaterial = null
 var _sas_overlay: ColorRect = null
 var _sas_label: Label = null
 var _end_overlay: ColorRect = null
+var _end_title_lbl: Label = null
 var _end_summary_lbl: Label = null
+var _btn_end_replay: Button = null
 
 var _app_state: int = AppState.TITLE_MENU
 var _new_game_caller: int = AppState.TITLE_MENU
@@ -52,6 +53,7 @@ var _sas_active: bool = false
 var _sas_timer: float = 0.0
 var _title_cycle_time: float = 0.0
 var _combat_shake_timer: float = 0.0
+var _last_encounter_id: String = ""
 
 func _ready() -> void:
 	# 1. Systèmes métiers
@@ -150,7 +152,7 @@ func _build_sas_overlay(parent_layer: CanvasLayer) -> void:
 	_sas_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_sas_label.add_theme_font_size_override("font_size", 22)
 	_sas_label.add_theme_color_override("font_color", Color(0.95, 0.55, 0.16))
-	_sas_label.text = "CRÉPUSCULE SUR CRADON-LÈS-GONESSE\n\nLes rideaux de fer tombent. Un Boeing de Roissy rase la Dalle.\nLes réverbères sodium s'allument — la rue change de règles."
+	_sas_label.text = ""
 	center.add_child(_sas_label)
 
 func _build_end_overlay(parent_layer: CanvasLayer) -> void:
@@ -178,11 +180,11 @@ func _build_end_overlay(parent_layer: CanvasLayer) -> void:
 	vb.add_theme_constant_override("separation", 14)
 	panel.add_child(vb)
 
-	var title: Label = Label.new()
-	title.text = "JALON 0 TERMINÉ — « Couvre-Feu au Galaxian »"
-	title.add_theme_font_size_override("font_size", 20)
-	title.add_theme_color_override("font_color", Color(0.95, 0.55, 0.16))
-	vb.add_child(title)
+	_end_title_lbl = Label.new()
+	_end_title_lbl.text = "SCÉNARIO TERMINÉ"
+	_end_title_lbl.add_theme_font_size_override("font_size", 20)
+	_end_title_lbl.add_theme_color_override("font_color", Color(0.95, 0.55, 0.16))
+	vb.add_child(_end_title_lbl)
 
 	_end_summary_lbl = Label.new()
 	_end_summary_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -194,11 +196,17 @@ func _build_end_overlay(parent_layer: CanvasLayer) -> void:
 	btn_row.add_theme_constant_override("separation", 12)
 	vb.add_child(btn_row)
 
-	var btn_replay: Button = Button.new()
-	btn_replay.text = "Rejouer le Niveau-Pilote"
-	btn_replay.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_replay.pressed.connect(_restart_slice)
-	btn_row.add_child(btn_replay)
+	var btn_save_end: Button = Button.new()
+	btn_save_end.text = "Sauvegarder sur Cassette"
+	btn_save_end.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_save_end.pressed.connect(func() -> void: _save_load_panel.call("open_panel", "save"))
+	btn_row.add_child(btn_save_end)
+
+	_btn_end_replay = Button.new()
+	_btn_end_replay.text = "Rejouer le Scénario"
+	_btn_end_replay.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_btn_end_replay.pressed.connect(_restart_slice)
+	btn_row.add_child(_btn_end_replay)
 
 	var btn_to_title: Button = Button.new()
 	btn_to_title.text = "Retour au Menu Principal"
@@ -212,7 +220,7 @@ func _wire_signals() -> void:
 	)
 	_iso_view.exit_activated.connect(func(ex: Dictionary) -> void:
 		var t_lvl: int = int(ex.get("target_level", 3))
-		var t_id: String = str(ex.get("target_id", "cradon_les_gonesse"))
+		var t_id: String = str(ex.get("target_id", GameState.current_city_id))
 		GameState.set_zoom_view(t_lvl, t_id)
 	)
 	_iso_view.squad_member_clicked.connect(func(gid: int, _cid: String) -> void:
@@ -247,7 +255,7 @@ func _wire_signals() -> void:
 		GameState.set_zoom_view(4, lid)
 	)
 	_world_map_view.undescribed_clicked.connect(func(nname: String, _lore: String) -> void:
-		GameState.add_log("%s : pas encore décrit dans ce Jalon." % nname)
+		GameState.add_log("%s : zone non ouverte dans ce scénario." % nname)
 	)
 
 	_hud.squad_regroup_requested.connect(func() -> void: _squad.call("regroup_all"))
@@ -283,16 +291,28 @@ func _wire_signals() -> void:
 	)
 	_dialogue_runner.twilight_requested.connect(_start_twilight_sas)
 	_dialogue_runner.encounter_requested.connect(func(eid: String) -> void:
-		GameState.set_zoom_view(4, GameState.get_active_location_id())
+		_last_encounter_id = eid
+		var enc_def: Dictionary = DataLoader.get_encounter(eid)
+		var enc_loc: String = str(enc_def.get("location_id", GameState.get_active_location_id()))
+		GameState.set_zoom_view(4, enc_loc)
+		if str(_iso_view.get("current_loc_id")) != enc_loc:
+			_iso_view.call("set_location", enc_loc)
 		_char_sheet_panel.visible = false
 		_hud.visible = false
 		_timeline.call("start_encounter", eid)
 		_iso_view.call("set_combat_stage_mode", true)
 		_update_input_lock()
 	)
-	_dialogue_runner.slice_completed.connect(_show_end_summary)
+	if _dialogue_runner.has_signal("ending_requested"):
+		_dialogue_runner.ending_requested.connect(_show_end_summary)
+	else:
+		_dialogue_runner.slice_completed.connect(func() -> void: _show_end_summary(""))
 
 	_timeline.train_fantome_arrived_sig.connect(func() -> void: _iso_view.call("trigger_train_fantome"))
+	if _timeline.has_signal("stage_fx_triggered"):
+		_timeline.stage_fx_triggered.connect(func(fx_id: String) -> void:
+			_iso_view.call("trigger_stage_fx", fx_id)
+		)
 	_timeline.combat_feedback_emitted.connect(_on_combat_feedback_emitted)
 	_timeline.encounter_finished.connect(_on_encounter_finished)
 
@@ -307,6 +327,8 @@ func _wire_signals() -> void:
 
 	_new_game_panel.start_game_requested.connect(_start_new_game)
 	_new_game_panel.cancelled.connect(_on_new_game_cancelled)
+	if _new_game_panel.has_signal("scenario_preview_changed"):
+		_new_game_panel.scenario_preview_changed.connect(_on_scenario_preview_changed)
 
 	_save_load_panel.slot_saved.connect(func(_idx: int) -> void: _title_menu.call("refresh_state"))
 	_save_load_panel.slot_loaded.connect(_on_slot_loaded)
@@ -318,6 +340,26 @@ func _wire_signals() -> void:
 	GameState.zoom_changed.connect(func(_lvl: int, _mid: String) -> void: _sync_active_view())
 	GameState.state_changed.connect(_on_state_changed)
 
+func _get_title_backdrop_config() -> Dictionary:
+	var tb_v: Variant = DataLoader.scenario_manifest.get("title_backdrop", {})
+	if tb_v is Dictionary:
+		return tb_v as Dictionary
+	return {}
+
+func _get_title_backdrop_location() -> String:
+	var tb: Dictionary = _get_title_backdrop_config()
+	var lid: String = str(tb.get("location_id", ""))
+	if lid != "" and DataLoader.locations.has(lid):
+		return lid
+	return DataLoader.get_start_location_id()
+
+func _on_scenario_preview_changed(_scenario_id: String) -> void:
+	if _app_state == AppState.TITLE_MENU or _app_state == AppState.NEW_GAME_SETUP:
+		GameState.reset_new_slice({"scenario_id": DataLoader.active_scenario_id})
+		GameState.has_active_session = false
+		_iso_view.call("set_location", _get_title_backdrop_location())
+		_title_menu.call("refresh_state")
+
 func _apply_shader_settings() -> void:
 	if _shader_mat == null:
 		return
@@ -325,7 +367,7 @@ func _apply_shader_settings() -> void:
 	if not SettingsManager.screen_shake:
 		_shader_mat.set_shader_parameter("shake_amount", 0.0)
 
-## Bascule l'application sur l'écran d'accueil avec le Box-Garage vivant en arrière-plan.
+## Bascule l'application sur l'écran d'accueil avec le décor vivant défini par le scénario actif.
 func _enter_title_menu() -> void:
 	_app_state = AppState.TITLE_MENU
 	_sas_active = false
@@ -345,7 +387,7 @@ func _enter_title_menu() -> void:
 	_hud.visible = false
 	_world_map_view.call("set_view_active", false)
 	_iso_view.call("set_view_active", true)
-	_iso_view.call("set_location", "box_garage")
+	_iso_view.call("set_location", _get_title_backdrop_location())
 	_iso_view.call("set_combat_stage_mode", false)
 	_iso_view.call("set_title_backdrop_mode", true, Vector2.ZERO)
 
@@ -391,6 +433,7 @@ func _open_new_game_setup() -> void:
 func _on_new_game_cancelled() -> void:
 	_new_game_panel.call("close_panel")
 	if _new_game_caller == AppState.PAUSE_MENU and GameState.has_active_session:
+		DataLoader.ensure_scenario_loaded(GameState.current_scenario_id)
 		_app_state = AppState.PAUSE_MENU
 		_title_menu.call("open_menu", "pause")
 	else:
@@ -398,7 +441,7 @@ func _on_new_game_cancelled() -> void:
 		_title_menu.call("open_menu", "title")
 	_update_input_lock()
 
-## Démarre une nouvelle session au Box-Garage à partir du profil Leader sélectionné.
+## Démarre une nouvelle session selon le manifeste du scénario sélectionné (neuf ou cassette importée).
 func _start_new_game(profile: Dictionary) -> void:
 	_title_menu.call("close_menu")
 	_new_game_panel.call("close_panel")
@@ -423,10 +466,16 @@ func _start_new_game(profile: Dictionary) -> void:
 	_app_state = AppState.IN_GAME
 	_hud.visible = true
 
-	_iso_view.call("set_location", "box_garage")
+	var start_loc: String = GameState.get_active_location_id()
+	_iso_view.call("set_location", start_loc)
 	_sync_active_view()
+	_on_state_changed()
 	_apply_shader_settings()
-	_dialogue_runner.call("start_dialogue", "intro_box_garage")
+	_hud.call("refresh")
+
+	var intro_dlg: String = str(DataLoader.scenario_manifest.get("intro_dialogue_id", ""))
+	if intro_dlg != "":
+		_dialogue_runner.call("start_dialogue", intro_dlg)
 	_update_input_lock()
 
 ## Restaure les vues, le HUD et le post-process après le chargement d'une cassette manuelle.
@@ -456,6 +505,7 @@ func _on_slot_loaded(slot_idx: int) -> void:
 	_sync_active_view()
 	_on_state_changed()
 	_apply_shader_settings()
+	_hud.call("refresh")
 	GameState.add_log("%s chargée — reprise à %s." % [SaveManager.get_slot_label(slot_idx), GameState.format_clock()])
 	_update_input_lock()
 
@@ -470,11 +520,12 @@ func _process(delta: float) -> void:
 		_shader_mat.set_shader_parameter("night_amount", night_mix)
 		_shader_mat.set_shader_parameter("shake_amount", 0.0)
 		if _app_state == AppState.TITLE_MENU:
-			var phase_txt: String = "Box-Garage · Jour gouache 1982"
+			var tb: Dictionary = _get_title_backdrop_config()
+			var phase_txt: String = str(tb.get("day_label", "Jour"))
 			if night_mix >= 0.72:
-				phase_txt = "Box-Garage · Nuit N&B (4 couleurs-signaux)"
+				phase_txt = str(tb.get("night_label", "Nuit"))
 			elif night_mix >= 0.25:
-				phase_txt = "Box-Garage · Crépuscule sodium"
+				phase_txt = str(tb.get("twilight_label", "Crépuscule"))
 			_title_menu.call("set_ambient_phase_label", phase_txt)
 		_update_input_lock()
 		return
@@ -490,7 +541,11 @@ func _process(delta: float) -> void:
 			_sas_overlay.visible = false
 			_shader_mat.set_shader_parameter("shake_amount", 0.0)
 			GameState.set_phase("night")
-			GameState.add_log("22 h 10 — La nuit est tombée sur Cradon-lès-Gonesse. Cap sur la Gare RER « du Y » !")
+			var pt_v: Variant = DataLoader.scenario_manifest.get("phase_transitions", {})
+			var night_log: String = "La nuit est tombée."
+			if pt_v is Dictionary:
+				night_log = str((pt_v as Dictionary).get("night_arrival_log", night_log))
+			GameState.add_log(night_log)
 			_iso_view.queue_redraw()
 	elif _shader_mat != null:
 		if _combat_shake_timer > 0.0 and SettingsManager.screen_shake:
@@ -587,7 +642,7 @@ func _sync_active_view() -> void:
 	if _app_state == AppState.TITLE_MENU or _app_state == AppState.NEW_GAME_SETUP:
 		_world_map_view.call("set_view_active", false)
 		_iso_view.call("set_view_active", true)
-		_iso_view.call("set_location", "box_garage")
+		_iso_view.call("set_location", _get_title_backdrop_location())
 		return
 	var zl: int = GameState.current_zoom_level
 	if zl == 4:
@@ -633,6 +688,9 @@ func _sync_world_location() -> void:
 func _start_twilight_sas() -> void:
 	if GameState.phase != "day":
 		return
+	var pt_v: Variant = DataLoader.scenario_manifest.get("phase_transitions", {})
+	if pt_v is Dictionary:
+		_sas_label.text = str((pt_v as Dictionary).get("sas_overlay_text", "CRÉPUSCULE"))
 	_sas_active = true
 	_sas_timer = 0.0
 	_sas_overlay.visible = true
@@ -643,47 +701,107 @@ func _on_combat_feedback_emitted(event_data: Dictionary) -> void:
 	if bool(event_data.get("shake", false)) and SettingsManager.screen_shake:
 		_combat_shake_timer = 0.22
 
-func _on_encounter_finished(_outcome_id: String, _summary: String) -> void:
+## Routage post-confrontation 100 % piloté par le bloc outcomes de la rencontre JSON.
+func _on_encounter_finished(outcome_id: String, _summary: String) -> void:
 	_combat_shake_timer = 0.0
 	_iso_view.call("set_combat_stage_mode", false)
 	_hud.visible = (_app_state == AppState.IN_GAME)
-	_squad.call("regroup_all")
-	_squad.call("move_active_group", "box_garage")
-	_dialogue_runner.call("start_dialogue", "box_garage_debrief")
+
+	var enc_id: String = str(_timeline.get("encounter_id"))
+	if enc_id == "":
+		enc_id = _last_encounter_id
+	var enc_def: Dictionary = DataLoader.get_encounter(enc_id)
+	var outcomes_v: Variant = enc_def.get("outcomes", {})
+	var out_cfg: Dictionary = {}
+	if outcomes_v is Dictionary:
+		var od: Dictionary = outcomes_v as Dictionary
+		var specific_v: Variant = od.get(outcome_id, od.get("default", {}))
+		if specific_v is Dictionary:
+			out_cfg = specific_v as Dictionary
+
+	if bool(out_cfg.get("regroup_squad", true)):
+		_squad.call("regroup_all")
+	var next_loc: String = str(out_cfg.get("move_to", ""))
+	if next_loc != "":
+		_squad.call("move_active_group", next_loc)
+	_sync_world_location()
+
+	var end_id: String = str(out_cfg.get("trigger_ending", ""))
+	var next_dlg: String = str(out_cfg.get("next_dialogue", ""))
+	if end_id != "":
+		_show_end_summary(end_id)
+	elif next_dlg != "":
+		_dialogue_runner.call("start_dialogue", next_dlg)
 	_update_input_lock()
 
-func _show_end_summary() -> void:
-	var outcome_label: String = "Victoire sociale devant le S.O."
-	if GameState.last_encounter_outcome == "escaped":
-		outcome_label = "Échappée nocturne par le Quai / Train Fantôme"
-	elif GameState.last_encounter_outcome == "crs_rush":
-		outcome_label = "Repli d'urgence face aux sirènes CRS"
+## Construit dynamiquement l'écran de fin à partir du bloc endings de scenario.json.
+func _show_end_summary(_ending_id: String = "") -> void:
+	GameState.scenario_completed = true
+	var end_v: Variant = DataLoader.scenario_manifest.get("endings", {})
+	var end_cfg: Dictionary = end_v as Dictionary if end_v is Dictionary else {}
+	var scen_title: String = str(DataLoader.scenario_manifest.get("title", "Scénario"))
+	_end_title_lbl.text = str(end_cfg.get("banner_title", "SCÉNARIO TERMINÉ — « %s »" % scen_title))
+	_btn_end_replay.text = str(end_cfg.get("replay_button_label", "Rejouer le Scénario"))
 
-	var ludo_txt: String = "Recruté au Box-Garage !" if GameState.has_flag("ludo_recruited") else "Resté dehors pour ce soir (+1 Faveur)"
-	var recruits_extra: Array[String] = []
-	if GameState.has_flag("manu_recruited") or GameState.squad_members.has("manu"):
-		recruits_extra.append("Manu (Bananes)")
-	if GameState.has_flag("zoe_recruited") or GameState.squad_members.has("zoe"):
-		recruits_extra.append("Zoé (Kepons)")
-	var allies_extra_line: String = ("Renforts du Canal : " + ", ".join(recruits_extra) + "\n") if not recruits_extra.is_empty() else ""
+	var out_labels_v: Variant = end_cfg.get("outcome_labels", {})
+	var out_labels: Dictionary = out_labels_v as Dictionary if out_labels_v is Dictionary else {}
+	var outcome_key: String = GameState.last_encounter_outcome
+	var outcome_label: String = str(out_labels.get(outcome_key, str(out_labels.get("default", outcome_key if outcome_key != "" else "Résolu"))))
+
+	var extra_lines: Array[String] = []
+	var notes_v: Variant = end_cfg.get("status_notes", [])
+	if notes_v is Array:
+		for nv in (notes_v as Array):
+			if not (nv is Dictionary):
+				continue
+			var nd: Dictionary = nv as Dictionary
+			var n_lbl: String = str(nd.get("label", ""))
+			if nd.has("if_flag"):
+				var fl: String = str(nd.get("if_flag", ""))
+				var val_txt: String = str(nd.get("true_text", "Oui")) if GameState.has_flag(fl) else str(nd.get("false_text", "Non"))
+				extra_lines.append("%s : %s" % [n_lbl, val_txt])
+			elif nd.has("join_present_squad") and nd.get("join_present_squad") is Array:
+				var joined: Array[String] = []
+				for jv in (nd.get("join_present_squad") as Array):
+					if jv is Dictionary:
+						var jd: Dictionary = jv as Dictionary
+						var jcid: String = str(jd.get("char_id", ""))
+						var jfl: String = str(jd.get("flag", ""))
+						if (jfl != "" and GameState.has_flag(jfl)) or (jcid != "" and GameState.squad_members.has(jcid)):
+							joined.append(str(jd.get("text", jcid)))
+				if not joined.is_empty():
+					extra_lines.append("%s : %s" % [n_lbl, ", ".join(joined)])
+
 	var moral_lines: Array[String] = []
 	for cid in GameState.squad_members:
 		var cdef: Dictionary = DataLoader.get_character(cid)
 		var st: Dictionary = GameState.get_member_state(cid)
 		moral_lines.append("• %s : %d / %d Moral" % [str(cdef.get("name", cid)), int(st.get("moral", 0)), int(st.get("moral_max", 100))])
 
+	var notes_block: String = ("\n".join(extra_lines) + "\n\n") if not extra_lines.is_empty() else "\n"
+	var footer_txt: String = str(end_cfg.get("footer_text", ""))
+	var footer_block: String = ("\n\n" + footer_txt) if footer_txt != "" else ""
+
 	_end_summary_lbl.text = (
-		"Issue à la Gare RER « du Y » : %s\n" +
-		"Statut de Ludo : %s\n%s\n" +
+		"Issue principale : %s\n%s" +
 		"Ressources finales : %d Francs  |  %d Faveurs  |  Notoriété %d  |  Aura %d\n\n" +
-		"État de la bande (%d membres) :\n%s\n\n" +
-		"Ce prototype Data-Driven valide la bascule libre (1–6), le Sas Boeing Jour→Nuit, " +
-		"la Frise chronologique à Interruptions hors-tour et le préavis des Crises d'autonomie."
-	) % [outcome_label, ludo_txt, allies_extra_line, GameState.francs, GameState.faveurs, GameState.notoriete, GameState.get_total_aura(), GameState.squad_members.size(), "\n".join(moral_lines)]
+		"État de la bande (%d membres) :\n%s%s"
+	) % [
+		outcome_label,
+		notes_block,
+		GameState.francs,
+		GameState.faveurs,
+		GameState.notoriete,
+		GameState.get_total_aura(),
+		GameState.squad_members.size(),
+		"\n".join(moral_lines),
+		footer_block
+	]
 	_end_overlay.visible = true
 
 func _restart_slice() -> void:
 	var kept_profile: Dictionary = GameState.leader_profile.duplicate(true)
+	kept_profile["scenario_id"] = GameState.current_scenario_id
 	_start_new_game(kept_profile)
 
 func _toggle_character_sheet(char_id: String = "") -> void:

@@ -1,0 +1,139 @@
+{
+  "encounters": {
+    "encounter_demo": {
+      "id": "encounter_demo",
+      "title": "Parvis de départ — Confrontation Modèle",
+      "location_id": "lieu_depart",
+      "custom_script": "scripts/demo_hook.gd",
+      "intro_text": "Un contrôleur municipal bloque la sortie du parvis tandis que l'horloge d'escalade défile.",
+      "pre_modifiers": [
+        {
+          "if_flag": "demo_hotspot_done",
+          "clock_delta": 1,
+          "log": "Casier repéré : +1 cran de marge sur l'horloge."
+        }
+      ],
+      "escalation_clock": {
+        "enabled": true,
+        "id": "crs",
+        "label": "Patrouille",
+        "short_label": "Patr.",
+        "sub": "Gyrophares",
+        "color": "#3d85ff",
+        "intent": "Bouclage du parvis",
+        "start_ticks": 5,
+        "expire_outcome": "demo_retreat",
+        "expire_summary": "La patrouille arrive : le groupe file par l'arrière-cour (-5 Moral).",
+        "expire_effects": [
+          {
+            "op": "modify_moral",
+            "target": "all_allies",
+            "amount": -5,
+            "use_shield": false
+          }
+        ]
+      },
+      "escape_config": {
+        "enabled": true,
+        "required_progress": 2,
+        "action_label": "Filer par la cour !",
+        "action_title": "Échappée par la sortie de service",
+        "target_name": "Portail Nord",
+        "status_ready_label": "PASSAGE LIBRE !",
+        "outcome_id": "escaped",
+        "summary": "Le groupe décroche proprement par la sortie de service !"
+      },
+      "timed_events": [],
+      "player_action_ids": [
+        "act_pression",
+        "act_lancer",
+        "act_tir",
+        "act_charge",
+        "act_tchatche",
+        "act_repli"
+      ],
+      "enemies": [
+        {
+          "id": "adversaire_demo",
+          "name": "Vigile de Contrôle",
+          "role": "Adversaire modèle",
+          "tags": [
+            "garde"
+          ],
+          "portrait": "res://assets/portraits/so_veteran.png",
+          "appearance": {
+            "head": "res://assets/modular/heads/so_agent.png",
+            "top": "res://assets/modular/tops/imper_vigile.png",
+            "bottom": "res://assets/modular/bottoms/pantalon_so.png"
+          },
+          "start_grid": [
+            4,
+            2
+          ],
+          "move_points": 2,
+          "can_charge": true,
+          "intercept_bonus": 1,
+          "resolve_max": 3,
+          "initial_tick": 1,
+          "speed": 2,
+          "dc_social": 10,
+          "dc_pression": 10,
+          "intent_label": "Barre l'accès de la grille",
+          "bark": "« Circulez, ce passage est fermé ! »",
+          "has_counter_interrupt": false,
+          "counter_label": "",
+          "charge_attack": {
+            "log": "💥 {enemy} bouscule {target} (-7 Moral) !",
+            "effects": [
+              {
+                "op": "modify_moral",
+                "target": "target_ally",
+                "amount": -7,
+                "use_shield": true
+              }
+            ]
+          },
+          "melee_attack": {
+            "log": "{enemy} met la pression à {target} (-6 Moral) !",
+            "effects": [
+              {
+                "op": "modify_moral",
+                "target": "target_ally",
+                "amount": -6,
+                "use_shield": true
+              }
+            ]
+          }
+        }
+      ],
+      "outcomes": {
+        "default_flags": {
+          "demo_encounter_done": true
+        },
+        "win_summary": "L'accès au parvis est libre !",
+        "social_win": {
+          "xp_all": 25,
+          "grant_trait": {
+            "char_id": "leader",
+            "trait": "Passe-muraille"
+          },
+          "regroup_squad": true,
+          "move_to": "lieu_depart",
+          "next_dialogue": "demo_epilogue"
+        },
+        "escaped": {
+          "xp_all": 20,
+          "regroup_squad": true,
+          "move_to": "lieu_depart",
+          "next_dialogue": "demo_epilogue"
+        },
+        "demo_retreat": {
+          "xp_all": 10,
+          "regroup_squad": true,
+          "move_to": "lieu_depart",
+          "next_dialogue": "demo_epilogue"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "id": "quartier_demo",
+  "parent_id": "dept_93",
+  "zoom_level": 3,
+  "type": "city",
+  "name": "Quartier Modèle",
+  "short_name": "Modèle",
+  "subtitle": "Plan de ville N3 — Gabarit prêt à étendre",
+  "map_width": 1040,
+  "map_height": 760,
+  "backdrop": "res://assets/maps/map_cradon.png",
+  "paper_tint": "#ded3bc",
+  "night_tint": "#181c24",
+  "sectors": [
+    {
+      "id": "secteur_central",
+      "name": "Secteur Central",
+      "color_hex": "#f28c28",
+      "polygon": [
+        [
+          140,
+          260
+        ],
+        [
+          520,
+          260
+        ],
+        [
+          520,
+          580
+        ],
+        [
+          140,
+          580
+        ]
+      ]
+    }
+  ],
+  "roads": [
+    {
+      "label": "Avenue Centrale",
+      "kind": "road",
+      "points": [
+        [
+          120,
+          440
+        ],
+        [
+          880,
+          440
+        ]
+      ]
+    }
+  ],
+  "locations_order": [
+    "lieu_depart"
+  ],
+  "children": [
+    {
+      "id": "lieu_depart",
+      "name": "Local & Parvis de départ",
+      "sector": "Secteur Central",
+      "pos": [
+        320,
+        430
+      ],
+      "footprint": [
+        168,
+        72
+      ],
+      "color_hex": "#f28c28",
+      "status": "playable",
+      "interior_file": "maps/interiors/lieu_depart.json",
+      "neighbors": {},
+      "completed_if_flag": "demo_encounter_done"
+    }
+  ]
+}

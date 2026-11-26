@@ -1,0 +1,32 @@
+{
+  "stations": [
+    {
+      "freq": "98.4 FM",
+      "name": "Radio Chaîne Libre",
+      "style": "Voix d'atelier, raï, punk & communiqués de grève",
+      "night_only": false,
+      "white_noise_ambience": false,
+      "base_tone_hz": 216.0,
+      "day_lines": [
+        "98.4 FM — « Ici Porte Nord Aulnay : les équipes tiennent le brasero devant l'emboutissage ! »"
+      ],
+      "night_lines": [
+        "98.4 FM — « Alerte sur la zone fret : un fourgon de brouillage cherche l'antenne des 3000 ! »"
+      ]
+    },
+    {
+      "freq": "104.7 FM",
+      "name": "Porteuse de la Plaine",
+      "style": "Souffle magnétique nocturne",
+      "night_only": true,
+      "white_noise_ambience": true,
+      "base_tone_hz": 138.0,
+      "day_lines": [
+        "104.7 FM — [Grésillement blanc au-dessus des toits de tôle.]"
+      ],
+      "night_lines": [
+        "104.7 FM — « ...les voies de triage répondent encore entre Aulnay et Sevran... »"
+      ]
+    }
+  ]
+}

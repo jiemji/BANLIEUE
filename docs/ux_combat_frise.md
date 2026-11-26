@@ -1,10 +1,10 @@
-# UX Combat & Frise Chronologique de Tension — Spécification `v0.8.0`
+# UX Combat & Frise Chronologique de Tension — Spécification `v0.10.0`
 
-> Référence technique et ergonomique pour l'interface de confrontation tactique isométrique de *Banlieue* (Cradon-lès-Gonesse, 1980–1984).
+> Référence technique et ergonomique pour l'interface de confrontation tactique isométrique de *Banlieue* (Cradon-lès-Gonesse & 93, 1980–1984).
 
 ---
 
-## 1. Piliers validés (`v0.6.0` → `v0.8.0` — Combat Tactique Isométrique)
+## 1. Piliers validés (`v0.6.0` → `v0.10.0` — Combat Tactique Isométrique)
 
 | Axe | Choix | Principe UX |
 |---|---|---|
@@ -12,7 +12,8 @@
 | **Grille Tactique & Déplacement (`v0.8.0`)** | **Coordonnées entières `8×8` + `PM = 2–3` / tour** | `TensionTimeline` porte la position `(grid_x, grid_y)` de chaque pion. Pendant son tour, un PJ dispose de `2` ou `3 PM` (selon `Corps` / `Caves & Esquive`) pour cliquer une case bleue accessible avant ou après son action. |
 | **Portées & Arsenal 1982 (`v0.8.0`)** | **3 bandes + Tir sur outil équipé** | **Corps à corps** (`1` case), **Lancer** (`2–4` cases), **Tir** (`2–6` cases, **verrouillé à un outil de tir 1982** comme le *Lance-pierre artisanal* ou les *Pétards Mammouth*), **Charge** (`2–5` cases), **Tchatche** (`1–5` cases) et **Échappée** (toute portée). |
 | **Charge & Interception 10 s (`v0.8.0`)** | **Symétrie PJ/PNJ · Assommé (`-2 rangs`)** | Une **Charge** fait bondir l'acteur sur la case adjacente libre la plus proche d'un adversaire. Si l'adversaire déclenche et réussit son **Interception**, le chargeur est **Assommé**, la charge échoue et il recule de **`+2 crans` (`-2 rangs`)** sur la Frise. Lors d'une Charge PNJ → PJ, un **bandeau d'alerte de `10,0 s`** + flèche rouge sur la grille laissent au joueur le temps de déclencher l'Interception depuis tout PJ avec Réaction prête (ou d'encaisser). |
-| **Triptyque Bas (`y = 478..712`)** | **Actif (gauche) · Minutes (centre) · Survolé (droite)** | À gauche (`x=10..404`) : stats, PM restants, actions filtrées par portée (`%` / `★` / `🎯` / `🔒`), fin de tour et hors-frise. Au centre (`x=412..868`) : **Minutes du combat**, dernier bark et `[Espace]`. À droite (`x=876..1270`) : fiche miroir du personnage survolé, **distance en cases**, avertissement d'interception sur Charge et aperçu `🎲 %`. |
+| **Couverts (`🛡`) & Interactifs (`⚙`) (`v0.10.0`)** | **Terrain tactique piloté par JSON** | Les `cover_tiles[]` octroient `+defense_bonus` au DD contre les attaques `min_range >= 2` et amortissent de `moral_absorb` les dégâts moraux des PJ abrités (badges `🛡` sur grille et fiches). Les `combat_interactables[]` (`⚙`) s'activent à portée (`max_range`) par clic sur la case ou bouton dédié (Jet de rue `2d6`). |
+| **Triptyque Bas (`y = 478..712`)** | **Actif (gauche) · Minutes (centre) · Survolé (droite)** | À gauche (`x=10..404`) : stats, PM restants, actions filtrées par portée (`%` / `★` / `🎯` / `🔒`), interactifs `⚙`, fin de tour et hors-frise. Au centre (`x=412..868`) : **Minutes du combat**, dernier bark et `[Espace]`. À droite (`x=876..1270`) : fiche miroir du personnage survolé, **distance en cases**, statut couvert `🛡`, avertissement d'interception sur Charge et aperçu `🎲 %`. |
 
 ---
 
@@ -58,6 +59,7 @@
 * **`get_active_turn_entity()`** : identifie le PJ ou PNJ actif au tour courant (fenêtre de Charge PNJ active, crise prioritaire, action PNJ, allié au cran `0` ou prochain acteur en attente).
 * **`get_entity_sheet_data(kind, entity_id)`** : alimente symétriquement la fiche bas-gauche (actif) et la fiche bas-droite (survolé) avec `grid_x`, `grid_y`, `stunned`, `move_points_left`, `move_points_max`, `Moral/Seuil`, `Attitude/Aura`, `Esprit/Corps/Énergie`, compétences marquantes, équipements, ou `Résolution`, `DD Social/Pression`, intention et contre-interruption pour les PNJ.
 * **Déplacement & Ciblage sur grille** : `get_reachable_cells_for_active_ally()`, `move_active_ally_to()`, `end_active_ally_turn_wait()`, `get_action_range()`, `get_valid_target_ids_for_action()`, `find_closest_adjacent_cell()`.
+* **Couverts & Interactifs de décor (`v0.10.0`)** : `get_cover_at_cell()`, `get_entity_cover_info()`, `get_combat_interactable_at()`, `get_available_combat_interactables()`, `trigger_combat_interactable()`.
 * **Fenêtre Charge PNJ 10 s** : signaux `charge_window_started`, `charge_window_ticked`, `charge_window_ended`, méthodes `is_charge_window_active()`, `get_charge_interceptor_candidates()`, `trigger_charge_interception()`, `resolve_pending_enemy_charge()`.
 
 ---

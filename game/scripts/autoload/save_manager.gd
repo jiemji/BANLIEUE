@@ -1,11 +1,11 @@
 ## Gestionnaire des 3 emplacements de sauvegarde manuels (Cassettes A, B, C).
-## Sérialise et restaure GameState et le profil du protagoniste au format JSON dans user://saves/.
+## Sérialise et restaure GameState, l'identifiant du scénario actif et supporte l'import inter-scénarios (Option 3A).
 extends Node
 
 const SAVE_DIR: String = "user://saves"
 const SLOT_COUNT: int = 3
 const SLOT_LABELS: Array[String] = ["Cassette A", "Cassette B", "Cassette C"]
-const SCHEMA_VERSION: int = 1
+const SCHEMA_VERSION: int = 2
 
 ## Retourne le libellé d'affichage de la cassette pour un index 1..3.
 func get_slot_label(slot_idx: int) -> String:
@@ -26,8 +26,8 @@ func has_any_save() -> bool:
 			return true
 	return false
 
-## Lit uniquement le bloc meta et l'horodatage d'une cassette sans charger la partie.
-func read_slot_meta(slot_idx: int) -> Dictionary:
+## Lit le contenu complet d'une cassette JSON (meta + leader_profile + game_state) sans modifier la session active.
+func read_slot_full(slot_idx: int) -> Dictionary:
 	var path: String = get_slot_path(slot_idx)
 	if not FileAccess.file_exists(path):
 		return {}
@@ -39,7 +39,13 @@ func read_slot_meta(slot_idx: int) -> Dictionary:
 	var parsed: Variant = JSON.parse_string(txt)
 	if not (parsed is Dictionary):
 		return {}
-	var data: Dictionary = parsed as Dictionary
+	return parsed as Dictionary
+
+## Lit uniquement le bloc meta et l'horodatage d'une cassette sans charger la partie.
+func read_slot_meta(slot_idx: int) -> Dictionary:
+	var data: Dictionary = read_slot_full(slot_idx)
+	if data.is_empty():
+		return {}
 	var meta_var: Variant = data.get("meta", {})
 	var meta: Dictionary = (meta_var as Dictionary).duplicate(true) if (meta_var is Dictionary) else {}
 	meta["saved_at"] = str(data.get("saved_at", ""))
@@ -50,9 +56,14 @@ func read_slot_meta(slot_idx: int) -> Dictionary:
 		var lp: Dictionary = lp_var as Dictionary
 		if not meta.has("portrait_path"):
 			meta["portrait_path"] = str(lp.get("portrait_path", ""))
+	if not meta.has("scenario_id"):
+		meta["scenario_id"] = DataLoader.get_default_scenario_id()
+	if not meta.has("scenario_title"):
+		var sdef: Dictionary = DataLoader.get_scenario_def(str(meta.get("scenario_id", "")))
+		meta["scenario_title"] = str(sdef.get("title", str(meta.get("scenario_id", ""))))
 	return meta
 
-## Sauvegarde l'état courant de GameState et leader_profile sur la cassette demandée (1..3).
+## Sauvegarde l'état courant de GameState, leader_profile et scenario_id sur la cassette demandée (1..3).
 func save_slot(slot_idx: int) -> bool:
 	var abs_dir: String = ProjectSettings.globalize_path(SAVE_DIR)
 	var mk_err: Error = DirAccess.make_dir_recursive_absolute(abs_dir)
@@ -61,30 +72,36 @@ func save_slot(slot_idx: int) -> bool:
 		return false
 
 	var profile: Dictionary = GameState.leader_profile.duplicate(true)
-	var arch_id: String = str(profile.get("archetype_id", "mains_noires"))
+	var arch_id: String = str(profile.get("archetype_id", ""))
 	var arch_def: Dictionary = DataLoader.get_archetype_def(arch_id)
-	var arch_title: String = str(arch_def.get("title", "Les Mains-Noires"))
+	var arch_title: String = str(arch_def.get("title", arch_id))
 	var loc_id: String = GameState.get_active_location_id()
 	var loc_def: Dictionary = DataLoader.get_location(loc_id)
 	var loc_name: String = str(loc_def.get("name", loc_id))
 	var saved_at: String = Time.get_datetime_string_from_system(false, false)
+	var scen_id: String = GameState.current_scenario_id if GameState.current_scenario_id != "" else DataLoader.active_scenario_id
+	var scen_title: String = str(DataLoader.scenario_manifest.get("title", scen_id))
 
 	var payload: Dictionary = {
 		"schema_version": SCHEMA_VERSION,
 		"saved_at": saved_at,
 		"meta": {
 			"slot_label": get_slot_label(slot_idx),
+			"scenario_id": scen_id,
+			"scenario_title": scen_title,
+			"scenario_completed": GameState.scenario_completed,
 			"leader_name": str(profile.get("name", "Alex")),
 			"archetype_id": arch_id,
 			"archetype_title": arch_title,
-			"portrait_id": str(profile.get("portrait_id", "player_01")),
+			"portrait_id": str(profile.get("portrait_id", "")),
 			"portrait_path": str(profile.get("portrait_path", "")),
 			"location_id": loc_id,
 			"location_name": loc_name,
 			"phase": GameState.phase,
 			"clock_text": GameState.format_clock(),
 			"squad_count": GameState.squad_members.size(),
-			"francs": GameState.francs
+			"francs": GameState.francs,
+			"notoriete": GameState.notoriete
 		},
 		"leader_profile": profile,
 		"game_state": GameState.to_save_dict()
@@ -99,26 +116,22 @@ func save_slot(slot_idx: int) -> bool:
 	file.close()
 	return true
 
-## Charge une cassette existante (1..3) et restaure GameState et le profil Leader.
+## Charge une cassette existante (1..3), bascule d'abord sur son pack scénario puis restaure GameState.
 func load_slot(slot_idx: int) -> bool:
-	var path: String = get_slot_path(slot_idx)
-	if not FileAccess.file_exists(path):
+	var data: Dictionary = read_slot_full(slot_idx)
+	if data.is_empty():
 		return false
-	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
-	if file == null:
-		return false
-	var txt: String = file.get_as_text()
-	file.close()
-	var parsed: Variant = JSON.parse_string(txt)
-	if not (parsed is Dictionary):
-		push_error("SaveManager: JSON de sauvegarde invalide: " + path)
-		return false
-	var data: Dictionary = parsed as Dictionary
 	var gs_var: Variant = data.get("game_state", {})
 	var lp_var: Variant = data.get("leader_profile", {})
+	var meta_var: Variant = data.get("meta", {})
 	if not (gs_var is Dictionary) or not (lp_var is Dictionary):
 		return false
-	GameState.load_from_save_dict(lp_var as Dictionary, gs_var as Dictionary)
+	var gs_d: Dictionary = gs_var as Dictionary
+	var meta_d: Dictionary = meta_var as Dictionary if meta_var is Dictionary else {}
+	var scen_id: String = str(gs_d.get("scenario_id", str(meta_d.get("scenario_id", DataLoader.get_default_scenario_id()))))
+	if not DataLoader.ensure_scenario_loaded(scen_id):
+		return false
+	GameState.load_from_save_dict(lp_var as Dictionary, gs_d)
 	return true
 
 ## Supprime définitivement le fichier JSON d'une cassette (1..3).

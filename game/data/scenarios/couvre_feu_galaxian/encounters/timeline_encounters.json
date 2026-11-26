@@ -1,0 +1,354 @@
+{
+  "encounters": {
+    "encounter_gare_y": {
+      "id": "encounter_gare_y",
+      "title": "Gare RER « du Y » — Souterrain & Quai Nocturne",
+      "location_id": "gare_rer_y",
+      "intro_text": "22 h 15. À la sortie du souterrain, deux gros bras du S.O. municipal et un Skin bloquent l'escalier du quai. Au bout de l'avenue, des bottes et des gyrophares CRS approchent à grand pas.",
+      "pre_modifiers": [
+        {
+          "if_flag": "has_caves_key",
+          "escape_delta": 1
+        },
+        {
+          "if_flag": "ludo_guetteur",
+          "clock_delta": 1,
+          "log": "Ludo fait le guet sur l'avenue : les CRS gagnent +1 cran de retard."
+        },
+        {
+          "if_flag": "ludo_bluffed_cousin",
+          "target_tag": "cousin_bluffable",
+          "resolve_delta": -1,
+          "min_resolve": 2,
+          "log": "Le baratin de Ludo a déjà semé le doute chez son cousin S.O. (-1 Résolution)."
+        },
+        {
+          "if_flag": "so_veteran_spotted",
+          "target_tag": "so_veteran_guard",
+          "clear_counter": true,
+          "log": "Repérage ruelle : la contre-interruption initiale du Chef S.O. Vétéran est neutralisée !"
+        },
+        {
+          "if_equipped_action": "act_equip_caves",
+          "escape_delta": 1,
+          "log": "Passe des chaufferies équipé ({holder}) : +1 progression Échappée !"
+        }
+      ],
+      "escalation_clock": {
+        "enabled": true,
+        "id": "crs",
+        "label": "Patrouille CRS",
+        "short_label": "CRS",
+        "sub": "Sirènes",
+        "color": "#3d85ff",
+        "intent": "Bouclage des sorties RER",
+        "start_ticks": 4,
+        "expire_outcome": "crs_rush",
+        "expire_summary": "Les bottes CRS claquent dans les escaliers : la bande file in extremis dans le souterrain sous les sirènes (-8 Moral, +1 Notoriété).",
+        "expire_effects": [
+          {
+            "op": "modify_moral",
+            "target": "all_allies",
+            "amount": -8,
+            "use_shield": false
+          },
+          {
+            "op": "modify_notoriete",
+            "amount": 1
+          }
+        ]
+      },
+      "escape_config": {
+        "enabled": true,
+        "required_progress": 2,
+        "action_label": "Filer par le Quai !",
+        "action_title": "Filer par le Quai / Train Fantôme",
+        "target_name": "Rame RER du Y",
+        "status_ready_label": "TRAIN FANTÔME À QUAI !",
+        "outcome_id": "escaped",
+        "summary": "Échappée nocturne réussie ! Profitant de la rame du Train Fantôme et de l'ombre du quai, la bande sème le S.O. et les CRS avant de filer sous la Dalle."
+      },
+      "timed_events": [
+        {
+          "id": "train_fantome",
+          "trigger_turn_ticks": 6,
+          "title": "RER B — Train Fantôme",
+          "log": "PHÉNOMÈNE AMBIGU : Un RER B sans annonce entre en gare — sa ferraille coupe la ligne de vue du S.O. !",
+          "unlocks_escape": true,
+          "stage_fx": "passing_train",
+          "shake": true
+        }
+      ],
+      "player_action_ids": [
+        "act_pression",
+        "act_lancer",
+        "act_tir",
+        "act_charge",
+        "act_tchatche",
+        "act_repli"
+      ],
+      "enemies": [
+        {
+          "id": "skin_nerveux",
+          "name": "Skin du Bourg",
+          "role": "Agitateur (Aura)",
+          "tags": [
+            "skin"
+          ],
+          "portrait": "res://assets/portraits/skin_nerveux.png",
+          "appearance": {
+            "head": "res://assets/modular/heads/skin_nerveux.png",
+            "top": "res://assets/modular/tops/harrington_skin.png",
+            "bottom": "res://assets/modular/bottoms/treillis_rangers.png"
+          },
+          "start_grid": [
+            2,
+            2
+          ],
+          "move_points": 3,
+          "can_charge": true,
+          "intercept_bonus": 1,
+          "resolve_max": 3,
+          "initial_tick": 1,
+          "speed": 2,
+          "dc_social": 10,
+          "dc_pression": 10,
+          "intent_label": "Charge une Menace d'Aura (fait chuter le Moral)",
+          "bark": "« Dégagez du quai les loques, c'est notre territoire ici ! »",
+          "has_counter_interrupt": false,
+          "counter_label": "",
+          "charge_attack": {
+            "log": "💥 {enemy} charge au contact de {target} (-8 Moral) !",
+            "effects": [
+              {
+                "op": "modify_moral",
+                "target": "target_ally",
+                "amount": -8,
+                "use_shield": true
+              }
+            ]
+          },
+          "melee_attack": {
+            "log": "{enemy} lance une Menace d'Aura ! La pression monte dans le souterrain.",
+            "effects": [
+              {
+                "op": "modify_moral",
+                "target": "target_ally",
+                "amount": -7,
+                "use_shield": true
+              },
+              {
+                "op": "modify_moral",
+                "target": "second_ally",
+                "amount": -4,
+                "use_shield": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "cousin_so",
+          "name": "Cousin S.O.",
+          "role": "Milice municipale",
+          "tags": [
+            "cousin_bluffable",
+            "so"
+          ],
+          "portrait": "res://assets/portraits/cousin_so.png",
+          "appearance": {
+            "head": "res://assets/modular/heads/cousin_so.png",
+            "top": "res://assets/modular/tops/blouson_cousin.png",
+            "bottom": "res://assets/modular/bottoms/jean_gris_derbies.png"
+          },
+          "start_grid": [
+            4,
+            2
+          ],
+          "move_points": 2,
+          "can_charge": true,
+          "intercept_bonus": 2,
+          "resolve_max": 4,
+          "initial_tick": 2,
+          "speed": 3,
+          "dc_social": 11,
+          "dc_pression": 11,
+          "intent_label": "Verrouille la grille du quai & insulte la bande",
+          "bark": "« Personne monte dans la rame. Ordre de la mairie. »",
+          "has_counter_interrupt": false,
+          "counter_label": "",
+          "charge_attack": {
+            "log": "💥 {enemy} bouscule {target} plein fer (-9 Moral) !",
+            "effects": [
+              {
+                "op": "modify_moral",
+                "target": "target_ally",
+                "amount": -9,
+                "use_shield": true
+              }
+            ]
+          },
+          "melee_attack": {
+            "log": "{enemy} bloque le quai et se met en garde (-8 Moral sur {target}) !",
+            "effects": [
+              {
+                "op": "set_counter_ready",
+                "value": true
+              },
+              {
+                "op": "modify_moral",
+                "target": "target_ally",
+                "amount": -8,
+                "use_shield": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "so_veteran",
+          "name": "Chef S.O. Vétéran",
+          "role": "Gros bras aguerri",
+          "tags": [
+            "so_veteran_guard",
+            "so"
+          ],
+          "portrait": "res://assets/portraits/so_veteran.png",
+          "appearance": {
+            "head": "res://assets/modular/heads/so_agent.png",
+            "top": "res://assets/modular/tops/blouson_so.png",
+            "bottom": "res://assets/modular/bottoms/treillis_rangers.png"
+          },
+          "start_grid": [
+            6,
+            2
+          ],
+          "move_points": 2,
+          "can_charge": true,
+          "intercept_bonus": 3,
+          "resolve_max": 5,
+          "initial_tick": 3,
+          "speed": 3,
+          "dc_social": 12,
+          "dc_pression": 12,
+          "intent_label": "Coup de pression / Matraque préventive",
+          "bark": "« Approche d'un cran et je te règle ton compte à la matraque. »",
+          "has_counter_interrupt": true,
+          "counter_label": "Interception & Contre prêts !",
+          "charge_attack": {
+            "log": "💥 {enemy} fonce matraque levée sur {target} (-9 Moral, reste en garde) !",
+            "effects": [
+              {
+                "op": "set_counter_ready",
+                "value": true
+              },
+              {
+                "op": "modify_moral",
+                "target": "target_ally",
+                "amount": -9,
+                "use_shield": true
+              }
+            ]
+          },
+          "melee_attack": {
+            "log": "{enemy} cogne sa matraque contre le rail et menace de vous embarquer au poste !",
+            "effects": [
+              {
+                "op": "set_counter_ready",
+                "value": true
+              },
+              {
+                "op": "modify_moral",
+                "target": "all_allies",
+                "amount": -5,
+                "use_shield": true
+              }
+            ]
+          }
+        }
+      ],
+      "outcomes": {
+        "default_flags": {
+          "encounter_gare_done": true
+        },
+        "win_summary": "Le S.O. municipal plie devant vos preuves et la réputation du quartier ! L'arrêté bidon du Galaxian tombe à l'eau avant même l'arrivée des CRS.",
+        "social_win": {
+          "xp_all": 35,
+          "grant_trait": {
+            "char_id": "leader",
+            "trait": "Sang-froid du Quai Y"
+          },
+          "regroup_squad": true,
+          "move_to": "box_garage",
+          "next_dialogue": "box_garage_debrief"
+        },
+        "escaped": {
+          "xp_all": 30,
+          "grant_trait": {
+            "char_id": "leader",
+            "trait": "Sang-froid du Quai Y"
+          },
+          "regroup_squad": true,
+          "move_to": "box_garage",
+          "next_dialogue": "box_garage_debrief"
+        },
+        "crs_rush": {
+          "xp_all": 15,
+          "regroup_squad": true,
+          "move_to": "box_garage",
+          "next_dialogue": "box_garage_debrief"
+        }
+      },
+      "cover_tiles": [
+        {
+          "x": 2,
+          "y": 4,
+          "label": "Pilier béton",
+          "defense_bonus": 2,
+          "moral_absorb": 2,
+          "blocks_movement": true
+        },
+        {
+          "x": 5,
+          "y": 4,
+          "label": "Banquette quai",
+          "defense_bonus": 1,
+          "moral_absorb": 2,
+          "blocks_movement": false
+        }
+      ],
+      "combat_interactables": [
+        {
+          "id": "prop_extincteur_quai",
+          "label": "Extincteur du quai",
+          "x": 1,
+          "y": 5,
+          "max_range": 2,
+          "cost_tick": 2,
+          "skill": "systeme_d",
+          "dc": 9,
+          "one_shot": true,
+          "effects": [
+            {
+              "op": "damage_resolve",
+              "amount": 1,
+              "scope": "all_enemies"
+            },
+            {
+              "op": "modify_escalation_clock",
+              "amount": 1
+            }
+          ],
+          "fail_effects": [
+            {
+              "op": "modify_moral",
+              "target": "self",
+              "amount": -3,
+              "use_shield": true
+            }
+          ],
+          "log_success": "🧯 {actor} vide l'extincteur du quai : brouillard blanc (-1 résol. à tous les ennemis, +{clock} cran {clock_short}) !",
+          "log_fail": "🧯 Goupille coincée ({actor}) : -3 Moral sous la pression !"
+        }
+      ]
+    }
+  }
+}

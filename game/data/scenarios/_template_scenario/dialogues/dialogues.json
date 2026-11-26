@@ -1,0 +1,99 @@
+{
+  "dialogues": {
+    "demo_intro": {
+      "speaker_id": "allie_demo",
+      "speaker_name": "Samia — Point de départ",
+      "text": "Bienvenue dans le gabarit de scénario Banlieue ! Inspecte l'établi [Système D] pour récupérer une tenue ★, ou va voir Mickaël près de l'entrée pour tester une confrontation sur la Frise.",
+      "choices": [
+        {
+          "label": "Commencer l'exploration du lieu",
+          "tag": "Explorer",
+          "effects": {
+            "unlock_clue": "Parler à Mickaël ou fouiller l'établi avant de clore le scénario."
+          },
+          "next": ""
+        }
+      ]
+    },
+    "demo_hotspot": {
+      "speaker_id": "leader",
+      "speaker_name": "Établi & Casier verrouillé",
+      "text": "Une parka de ronde à brassard orange est rangée sous clé derrière l'établi.",
+      "choices": [
+        {
+          "label": "Crocheter le casier (Jet Système D)",
+          "tag": "Système D • Débloque Parka ★ + 20 XP",
+          "conditions": {
+            "require_not_flag": "demo_hotspot_done"
+          },
+          "skill_check": {
+            "skill": "systeme_d",
+            "dc": 8
+          },
+          "effects": {
+            "grant_item": "veste_demo",
+            "add_xp": {
+              "target": "all",
+              "amount": 20
+            },
+            "set_flag": {
+              "demo_hotspot_done": true
+            },
+            "unlock_clue": "Parka de ronde (★ Bluff Démo) récupérée dans le casier."
+          },
+          "fail_effects": {
+            "moral": {
+              "leader": -3
+            },
+            "set_flag": {
+              "demo_hotspot_done": true
+            }
+          },
+          "next": ""
+        },
+        {
+          "label": "Refermer le tiroir",
+          "tag": "Fermer",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "demo_contact": {
+      "speaker_id": "contact_demo",
+      "speaker_name": "Mickaël — Parvis",
+      "text": "« Un vigile de ronde arrive par la grille. Vous voulez le gérer tout de suite sur la Frise ou finir de vous équiper d'abord ? »",
+      "choices": [
+        {
+          "label": "Affronter le guetteur de ronde sur la Frise !",
+          "tag": "Combat tactique",
+          "effects": {
+            "start_encounter": "encounter_demo"
+          },
+          "next": ""
+        },
+        {
+          "label": "Vérifier encore l'équipement [F]",
+          "tag": "Attendre",
+          "effects": {},
+          "next": ""
+        }
+      ]
+    },
+    "demo_epilogue": {
+      "speaker_id": "allie_demo",
+      "speaker_name": "Samia — Scénario bouclé",
+      "text": "La voie est dégagée et la séquence de démonstration est terminée !",
+      "choices": [
+        {
+          "label": "Terminer le scénario modèle",
+          "tag": "Fin",
+          "effects": {
+            "finish_slice": true
+          },
+          "next": ""
+        }
+      ]
+    }
+  }
+}

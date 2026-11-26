@@ -1,4 +1,4 @@
-## Boîte de dialogue BD/fanzine : portraits, bandeau verdict _roll_banner et badges de probabilité 🎲 % / Faille.
+## Boîte de dialogue BD/fanzine : portraits chargés via DataLoader, bandeau verdict _roll_banner et badges de probabilité 🎲 %.
 extends Control
 
 signal choice_selected(choice_index: int)
@@ -14,7 +14,6 @@ var _portrait_frame: PanelContainer = null
 var _portrait_style: StyleBoxFlat = null
 var _portrait_tex: TextureRect = null
 var _portrait_rect: ColorRect = null
-var _tex_cache: Dictionary = {}
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -50,7 +49,6 @@ func _build_ui() -> void:
 	main_hbox.add_theme_constant_override("separation", 12)
 	_panel.add_child(main_hbox)
 
-	# Portrait stylisé BD/fanzine à gauche
 	var left_col: VBoxContainer = VBoxContainer.new()
 	left_col.custom_minimum_size = Vector2(126, 0)
 	main_hbox.add_child(left_col)
@@ -124,14 +122,15 @@ func _build_ui() -> void:
 ## Affiche un nœud de dialogue, le bandeau de dernier jet (_roll_banner) et les choix annotés (🎲 % / ⚠ FAILLE).
 func show_node(node_data: Dictionary, choices: Array) -> void:
 	visible = true
-	var spk_id: String = str(node_data.get("speaker_id", "leader"))
+	var leader_cid: String = DataLoader.get_leader_char_id()
+	var spk_id: String = str(node_data.get("speaker_id", leader_cid))
 	var cdef: Dictionary = DataLoader.get_character(spk_id)
 	var pcol: Color = Color.html(str(cdef.get("color_hex", "#f28c28")))
 	_portrait_style.border_color = pcol
 	_portrait_rect.color = pcol
 
 	var portrait_path: String = str(cdef.get("portrait", ""))
-	var tex: Texture2D = _load_texture_safe(portrait_path) if portrait_path != "" else null
+	var tex: Texture2D = DataLoader.load_texture_safe(portrait_path) if portrait_path != "" else null
 	if tex != null:
 		_portrait_tex.texture = tex
 		_portrait_tex.visible = true
@@ -142,7 +141,7 @@ func show_node(node_data: Dictionary, choices: Array) -> void:
 		_portrait_rect.visible = true
 
 	var spk_display: String = str(node_data.get("speaker_name", spk_id))
-	if spk_id == "leader" and (spk_display == "" or spk_display == "Leader" or spk_display == "Toi (Leader)" or spk_display == "leader"):
+	if spk_id == leader_cid and (spk_display == "" or spk_display == "Leader" or spk_display == "Toi (Leader)" or spk_display == leader_cid):
 		spk_display = str(cdef.get("name", "Leader"))
 	_lbl_speaker.text = spk_display
 
@@ -222,25 +221,3 @@ func show_node(node_data: Dictionary, choices: Array) -> void:
 ## Masque la boîte de dialogue.
 func hide_panel() -> void:
 	visible = false
-
-func _load_texture_safe(res_path: String) -> Texture2D:
-	if res_path == "":
-		return null
-	if _tex_cache.has(res_path):
-		var cached: Variant = _tex_cache.get(res_path, null)
-		if cached is Texture2D:
-			return cached as Texture2D
-		return null
-	var tex: Texture2D = null
-	if ResourceLoader.exists(res_path):
-		var loaded: Resource = load(res_path)
-		if loaded is Texture2D:
-			tex = loaded as Texture2D
-	if tex == null:
-		var abs_path: String = ProjectSettings.globalize_path(res_path)
-		if FileAccess.file_exists(abs_path):
-			var img: Image = Image.load_from_file(abs_path)
-			if img != null and not img.is_empty():
-				tex = ImageTexture.create_from_image(img)
-	_tex_cache[res_path] = tex
-	return tex

@@ -85,7 +85,11 @@ func _process(_delta: float) -> void:
 	var dt: float = 1.0 / _mix_rate
 	var is_night: bool = GameState.phase == "night"
 	var station_idx: int = GameState.current_station_idx
-	var is_phantom_fm: bool = (station_idx == 4)
+	var is_phantom_fm: bool = false
+	var st_count: int = DataLoader.radio_stations.size()
+	if st_count > 0:
+		var st_dict: Dictionary = DataLoader.radio_stations[posmod(station_idx, st_count)]
+		is_phantom_fm = bool(st_dict.get("white_noise_ambience", false))
 	var radio_on: bool = SettingsManager.radio_ambience
 
 	for i in range(to_push):

@@ -1,3 +1,4 @@
+## Nœud de mobilier isométrique N4 piloté par rules/props_catalog.json (et surcharges locales du décor).
 extends Node2D
 
 var _prop: Dictionary = {}
@@ -14,12 +15,14 @@ func setup_prop(prop: Dictionary, tile_w_val: float, tile_h_val: float, origin_v
 	_is_night = is_night_val
 
 	var ptype: String = str(prop.get("type", "box"))
+	var pdef: Dictionary = DataLoader.get_prop_def(ptype)
+	var shape: String = str(prop.get("shape", str(pdef.get("shape", "box"))))
 	var gx: float = float(prop.get("x", 0.0))
 	var gy: float = float(prop.get("y", 0.0))
 	var w: float = float(prop.get("w", 1.0))
 	var h: float = float(prop.get("h", 1.0))
 	var sort_pt: Vector2 = _iso_to_screen(gx + w * 0.5, gy + h * 0.5)
-	if ptype == "wall_back":
+	if shape == "wall_back":
 		var back_pt: Vector2 = _iso_to_screen(gx + w * 0.5, gy + h)
 		z_index = clampi(int(back_pt.y) - 12, -3500, 3500)
 	else:
@@ -40,50 +43,33 @@ func _draw() -> void:
 	if _prop.is_empty():
 		return
 	var ptype: String = str(_prop.get("type", "box"))
+	var pdef: Dictionary = DataLoader.get_prop_def(ptype)
 	var gx: float = float(_prop.get("x", 0.0))
 	var gy: float = float(_prop.get("y", 0.0))
 	var w: float = float(_prop.get("w", 1.0))
 	var h: float = float(_prop.get("h", 1.0))
 	var lbl: String = str(_prop.get("label", ""))
 
-	var height_px: float = 24.0
-	var col: Color = Color(0.65, 0.58, 0.50)
-	if ptype == "wall_back":
-		height_px = 46.0
-		col = Color(0.54, 0.50, 0.46) if not _is_night else Color(0.18, 0.18, 0.22)
-	elif ptype == "mob":
-		height_px = 18.0
-		col = Color(0.95, 0.52, 0.16)
-	elif ptype == "sofa":
-		height_px = 16.0
-		col = Color(0.72, 0.20, 0.22)
-	elif ptype == "radio":
-		height_px = 14.0
-		col = Color(0.22, 0.56, 0.85)
-	elif ptype == "arcade":
-		height_px = 32.0
-		col = Color(0.22, 0.54, 0.92)
-	elif ptype == "babyfoot":
-		height_px = 20.0
-		col = Color(0.62, 0.46, 0.26)
-	elif ptype == "counter":
-		height_px = 20.0
-		col = Color(0.92, 0.78, 0.28)
-	elif ptype == "notice":
-		height_px = 28.0
-		col = Color(0.85, 0.18, 0.18)
-	elif ptype == "lodge":
-		height_px = 36.0
-		col = Color(0.58, 0.62, 0.68)
-	elif ptype == "van":
-		height_px = 28.0
-		col = Color(0.32, 0.42, 0.68)
-	elif ptype == "sign_rer":
-		height_px = 34.0
-		col = Color(0.18, 0.36, 0.82)
-	elif ptype == "trash":
-		height_px = 22.0
-		col = Color(0.48, 0.52, 0.56)
+	var night_spr: String = str(_prop.get("sprite_night", str(pdef.get("sprite_night", ""))))
+	var day_spr: String = str(_prop.get("sprite_day", str(_prop.get("sprite", str(pdef.get("sprite_day", str(pdef.get("sprite", ""))))))))
+	var spr_path: String = night_spr if (_is_night and night_spr != "") else day_spr
+	if spr_path != "":
+		var tex: Texture2D = DataLoader.load_texture_safe(spr_path)
+		if tex != null:
+			var foot_mid: Vector2 = (_iso_to_screen(gx, gy + h) + _iso_to_screen(gx + w, gy)) * 0.5
+			var tsz: Vector2 = tex.get_size()
+			var span_w: float = maxf(32.0, (w + h) * _tile_w * 0.5)
+			var span_h: float = span_w * (tsz.y / maxf(tsz.x, 1.0))
+			var drect: Rect2 = Rect2(Vector2(foot_mid.x - span_w * 0.5, foot_mid.y - span_h + _tile_h * 0.25), Vector2(span_w, span_h))
+			var tint_s: Color = Color(0.68, 0.72, 0.82) if (_is_night and night_spr == "") else Color.WHITE
+			draw_texture_rect(tex, drect, false, tint_s)
+			return
+
+	var height_px: float = float(_prop.get("height_px", float(pdef.get("height_px", 24.0))))
+	var day_hex: String = str(_prop.get("day_color", str(pdef.get("day_color", "#a69480"))))
+	var night_hex: String = str(_prop.get("night_color", str(pdef.get("night_color", day_hex))))
+	var chosen_hex: String = night_hex if (_is_night and night_hex != "") else day_hex
+	var col: Color = Color.html(chosen_hex) if chosen_hex != "" else Color(0.65, 0.58, 0.50)
 
 	var b0: Vector2 = _iso_to_screen(gx, gy)
 	var b1: Vector2 = _iso_to_screen(gx + w, gy)

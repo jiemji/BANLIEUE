@@ -1,0 +1,100 @@
+{
+  "id": "couvre_feu_galaxian",
+  "title": "Couvre-Feu au Galaxian",
+  "subtitle": "CRADON-LÈS-GONESSE · 1980–1984",
+  "era": "Automne 1982",
+  "new_game_subtitle": "Choisis librement ton visage, ton prénom et ton histoire personnelle à Cradon-lès-Gonesse (1980–1984).",
+  "squad_start_note": "Départ : Box-Garage de la Cité avec Karim & Nadia (« Couvre-Feu au Galaxian »).",
+  "synopsis": "17 h 30 sous la Dalle. Le Service d'Ordre municipal placarde un couvre-feu bidon sur Le Galaxian et boucle les accès de la Gare RER « du Y ».",
+  "allow_import_cassette": true,
+  "allow_companion_import": true,
+  "world_root_file": "world/idf.json",
+  "leader_char_id": "leader",
+  "title_backdrop": {
+    "location_id": "box_garage",
+    "day_label": "Box-Garage · Jour gouache 1982",
+    "twilight_label": "Box-Garage · Crépuscule sodium",
+    "night_label": "Box-Garage · Nuit N&B (4 couleurs-signaux)"
+  },
+  "start_hierarchy": {
+    "zoom_level": 4,
+    "region_id": "idf",
+    "department_id": "dept_93",
+    "city_id": "cradon_les_gonesse",
+    "location_id": "box_garage"
+  },
+  "intro_dialogue_id": "intro_box_garage",
+  "start_state": {
+    "phase": "day",
+    "clock_minutes": 1050,
+    "francs": 25,
+    "faveurs": 0,
+    "notoriete": 1,
+    "aura_bonus": 0,
+    "stash_label": "COFFRE DU BOX-GARAGE",
+    "stash_items": [
+      "perfecto_cloute",
+      "parka_anonyme",
+      "treillis_rangers",
+      "pantalon_velours_ville",
+      "cassettes_tdk",
+      "petards_mammouth",
+      "survet_bleu_smurf",
+      "harrington_kaki",
+      "jean_gris_training",
+      "jean_ardoise_baskets"
+    ],
+    "initial_hint": "Explore le Box-Garage ou file au Galaxian.",
+    "opening_log_with_arch": "17 h 30 — {leader_name} ({archetype_title}) au Box-Garage sous la Dalle.",
+    "opening_log_default": "17 h 30 — Au Box-Garage sous la Dalle. Fais tourner la FM ou file au Galaxian.",
+    "recruit_log_template": "{name} rejoint la bande au Box-Garage !"
+  },
+  "phase_transitions": {
+    "twilight_button_label": "Passer au Crépuscule (Boeing → Nuit)",
+    "twilight_clock_minutes": 1215,
+    "night_clock_minutes": 1330,
+    "sas_overlay_text": "CRÉPUSCULE SUR CRADON-LÈS-GONESSE\n\nLes rideaux de fer tombent. Un Boeing de Roissy rase la Dalle.\nLes réverbères sodium s'allument — la rue change de règles.",
+    "night_arrival_log": "22 h 10 — La nuit est tombée sur Cradon-lès-Gonesse. Cap sur la Gare RER « du Y » !"
+  },
+  "travel_modifiers": [
+    {
+      "if_flag": "mobs_tuned",
+      "delta": -1,
+      "min_dist": 1
+    }
+  ],
+  "endings": {
+    "banner_title": "SCÉNARIO TERMINÉ — « Couvre-Feu au Galaxian »",
+    "replay_button_label": "Rejouer le Scénario",
+    "outcome_labels": {
+      "social_win": "Victoire sociale devant le S.O.",
+      "escaped": "Échappée nocturne par le Quai / Train Fantôme",
+      "crs_rush": "Repli d'urgence face aux sirènes CRS",
+      "default": "Victoire sociale devant le S.O."
+    },
+    "status_notes": [
+      {
+        "label": "Statut de Ludo",
+        "if_flag": "ludo_recruited",
+        "true_text": "Recruté dans la bande !",
+        "false_text": "Resté dehors pour ce soir (+1 Faveur)"
+      },
+      {
+        "label": "Renforts du Canal",
+        "join_present_squad": [
+          {
+            "char_id": "manu",
+            "flag": "manu_recruited",
+            "text": "Manu (Bananes)"
+          },
+          {
+            "char_id": "zoe",
+            "flag": "zoe_recruited",
+            "text": "Zoé (Kepons)"
+          }
+        ]
+      }
+    ],
+    "footer_text": "Ta progression peut être enregistrée sur une cassette TDK ou importée dans un prochain scénario."
+  }
+}

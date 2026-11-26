@@ -1,16 +1,15 @@
-## Carnet de Bande / Fanzine 1982 : fiches PJ complètes (Esprit/Corps/Énergie, compétences -3..+5, XP, équipement actif, relations).
+## Carnet de Bande / Fanzine : fiches PJ complètes, compétences, XP, équipement 4 slots et coffre dynamique par scénario.
 extends Control
 
 signal closed
 
 const CharacterSheetPanelSlotOrder: Array[String] = ["look_top", "look_bottom", "tool", "fetish"]
 
-var _active_char_id: String = "leader"
+var _active_char_id: String = ""
 var _panel: PanelContainer = null
 var _tabs_hbox: HBoxContainer = null
 var _lbl_xp: Label = null
 
-# Page gauche : portrait, pion, identité, caractéristiques, jauges, histoire, relations
 var _portrait_tex: TextureRect = null
 var _pawn_tex: TextureRect = null
 var _lbl_identity: Label = null
@@ -19,14 +18,12 @@ var _lbl_gauges: Label = null
 var _lbl_bio: Label = null
 var _relations_vbox: VBoxContainer = null
 
-# Page droite : compétences (-3..+5), spécialité & actions, équipement + coffre, traits
 var _skills_vbox: VBoxContainer = null
 var _lbl_specialty: Label = null
 var _equip_vbox: VBoxContainer = null
+var _lbl_stash_header: Label = null
 var _stash_vbox: VBoxContainer = null
 var _lbl_traits: Label = null
-
-var _tex_cache: Dictionary = {}
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -43,7 +40,7 @@ func open_panel(char_id: String = "") -> void:
 	if char_id != "" and GameState.squad_members.has(char_id):
 		_active_char_id = char_id
 	elif not GameState.squad_members.has(_active_char_id):
-		_active_char_id = GameState.squad_members[0] if not GameState.squad_members.is_empty() else "leader"
+		_active_char_id = GameState.squad_members[0] if not GameState.squad_members.is_empty() else DataLoader.get_leader_char_id()
 	visible = true
 	refresh()
 
@@ -129,7 +126,7 @@ func _build_ui() -> void:
 
 	root_v.add_child(HSeparator.new())
 
-	# Double page : Gauche (Identité/Stats/Bio/Relations) | Droite (Compétences/Équipement/Traits)
+	# Double page : Gauche | Droite
 	var body_h: HBoxContainer = HBoxContainer.new()
 	body_h.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body_h.add_theme_constant_override("separation", 14)
@@ -267,11 +264,11 @@ func _build_ui() -> void:
 	_equip_vbox.add_theme_constant_override("separation", 4)
 	right_v.add_child(_equip_vbox)
 
-	var l_st_t: Label = Label.new()
-	l_st_t.text = "COFFRE DU BOX-GARAGE (cliquer Équiper pour transférer)"
-	l_st_t.add_theme_font_size_override("font_size", 11)
-	l_st_t.add_theme_color_override("font_color", Color(0.76, 0.80, 0.86))
-	right_v.add_child(l_st_t)
+	_lbl_stash_header = Label.new()
+	_lbl_stash_header.text = "COFFRE DE LA BANDE"
+	_lbl_stash_header.add_theme_font_size_override("font_size", 11)
+	_lbl_stash_header.add_theme_color_override("font_color", Color(0.76, 0.80, 0.86))
+	right_v.add_child(_lbl_stash_header)
 
 	_stash_vbox = VBoxContainer.new()
 	_stash_vbox.add_theme_constant_override("separation", 4)
@@ -299,6 +296,8 @@ func refresh() -> void:
 		_active_char_id = GameState.squad_members[0]
 
 	_rebuild_tabs()
+	if _lbl_stash_header != null:
+		_lbl_stash_header.text = "%s (cliquer Équiper pour transférer)" % GameState.get_stash_label()
 
 	var cdef: Dictionary = DataLoader.get_character(_active_char_id)
 	var st: Dictionary = GameState.get_member_state(_active_char_id)
@@ -306,10 +305,10 @@ func refresh() -> void:
 	var xp_avail: int = int(prog.get("xp", 0))
 	_lbl_xp.text = "XP dispo : %d" % xp_avail
 
-	_portrait_tex.texture = _load_texture_safe(str(cdef.get("portrait", "")))
+	_portrait_tex.texture = DataLoader.load_texture_safe(str(cdef.get("portrait", "")))
 	_pawn_tex.texture = GameState.get_character_pawn_texture(_active_char_id)
 
-	var home_id: String = str(cdef.get("home_location", "box_garage"))
+	var home_id: String = str(cdef.get("home_location", DataLoader.get_start_location_id()))
 	var home_name: String = str(DataLoader.get_location(home_id).get("name", home_id))
 	var loc_now_id: String = str(st.get("location_id", home_id))
 	var loc_now_name: String = str(DataLoader.get_location(loc_now_id).get("name", loc_now_id))
@@ -453,7 +452,6 @@ func _rebuild_skills(xp_avail: int, prog: Dictionary, cdef: Dictionary) -> void:
 		l_name.add_theme_color_override("font_color", Color(0.95, 0.94, 0.88))
 		row.add_child(l_name)
 
-		# Jauge visuelle bipolaire [-3 .. 0 .. +5]
 		var meter: HBoxContainer = HBoxContainer.new()
 		meter.add_theme_constant_override("separation", 2)
 		for lvl in [-3, -2, -1, 1, 2, 3, 4, 5]:
@@ -619,25 +617,3 @@ func _make_box(bg: Color, border: Color, bw: int, pad: int) -> StyleBoxFlat:
 	sb.set_border_width_all(bw)
 	sb.set_content_margin_all(pad)
 	return sb
-
-func _load_texture_safe(res_path: String) -> Texture2D:
-	if res_path == "":
-		return null
-	if _tex_cache.has(res_path):
-		var cached: Variant = _tex_cache.get(res_path, null)
-		if cached is Texture2D:
-			return cached as Texture2D
-		return null
-	var tex: Texture2D = null
-	if ResourceLoader.exists(res_path):
-		var loaded: Resource = load(res_path)
-		if loaded is Texture2D:
-			tex = loaded as Texture2D
-	if tex == null:
-		var abs_path: String = ProjectSettings.globalize_path(res_path)
-		if FileAccess.file_exists(abs_path):
-			var img: Image = Image.load_from_file(abs_path)
-			if img != null and not img.is_empty():
-				tex = ImageTexture.create_from_image(img)
-	_tex_cache[res_path] = tex
-	return tex

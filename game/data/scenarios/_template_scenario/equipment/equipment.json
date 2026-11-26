@@ -1,0 +1,189 @@
+{
+  "equipment": [
+    {
+      "id": "haut_debrouille",
+      "name": "Parka de quartier",
+      "slot": "look_top",
+      "sprite": "res://assets/modular/tops/parka_dalle.png",
+      "desc": "Coupe-vent discret adapté aux passages rapides.",
+      "stat_mods": {},
+      "skill_mods": {
+        "caves_esquive": 1
+      },
+      "unlocks_skills": [],
+      "unlocks_actions": []
+    },
+    {
+      "id": "haut_tchatche",
+      "name": "Blouson jean de comptoir",
+      "slot": "look_top",
+      "sprite": "res://assets/modular/tops/blouson_jean.png",
+      "desc": "Veste en denim pratique pour poser sa tchatche.",
+      "stat_mods": {
+        "attitude": 2
+      },
+      "skill_mods": {
+        "tchatche": 1
+      },
+      "unlocks_skills": [],
+      "unlocks_actions": []
+    },
+    {
+      "id": "veste_demo",
+      "name": "Parka de ronde à brassard (Démo ★)",
+      "slot": "look_top",
+      "sprite": "res://assets/modular/tops/imper_vigile.png",
+      "desc": "Exemple d'équipement déclarant son action tactique combat_action directement en JSON.",
+      "stat_mods": {
+        "aura": 1
+      },
+      "skill_mods": {
+        "lecture_rue": 1
+      },
+      "unlocks_skills": [],
+      "unlocks_actions": [
+        {
+          "id": "act_equip_demo_bluff",
+          "label": "Bluff de Ronde (Démo)",
+          "desc": "Action ★ (1x/rencontre) : coupe la garde, -2 résol. et +1 cran d'horloge.",
+          "combat_action": {
+            "id": "act_equip_demo_bluff",
+            "is_equipment": true,
+            "once_per_encounter": true,
+            "short_label": "Bluff Démo",
+            "title": "Bluff de Ronde (Équipement Démo)",
+            "target_kind": "enemy",
+            "min_range": 1,
+            "max_range": 5,
+            "skill": "tchatche",
+            "dc_source": "enemy_social",
+            "roll_bonuses": [
+              {
+                "type": "fixed",
+                "val": 2,
+                "label": "Brassard"
+              }
+            ],
+            "on_success": {
+              "shake_on_brilliant": true,
+              "effects": [
+                {
+                  "op": "cut_counter"
+                },
+                {
+                  "op": "damage_resolve",
+                  "amount": 2,
+                  "brilliant_amount": 3,
+                  "scope": "target"
+                },
+                {
+                  "op": "modify_escalation_clock",
+                  "amount": 1
+                }
+              ],
+              "log": "[Brassard] {actor} déstabilise {target} (-{dmg} résol., garde coupée, +1 {clock_short}) !"
+            },
+            "on_fail": {
+              "effects": [
+                {
+                  "op": "damage_resolve",
+                  "amount": 1,
+                  "scope": "target"
+                }
+              ],
+              "log": "[Brassard] Coup de pression partiel sur {target} (-1 résol.).",
+              "preview_fail": "-1 Résol."
+            },
+            "on_flaw": {
+              "shake": true,
+              "buzz": true,
+              "effects": [
+                {
+                  "op": "modify_moral",
+                  "target": "self",
+                  "amount": -4,
+                  "use_shield": true
+                }
+              ],
+              "log": "[Brassard] Bluff manqué par {actor} (-4 Moral) !",
+              "preview_fail": "0 dégât & -4 Moral"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "bas_jean_demo",
+      "name": "Jean gris & tennis",
+      "slot": "look_bottom",
+      "sprite": "res://assets/modular/bottoms/jean_gris_training.png",
+      "desc": "Denim souple pour tracer sans bruit.",
+      "stat_mods": {},
+      "skill_mods": {
+        "caves_esquive": 1
+      },
+      "unlocks_skills": [],
+      "unlocks_actions": []
+    },
+    {
+      "id": "bas_ville_demo",
+      "name": "Pantalon velours & derbies",
+      "slot": "look_bottom",
+      "sprite": "res://assets/modular/bottoms/pantalon_velours_ville.png",
+      "desc": "Coupe propre pour passer sans éveiller l'attention.",
+      "stat_mods": {
+        "attitude": 2
+      },
+      "skill_mods": {
+        "tchatche": 1
+      },
+      "unlocks_skills": [],
+      "unlocks_actions": []
+    },
+    {
+      "id": "outil_trousseau_demo",
+      "name": "Trousseau passe-partout",
+      "slot": "tool",
+      "desc": "Ouvre les accès techniques de service.",
+      "stat_mods": {},
+      "skill_mods": {
+        "systeme_d": 1
+      },
+      "unlocks_skills": [],
+      "unlocks_actions": []
+    },
+    {
+      "id": "petards_demo",
+      "name": "Pétards Mammouth (Tir)",
+      "slot": "tool",
+      "desc": "Active l'action Tir à distance (2–6 cases) en combat.",
+      "stat_mods": {},
+      "skill_mods": {
+        "systeme_d": 1
+      },
+      "combat_tags": [
+        "ranged_shoot",
+        "throw_bonus"
+      ],
+      "ranged_bonus": 1,
+      "throw_bonus": 1,
+      "ranged_label": "Pétards",
+      "unlocks_skills": [],
+      "unlocks_actions": []
+    },
+    {
+      "id": "fetiche_badge_demo",
+      "name": "Badge de radio libre",
+      "slot": "fetish",
+      "desc": "Porte-bonheur d'atelier ou de salle de concert.",
+      "stat_mods": {
+        "moral_max": 5
+      },
+      "skill_mods": {
+        "jeux_culture": 1
+      },
+      "unlocks_skills": [],
+      "unlocks_actions": []
+    }
+  ]
+}

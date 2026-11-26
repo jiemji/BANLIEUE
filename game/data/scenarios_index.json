@@ -1,0 +1,8 @@
+{
+  "default_scenario_id": "couvre_feu_galaxian",
+  "scenarios": [
+    "couvre_feu_galaxian",
+    "ronde_du_canal",
+    "greve_citroen_aulnay"
+  ]
+}
